@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 fn main() {
-    let mut host = Host::default("rhiza_store").unwrap();
+    let mut host = Host::default("store").unwrap();
     host.start().unwrap();
 
     let running = Arc::new(AtomicBool::new(true));
@@ -24,7 +24,7 @@ fn main() {
     for i in 0..num_clients {
         let r = running.clone();
         let thread_pose = thread::spawn(move || {
-            let pose_node = Node::new("my_pose");
+            let pose_node = Node::default("my_pose");
             let num = i;
             while r.load(Ordering::SeqCst) {
                 let pose = Pose {

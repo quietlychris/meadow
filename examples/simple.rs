@@ -9,7 +9,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 fn main() {
-    let mut host = Host::default("rhiza_store").unwrap();
+
+    let mut host = Host::default("store").unwrap();
     host.start().unwrap();
 
     // Signal handling
@@ -21,7 +22,7 @@ fn main() {
     });
 
     let thread_pose = thread::spawn(move || {
-        let pose_node = Node::new("my_pose");
+        let pose_node = Node::default("my_pose");
         while r2.load(Ordering::SeqCst) {
             let pose = Pose { x: 1.0, y: 20.0 };
             pose_node.publish(pose).unwrap();

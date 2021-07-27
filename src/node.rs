@@ -1,4 +1,5 @@
 use std::net::UdpSocket;
+use std::net::{IpAddr};
 
 use std::error::Error;
 use std::result::Result;
@@ -15,14 +16,33 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn new(topic_name: &str) -> Self {
+
+    pub fn default(topic_name: &str) -> Self {
         let mut socket_num = 25_001;
         let mut node_socket: Option<UdpSocket> = None;
-        while node_socket.is_none() {
-            let node_port = "127.0.0.1:".to_owned() + &socket_num.to_string();
+
+        let mut node = Node {
+            socket: None,
+            topic_name: topic_name.into()
+        };
+
+        node.interface("lo").unwrap();
+   
+        node
+
+    }
+
+    pub fn interface(&mut self, interface_name: &str) -> Result<(), Box<dyn Error>> {
+        let ip = get_ip(interface_name).unwrap();
+
+        let mut socket_num = 25_001;
+        while self.socket.is_none() {
+            let node_port = ip.clone() + ":" + &socket_num.to_string();
             println!("Trying to assign to: {:?}", &node_port);
-            node_socket = match UdpSocket::bind(node_port) {
-                Ok(socket) => Some(socket),
+            self.socket = match UdpSocket::bind(node_port) {
+                Ok(socket) => {
+                    Some(socket)
+                },
                 _ => None,
             };
             if (25_001..25_255).contains(&socket_num) {
@@ -31,11 +51,10 @@ impl Node {
                 panic!("Couldn't assign node to socket over range");
             }
         }
+        println!("- Successfully assigned to {:?}",self.socket.as_ref().unwrap().local_addr()?);
 
-        Node {
-            socket: node_socket,
-            topic_name: topic_name.into(),
-        }
+        Ok(())
+
     }
 
     pub fn publish<T: Serialize + DeserializeOwned + std::fmt::Debug>(
@@ -77,4 +96,27 @@ impl Node {
         Ok(())
     } 
     */
+}
+
+fn get_ip(interface_name: &str) -> Result<String, Box<dyn Error>> {
+
+    let interface = pnet::datalink::interfaces()
+        .into_iter()
+        .find(|iface| iface.name == interface_name)
+        .expect(&format!("IP address for interface \"{}\" does not exist or is not up",interface_name));
+
+    // dbg!(&interface);
+    let source_ip = interface
+        .ips
+        .iter()
+        .find(|ip| ip.is_ipv4())
+        .map(|ip| match ip.ip() {
+            IpAddr::V4(ip) => ip,
+            _ => unreachable!(),
+        })
+        .expect(&format!("IP address for interface {} does not exist or is not up",interface_name))
+        .to_string();
+
+    Ok(source_ip)
+
 }

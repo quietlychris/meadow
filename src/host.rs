@@ -23,22 +23,22 @@ pub struct Host {
 }
 
 #[derive(Debug)]
-pub struct Config {
+pub struct HostConfig {
     ip: String,
     socket_num: usize,
     store_name: String,
 }
 
-impl Config {
-    pub fn new(ip: String) -> Config {
-        Config {
+impl HostConfig {
+    pub fn new(ip: String) -> HostConfig {
+        HostConfig {
             ip,
             socket_num: 25_000,
             store_name: "rhiza_store".into(),
         }
     }
 
-    pub fn socket_num(mut self, socket_num: usize) -> Config {
+    pub fn socket_num(mut self, socket_num: usize) -> HostConfig {
         self.socket_num = socket_num;
         self
     }
@@ -134,6 +134,8 @@ impl Host {
     pub fn stop(&mut self) -> Result<(), Box<dyn Error>> {
         //self.thread_recv = None;
         //self.thread_store.unwrap().join().unwrap();
+
+        panic!("unimplemented!");
         Ok(())
     }
 }
