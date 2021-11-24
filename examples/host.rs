@@ -7,6 +7,7 @@ async fn run_host() {
     let mut host = Host::default("store").await.unwrap();
     println!("Starting host");
     host.start().await.unwrap();
+    /*
     loop {
         let word = match host.get::<String>("hello") {
             Some(word) => word,
@@ -15,8 +16,8 @@ async fn run_host() {
         println!("{}", word);
         std::thread::sleep(std::time::Duration::from_millis(1_000));
     }
+    */
 }
-
 
 fn main() {
     let handle = thread::spawn(|| {
@@ -24,7 +25,7 @@ fn main() {
     });
     println!("Running a host in the background");
     // Do whatever else you'd like while there's a host in the background
-    for i in 0..10 {
+    for i in 0..60 {
         thread::sleep(std::time::Duration::from_millis(1_000));
         println!("Still running");
     }

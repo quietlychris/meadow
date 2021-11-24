@@ -1,14 +1,12 @@
 // Tokio for async
-// use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
+use tokio::net::TcpStream;
 use tokio::task::JoinHandle;
 
 use postcard::*;
 use serde::{de::DeserializeOwned, Serialize};
-// use std::thread::{self, JoinHandle};
 
 use std::sync::{Arc, Mutex};
-// use tokio::sync::Mutex;
 
 use std::error::Error;
 use std::result::Result;
@@ -17,9 +15,10 @@ use crate::msg::*;
 
 #[derive(Debug)]
 pub struct Host {
-    listener: Arc<Mutex<TcpListener>>,
+    listener: TcpListener,
     store: sled::Db,
     thread_start: Option<JoinHandle<()>>,
+    reply_count: Arc<Mutex<usize>>
 }
 
 #[derive(Debug)]
@@ -46,7 +45,7 @@ impl HostConfig {
     pub async fn build(&self) -> Result<Host, Box<dyn Error>> {
         // self.validate();
         //let socket = UdpSocket::bind(self.ip.clone() + &self.socket_num.to_string())?;
-        let listener = Arc::new(Mutex::new(TcpListener::bind(self.ip.clone() + &self.socket_num.to_string()).await?));
+        let listener = TcpListener::bind(self.ip.clone() + &self.socket_num.to_string()).await?;
 
         let store: sled::Db = sled::open(&self.store_name)?;
 
@@ -54,6 +53,7 @@ impl HostConfig {
             listener,
             store,
             thread_start: None,
+            reply_count: Arc::new(Mutex::new(0))
         };
 
         Ok(host)
@@ -65,9 +65,7 @@ impl Host {
         let ip = "127.0.0.1:"; // Defaults to localhost
 
         //let socket = UdpSocket::bind(ip.to_owned() + "25000")?;
-        let listener = Arc::new(Mutex::new(
-            TcpListener::bind(ip.to_owned() + "25000").await?,
-        ));
+        let listener = TcpListener::bind(ip.to_owned() + "25000").await?;
 
         let config = sled::Config::default().path(store_name).temporary(true);
         let store: sled::Db = config.open()?;
@@ -76,11 +74,13 @@ impl Host {
             listener,
             store,
             thread_start: None,
+            reply_count: Arc::new(Mutex::new(0))
         };
 
         Ok(host)
     }
 
+    /*
     pub fn get<T: Serialize + DeserializeOwned + std::fmt::Debug>(
         &mut self,
         query: &str,
@@ -102,92 +102,78 @@ impl Host {
         //v
         val
     }
+    */
 
     pub async fn start(&mut self) -> Result<(), Box<dyn Error>> {
-        
         loop {
-            // The second item contains the IP and port of the new connection.
-            let listener = self.listener.lock().unwrap();
-            let (stream, _) = listener.accept().await.unwrap();
+            let (stream, _) = self.listener.accept().await?;
             let db = self.store.clone();
+            let counter = self.reply_count.clone();
             tokio::spawn(async move {
-                // Wait for the socket to be readable
-                // stream.readable().await.unwrap();
-
-                // Creating the buffer **after** the `await` prevents it from
-                // being stored in the async task.
-                // let mut buf = [0; 4096];
-                let mut buf = [0u8; 4096];
-                // Try to read data, this may still fail with `WouldBlock`
-                // if the readiness event is a false positive.
-                loop {
-                    stream.readable().await.unwrap();
-
-                    match stream.try_read(&mut buf) {
-                        Ok(0) => break,
-                        Ok(n) => {
-                            let bytes = &buf[..n];
-                            let msg: GenericRhizaMsg = from_bytes(bytes).unwrap();
-                            dbg!(&msg);
-
-                            match msg.msg_type {
-                                Msg::SET => {
-                                    println!(
-                                        "received {} bytes, to be assigned to: {}",
-                                        n, &msg.name
-                                    );
-                                    db.insert(msg.name.as_bytes(), bytes).unwrap();
-                                }
-                                Msg::GET => loop {
-                                    println!(
-                                        "received {} bytes, asking for reply on topic: {}",
-                                        n, &msg.name
-                                    );
-
-                                    stream.writable().await.unwrap();
-                                    let return_bytes = db.get(&msg.name).unwrap().unwrap();
-                                    match stream.try_write(&return_bytes) {
-                                        Ok(n) => {
-                                            println!("Successfully replied with {} bytes", n);
-                                            break;
-                                        }
-                                        Err(ref e)
-                                            if e.kind() == std::io::ErrorKind::WouldBlock =>
-                                        {
-                                            continue;
-                                        }
-                                        Err(e) => {
-                                            println!("Error: {:?}", e);
-                                            continue;
-                                            //return Err(e.into());
-                                        }
-                                    }
-                                },
-                            }
-
-                            //self.store.insert(msg.name.as_bytes(), bytes).unwrap();
-                            //let decoded: RhizaMsg<Pose> = from_bytes(bytes).unwrap();
-                            //dbg!(&decoded);
-                        }
-                        Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                            // println!("Error::WouldBlock: {:?}", e);
-                            continue;
-                        }
-                        Err(e) => {
-                            println!("Error: {:?}", e);
-                            // return Err(e.into());
-                        }
-                    }
-                }
+                process(stream, db, counter.clone()).await;
             });
         }
-
-        
     }
 
     pub fn stop(&mut self) -> Result<(), Box<dyn Error>> {
         panic!("unimplemented!");
         Ok(())
+    }
+}
+
+async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
+    let mut buf = [0u8; 4096];
+    loop {
+        stream.readable().await.unwrap();
+        dbg!(&count);
+        match stream.try_read(&mut buf) {
+            Ok(0) => break,
+            Ok(n) => {
+                stream.writable().await.unwrap();
+
+                let bytes = &buf[..n];
+                let msg: GenericRhizaMsg = from_bytes(bytes).unwrap();
+                dbg!(&msg);
+
+                match msg.msg_type {
+                    Msg::SET => {
+                        println!("received {} bytes, to be assigned to: {}", n, &msg.name);
+                        db.insert(msg.name.as_bytes(), bytes).unwrap();
+                    }
+                    Msg::GET => loop {
+                        println!(
+                            "received {} bytes, asking for reply on topic: {}",
+                            n, &msg.name
+                        );
+
+                        println!("Wait for stream to be writeable");
+                        // stream.writable().await.unwrap();
+                        println!("Stream now writeable");
+                        let return_bytes = db.get(&msg.name).unwrap().unwrap();
+                        match stream.try_write(&return_bytes) {
+                            Ok(n) => {
+                                println!("Successfully replied with {} bytes", n);
+                                let mut count = count.lock().unwrap();
+                                *count += 1;
+                                break;
+                            }
+                            Err(e) => {
+                                if e.kind() == std::io::ErrorKind::WouldBlock {}
+                                continue;
+                            }
+                        }
+                    },
+                }
+            }
+            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                // println!("Error::WouldBlock: {:?}", e);
+                continue;
+            }
+            Err(e) => {
+                println!("Error: {:?}", e);
+                // return Err(e.into());
+            }
+        }
     }
 }
 

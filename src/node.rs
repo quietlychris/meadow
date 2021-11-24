@@ -1,7 +1,7 @@
 use std::net::IpAddr;
 
 // use tokio::io::{AsyncReadExt, AsyncWriteExt};
-// use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
+use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 // use tokio::net::tcp::{ReadHalf, WriteHalf};
 use tokio::net::TcpStream;
 
@@ -23,7 +23,7 @@ use crate::msg::*;
 // TO_DO: Make rx,tx OwnedRead/WriteHalf or normal Read/WriteHalf?
 #[derive(Debug)]
 pub struct Node<T: Serialize + DeserializeOwned + std::fmt::Debug> {
-    stream: Option<Arc<Mutex<TcpStream>>>,
+    stream: Option<TcpStream>,
     topic_name: String,
     phantom: PhantomData<T>,
 }
@@ -47,15 +47,10 @@ impl<T: Serialize + DeserializeOwned + std::fmt::Debug> Node<T> {
         dbg!(ip);
         //let mut socket_num = 25_001;
         while self.stream.is_none() {
-            // let node_port = ip.clone() + ":" + &socket_num.to_string();
-            //sleep(Duration::from_millis(1_000)).await;
-            //println!("Trying to assign to: {:?}", &node_port);
-            // std::thread::sleep(Duration::from_millis(1_000));
-
             match TcpStream::connect("127.0.0.1:25000").await {
                 Ok(stream) => {
-                    println!("- Assigning to {:?}", &stream.local_addr());
-                    self.stream = Some(Arc::new(Mutex::new(stream)));
+                    println!("- Assigning to {:?}", &stream.local_addr()?);
+                    self.stream = Some(stream);
                     println!("\t - Successfully assigned")
                 }
                 Err(e) => println!("Error: {:?}", e),
@@ -90,13 +85,14 @@ impl<T: Serialize + DeserializeOwned + std::fmt::Debug> Node<T> {
 
         let packet_as_bytes: heapless::Vec<u8, 4096> = to_vec(&packet).unwrap();
 
-        let mut stream = self.stream.as_ref().unwrap().lock().await;
-        println!("Writing from node");
+        let stream = self.stream.as_ref().unwrap();
+        // let mut stream = self.stream.as_ref().unwrap().lock().await;
+        // println!("Writing from node");
         loop {
             stream.writable().await?;
             match stream.try_write(&packet_as_bytes) {
                 Ok(n) => {
-                    println!("Successfully wrote {} bytes to host", n);
+                    // println!("Successfully wrote {} bytes to host", n);
                     break;
                 }
                 Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
@@ -111,38 +107,43 @@ impl<T: Serialize + DeserializeOwned + std::fmt::Debug> Node<T> {
         Ok(())
     }
 
-    pub async fn request(&self) -> Result<T, Box<dyn Error>> {
+    pub async fn request(&mut self) -> Result<T, Box<dyn Error>> {
         let packet = GenericRhizaMsg {
             msg_type: Msg::GET,
             name: self.topic_name.to_string(),
             data_type: std::any::type_name::<T>().to_string(),
             data: Vec::new(),
         };
-        println!("{:?}", &packet);
+        // println!("{:?}", &packet);
 
         let packet_as_bytes: heapless::Vec<u8, 4096> = to_vec(&packet).unwrap();
 
-        let stream = self.stream.as_ref().unwrap().lock().await;
+        let stream = self.stream.as_ref().unwrap();
+        //let stream = stream.as_ref().unwrap().lock().await;
 
-        loop {
+        stream.writable().await?;
+        
             // Write the request
-            stream.writable().await?;
-            match stream.try_write(&packet_as_bytes) {
-                Ok(n) => {
-                    println!("Successfully wrote {}-byte request to host", n);
-                    // break;
-                }
-                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    continue;
-                }
-                Err(e) => {
-                    return Err(e.into());
+            loop {
+                match stream.try_write(&packet_as_bytes) {
+                    Ok(n) => {
+                        // println!("Successfully wrote {}-byte request to host", n);
+                        break;
+                    }
+                    Err(e)  => {
+                        if e.kind() == std::io::ErrorKind::WouldBlock {
+
+                        }
+                        continue;
+                    }
                 }
             }
+
             // Wait for the response
-            stream.readable().await?;
+            //stream.readable().await?;
             let mut buf = [0u8; 4096];
             loop {
+                stream.readable().await?;
                 match stream.try_read(&mut buf) {
                     Ok(0) => continue,
                     Ok(n) => {
@@ -151,14 +152,16 @@ impl<T: Serialize + DeserializeOwned + std::fmt::Debug> Node<T> {
                         return Ok(msg.data);
                     }
                     Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        // println!("Got WouldBlock error");
                         continue;
                     }
                     Err(e) => {
-                        return Err(e.into());
+                        //return Err(e.into());
+                        continue;
                     }
                 }
             }
-        }
+        
     }
 }
 

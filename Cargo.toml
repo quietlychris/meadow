@@ -16,7 +16,7 @@ heapless = "0.7"
 
 sled = "0.34.6"
 pnet = "0.28"
-tokio = { version = "1.12.0", features = ["full", "rt-multi-thread"] }
+tokio = { version = "1.14.0", features = ["full"] }
 
 [dev-dependencies]
 simple-signal = "1.1"
