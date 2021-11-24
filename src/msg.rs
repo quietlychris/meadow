@@ -2,16 +2,24 @@ use serde::{Deserialize, Serialize};
 // use std::net::IpAddr;
 
 #[derive(Debug, Serialize, Deserialize)]
+pub enum Msg {
+    SET,
+    GET,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RhizaMsg<T> {
+    pub msg_type: Msg,
     pub name: String,
-    pub type_info: String,
-    pub data: Option<T>,
+    pub data_type: String,
+    pub data: T,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GenericRhizaMsg {
+    pub msg_type: Msg,
     pub name: String,
-    pub type_info: String,
+    pub data_type: String,
     pub data: Vec<u8>,
 }
 
@@ -26,6 +34,7 @@ pub struct RhizaRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[repr(C)]
 pub struct Pose {
     pub x: f32,
     pub y: f32,

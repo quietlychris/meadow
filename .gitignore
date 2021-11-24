@@ -1,6 +1,6 @@
 /target
-examples/serialized_into_sled.rs
 examples/sled_multithread.rs
 examples/get_ip.rs
+examples/tcp_host.rs
 Cargo.lock
 store

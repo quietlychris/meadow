@@ -1,11 +1,14 @@
-use std::net::UdpSocket;
+// Tokio for async
+// use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpListener;
+use tokio::task::JoinHandle;
 
 use postcard::*;
 use serde::{de::DeserializeOwned, Serialize};
-use std::sync::mpsc::channel;
-use std::thread::{self, JoinHandle};
+// use std::thread::{self, JoinHandle};
 
 use std::sync::{Arc, Mutex};
+// use tokio::sync::Mutex;
 
 use std::error::Error;
 use std::result::Result;
@@ -14,12 +17,9 @@ use crate::msg::*;
 
 #[derive(Debug)]
 pub struct Host {
-    socket: UdpSocket,
-    store: Arc<Mutex<sled::Db>>,
-    thread_recv: Option<JoinHandle<()>>,
-    thread_store: Option<JoinHandle<()>>,
-    thread_send: Option<JoinHandle<()>>,
-    running: bool,
+    listener: Arc<Mutex<TcpListener>>,
+    store: sled::Db,
+    thread_start: Option<JoinHandle<()>>,
 }
 
 #[derive(Debug)]
@@ -43,18 +43,17 @@ impl HostConfig {
         self
     }
 
-    pub fn build(&self) -> Result<Host, Box<dyn Error>> {
+    pub async fn build(&self) -> Result<Host, Box<dyn Error>> {
         // self.validate();
-        let socket = UdpSocket::bind(self.ip.clone() + &self.socket_num.to_string())?;
+        //let socket = UdpSocket::bind(self.ip.clone() + &self.socket_num.to_string())?;
+        let listener = Arc::new(Mutex::new(TcpListener::bind(self.ip.clone() + &self.socket_num.to_string()).await?));
+
         let store: sled::Db = sled::open(&self.store_name)?;
 
         let host = Host {
-            socket,
-            store: Arc::new(Mutex::new(store)),
-            thread_recv: None,
-            thread_store: None,
-            thread_send: None,
-            running: false,
+            listener,
+            store,
+            thread_start: None,
         };
 
         Ok(host)
@@ -62,79 +61,131 @@ impl HostConfig {
 }
 
 impl Host {
-    pub fn default(store_name: &str) -> Result<Host, Box<dyn Error>> {
+    pub async fn default(store_name: &str) -> Result<Host, Box<dyn Error>> {
         let ip = "127.0.0.1:"; // Defaults to localhost
 
-        let socket = UdpSocket::bind(ip.to_owned() + "25000")?;
+        //let socket = UdpSocket::bind(ip.to_owned() + "25000")?;
+        let listener = Arc::new(Mutex::new(
+            TcpListener::bind(ip.to_owned() + "25000").await?,
+        ));
 
         let config = sled::Config::default().path(store_name).temporary(true);
         let store: sled::Db = config.open()?;
 
         let host = Host {
-            socket,
-            store: Arc::new(Mutex::new(store)),
-            thread_recv: None,
-            thread_store: None,
-            thread_send: None,
-            running: false,
+            listener,
+            store,
+            thread_start: None,
         };
 
         Ok(host)
     }
 
-    pub fn get<T: Serialize + DeserializeOwned + std::fmt::Debug>(&mut self, query: &str) -> T {
-        let store = self.store.lock().unwrap();
+    pub fn get<T: Serialize + DeserializeOwned + std::fmt::Debug>(
+        &mut self,
+        query: &str,
+    ) -> Option<T> {
+        // let store = self.store.lock().unwrap();
         println!("Asking for '{}' from the store", &query);
-        let bytes = store.get(query).unwrap().unwrap();
+        let val: Option<T> = match self.store.get(query).ok()? {
+            Some(bytes) => {
+                let v: T = from_bytes(&bytes[..]).unwrap();
+                Some(v)
+            }
+            None => None,
+        };
         /*println!(
             "From the kv store using query '{}', we got {:?}",
             query, bytes
         );*/
-        let v: T = from_bytes(&bytes[..]).unwrap();
-        v
+        //let v: T = from_bytes(&bytes[..]).unwrap();
+        //v
+        val
     }
 
-    pub fn start(&mut self) -> Result<(), Box<dyn Error>> {
-        let (tx, rx) = channel();
-        let cloned_socket = self.socket.try_clone()?;
+    pub async fn start(&mut self) -> Result<(), Box<dyn Error>> {
+        
+        loop {
+            // The second item contains the IP and port of the new connection.
+            let listener = self.listener.lock().unwrap();
+            let (stream, _) = listener.accept().await.unwrap();
+            let db = self.store.clone();
+            tokio::spawn(async move {
+                // Wait for the socket to be readable
+                // stream.readable().await.unwrap();
 
-        // I don't like how this is done
-        let thread_recv = thread::spawn(move || {
-            let mut buf = [0u8; 1024];
-            loop {
-                match cloned_socket.recv(&mut buf) {
-                    Ok(num_bytes) => {
-                        let recvd = buf[..num_bytes].to_vec();
-                        tx.send(recvd).unwrap();
+                // Creating the buffer **after** the `await` prevents it from
+                // being stored in the async task.
+                // let mut buf = [0; 4096];
+                let mut buf = [0u8; 4096];
+                // Try to read data, this may still fail with `WouldBlock`
+                // if the readiness event is a false positive.
+                loop {
+                    stream.readable().await.unwrap();
+
+                    match stream.try_read(&mut buf) {
+                        Ok(0) => break,
+                        Ok(n) => {
+                            let bytes = &buf[..n];
+                            let msg: GenericRhizaMsg = from_bytes(bytes).unwrap();
+                            dbg!(&msg);
+
+                            match msg.msg_type {
+                                Msg::SET => {
+                                    println!(
+                                        "received {} bytes, to be assigned to: {}",
+                                        n, &msg.name
+                                    );
+                                    db.insert(msg.name.as_bytes(), bytes).unwrap();
+                                }
+                                Msg::GET => loop {
+                                    println!(
+                                        "received {} bytes, asking for reply on topic: {}",
+                                        n, &msg.name
+                                    );
+
+                                    stream.writable().await.unwrap();
+                                    let return_bytes = db.get(&msg.name).unwrap().unwrap();
+                                    match stream.try_write(&return_bytes) {
+                                        Ok(n) => {
+                                            println!("Successfully replied with {} bytes", n);
+                                            break;
+                                        }
+                                        Err(ref e)
+                                            if e.kind() == std::io::ErrorKind::WouldBlock =>
+                                        {
+                                            continue;
+                                        }
+                                        Err(e) => {
+                                            println!("Error: {:?}", e);
+                                            continue;
+                                            //return Err(e.into());
+                                        }
+                                    }
+                                },
+                            }
+
+                            //self.store.insert(msg.name.as_bytes(), bytes).unwrap();
+                            //let decoded: RhizaMsg<Pose> = from_bytes(bytes).unwrap();
+                            //dbg!(&decoded);
+                        }
+                        Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                            // println!("Error::WouldBlock: {:?}", e);
+                            continue;
+                        }
+                        Err(e) => {
+                            println!("Error: {:?}", e);
+                            // return Err(e.into());
+                        }
                     }
-                    Err(e) => println!("recv function failed: {:?}", e),
                 }
-            }
-        });
+            });
+        }
 
-        self.thread_recv = Some(thread_recv);
-
-        let store = Arc::clone(&self.store);
-        let thread_store = thread::spawn(move || loop {
-            if let Ok(bytes) = rx.try_recv() {
-                let msg: GenericRhizaMsg = from_bytes(&bytes).unwrap();
-
-                let store = store.lock().unwrap();
-                store.insert(msg.name.as_bytes(), bytes).unwrap();
-
-                drop(store);
-            }
-        });
-
-        self.thread_store = Some(thread_store);
-
-        Ok(())
+        
     }
 
     pub fn stop(&mut self) -> Result<(), Box<dyn Error>> {
-        //self.thread_recv = None;
-        //self.thread_store.unwrap().join().unwrap();
-
         panic!("unimplemented!");
         Ok(())
     }

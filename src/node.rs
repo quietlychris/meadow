@@ -1,7 +1,16 @@
-use std::net::UdpSocket;
-use std::net::{IpAddr};
+use std::net::IpAddr;
+
+// use tokio::io::{AsyncReadExt, AsyncWriteExt};
+// use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
+// use tokio::net::tcp::{ReadHalf, WriteHalf};
+use tokio::net::TcpStream;
+
+use std::sync::Arc;
+use tokio::sync::Mutex;
+// use tokio::time::{sleep, Duration};
 
 use std::error::Error;
+use std::marker::PhantomData;
 use std::result::Result;
 
 use postcard::*;
@@ -9,58 +18,54 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use crate::msg::*;
 
+// pub trait Retrievable: Serialize + DeserializeOwned + std::fmt::Debug {}
+
+// TO_DO: Make rx,tx OwnedRead/WriteHalf or normal Read/WriteHalf?
 #[derive(Debug)]
-pub struct Node {
-    socket: Option<UdpSocket>,
+pub struct Node<T: Serialize + DeserializeOwned + std::fmt::Debug> {
+    stream: Option<Arc<Mutex<TcpStream>>>,
     topic_name: String,
+    phantom: PhantomData<T>,
 }
 
-impl Node {
-
+impl<T: Serialize + DeserializeOwned + std::fmt::Debug> Node<T> {
     pub fn default(topic_name: &str) -> Self {
-        let mut socket_num = 25_001;
-        let mut node_socket: Option<UdpSocket> = None;
+        let socket_num = 25_001;
+        let node_socket: Option<TcpStream> = None;
 
-        let mut node = Node {
-            socket: None,
-            topic_name: topic_name.into()
+        let node: Node<T> = Node {
+            stream: None,
+            topic_name: topic_name.into(),
+            phantom: PhantomData,
         };
 
-        node.interface("lo").unwrap();
-   
         node
-
     }
 
-    pub fn interface(&mut self, interface_name: &str) -> Result<(), Box<dyn Error>> {
+    pub async fn interface(&mut self, interface_name: &str) -> Result<(), Box<dyn Error>> {
         let ip = get_ip(interface_name).unwrap();
+        dbg!(ip);
+        //let mut socket_num = 25_001;
+        while self.stream.is_none() {
+            // let node_port = ip.clone() + ":" + &socket_num.to_string();
+            //sleep(Duration::from_millis(1_000)).await;
+            //println!("Trying to assign to: {:?}", &node_port);
+            // std::thread::sleep(Duration::from_millis(1_000));
 
-        let mut socket_num = 25_001;
-        while self.socket.is_none() {
-            let node_port = ip.clone() + ":" + &socket_num.to_string();
-            println!("Trying to assign to: {:?}", &node_port);
-            self.socket = match UdpSocket::bind(node_port) {
-                Ok(socket) => {
-                    Some(socket)
-                },
-                _ => None,
+            match TcpStream::connect("127.0.0.1:25000").await {
+                Ok(stream) => {
+                    println!("- Assigning to {:?}", &stream.local_addr());
+                    self.stream = Some(Arc::new(Mutex::new(stream)));
+                    println!("\t - Successfully assigned")
+                }
+                Err(e) => println!("Error: {:?}", e),
             };
-            if (25_001..25_255).contains(&socket_num) {
-                socket_num += 1;
-            } else if socket_num > 25_255 {
-                panic!("Couldn't assign node to socket over range");
-            }
         }
-        println!("- Successfully assigned to {:?}",self.socket.as_ref().unwrap().local_addr()?);
 
         Ok(())
-
     }
 
-    pub fn publish<T: Serialize + DeserializeOwned + std::fmt::Debug>(
-        &self,
-        val: T,
-    ) -> Result<(), Box<dyn Error>> {
+    pub async fn publish(&mut self, val: T) -> Result<(), Box<dyn Error>> {
         /*
         println!(
             "The passed value is: {:?}, of type {:?}",
@@ -74,36 +79,97 @@ impl Node {
             name_length
         );*/
 
+        //println!("val: {:?}", &val);
         let packet = RhizaMsg {
+            msg_type: Msg::SET,
             name: self.topic_name.to_string(),
-            type_info: std::any::type_name::<T>().to_string(),
-            data: Some(val),
+            data_type: std::any::type_name::<T>().to_string(),
+            data: val,
         };
+        // println!("{:?}", &packet);
 
-        let packet_as_bytes: heapless::Vec<u8, 1024> = to_vec(&packet).unwrap();
+        let packet_as_bytes: heapless::Vec<u8, 4096> = to_vec(&packet).unwrap();
 
-        self.socket
-            .as_ref()
-            .unwrap()
-            .send_to(&packet_as_bytes, "127.0.0.1:25000")?;
+        let mut stream = self.stream.as_ref().unwrap().lock().await;
+        println!("Writing from node");
+        loop {
+            stream.writable().await?;
+            match stream.try_write(&packet_as_bytes) {
+                Ok(n) => {
+                    println!("Successfully wrote {} bytes to host", n);
+                    break;
+                }
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    continue;
+                }
+                Err(e) => {
+                    return Err(e.into());
+                }
+            }
+        }
 
         Ok(())
     }
 
-    /*
-    pub fn request<T: Serialize + DeserializeOwned + std::fmt::Debug>(&self, topic_name: &str) -> Result<T, Box<dyn Error>> {
+    pub async fn request(&self) -> Result<T, Box<dyn Error>> {
+        let packet = GenericRhizaMsg {
+            msg_type: Msg::GET,
+            name: self.topic_name.to_string(),
+            data_type: std::any::type_name::<T>().to_string(),
+            data: Vec::new(),
+        };
+        println!("{:?}", &packet);
 
-        Ok(())
-    } 
-    */
+        let packet_as_bytes: heapless::Vec<u8, 4096> = to_vec(&packet).unwrap();
+
+        let stream = self.stream.as_ref().unwrap().lock().await;
+
+        loop {
+            // Write the request
+            stream.writable().await?;
+            match stream.try_write(&packet_as_bytes) {
+                Ok(n) => {
+                    println!("Successfully wrote {}-byte request to host", n);
+                    // break;
+                }
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    continue;
+                }
+                Err(e) => {
+                    return Err(e.into());
+                }
+            }
+            // Wait for the response
+            stream.readable().await?;
+            let mut buf = [0u8; 4096];
+            loop {
+                match stream.try_read(&mut buf) {
+                    Ok(0) => continue,
+                    Ok(n) => {
+                        let bytes = &buf[..n];
+                        let msg: RhizaMsg<T> = from_bytes(&bytes).unwrap();
+                        return Ok(msg.data);
+                    }
+                    Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        continue;
+                    }
+                    Err(e) => {
+                        return Err(e.into());
+                    }
+                }
+            }
+        }
+    }
 }
 
 fn get_ip(interface_name: &str) -> Result<String, Box<dyn Error>> {
-
     let interface = pnet::datalink::interfaces()
         .into_iter()
         .find(|iface| iface.name == interface_name)
-        .expect(&format!("IP address for interface \"{}\" does not exist or is not up",interface_name));
+        .expect(&format!(
+            "IP address for interface \"{}\" does not exist or is not up",
+            interface_name
+        ));
 
     // dbg!(&interface);
     let source_ip = interface
@@ -114,9 +180,11 @@ fn get_ip(interface_name: &str) -> Result<String, Box<dyn Error>> {
             IpAddr::V4(ip) => ip,
             _ => unreachable!(),
         })
-        .expect(&format!("IP address for interface {} does not exist or is not up",interface_name))
+        .expect(&format!(
+            "IP address for interface {} does not exist or is not up",
+            interface_name
+        ))
         .to_string();
 
     Ok(source_ip)
-
 }
