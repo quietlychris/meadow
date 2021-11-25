@@ -1,6 +1,6 @@
 use tokio::net::TcpStream;
 
-use std::net::{Ipv4Addr, IpAddr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use std::error::Error;
 use std::marker::PhantomData;

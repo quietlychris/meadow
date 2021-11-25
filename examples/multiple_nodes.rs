@@ -17,8 +17,7 @@ async fn main() {
 
             // Create our node
             let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-            let cfg: NodeConfig<Pose> = NodeConfig::new("pose")
-                .host_addr(addr);
+            let cfg: NodeConfig<Pose> = NodeConfig::new("pose").host_addr(addr);
             let mut node: Node<Pose> = Node::from_config(cfg.clone());
             node.connect().await.unwrap();
 
@@ -26,7 +25,7 @@ async fn main() {
                 // Neither one of the following should compile
                 // node.publish(8).await.unwrap();
                 // node.publish("world".to_string()).await.unwrap();
-                
+
                 node.publish(pose.clone()).await.unwrap();
                 sleep(Duration::from_millis(i)).await;
                 let result = node.request().await.unwrap();

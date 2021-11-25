@@ -97,7 +97,7 @@ impl Host {
             });
         }
     }
-    
+
     pub fn stop(&mut self) -> Result<(), Box<dyn Error>> {
         panic!("unimplemented!");
         Ok(())
