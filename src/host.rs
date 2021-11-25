@@ -1,14 +1,13 @@
 // Tokio for async
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
-use tokio::task::JoinHandle;
 
 use postcard::*;
-use serde::{de::DeserializeOwned, Serialize};
 
 use std::sync::{Arc, Mutex};
 
 use std::error::Error;
+use std::net::SocketAddr;
 use std::result::Result;
 
 use crate::msg::*;
@@ -17,21 +16,20 @@ use crate::msg::*;
 pub struct Host {
     listener: TcpListener,
     store: sled::Db,
-    thread_start: Option<JoinHandle<()>>,
-    reply_count: Arc<Mutex<usize>>
+    reply_count: Arc<Mutex<usize>>,
 }
 
 #[derive(Debug)]
 pub struct HostConfig {
-    ip: String,
+    interface: String,
     socket_num: usize,
     store_name: String,
 }
 
 impl HostConfig {
-    pub fn new(ip: String) -> HostConfig {
+    pub fn new(interface: impl Into<String>) -> HostConfig {
         HostConfig {
-            ip,
+            interface: interface.into(),
             socket_num: 25_000,
             store_name: "rhiza_store".into(),
         }
@@ -42,29 +40,38 @@ impl HostConfig {
         self
     }
 
-    pub async fn build(&self) -> Result<Host, Box<dyn Error>> {
-        // self.validate();
-        //let socket = UdpSocket::bind(self.ip.clone() + &self.socket_num.to_string())?;
-        let listener = TcpListener::bind(self.ip.clone() + &self.socket_num.to_string()).await?;
-
-        let store: sled::Db = sled::open(&self.store_name)?;
-
-        let host = Host {
-            listener,
-            store,
-            thread_start: None,
-            reply_count: Arc::new(Mutex::new(0))
-        };
-
-        Ok(host)
+    pub fn store_name(mut self, store_name: impl Into<String>) -> HostConfig {
+        self.store_name = store_name.into();
+        self
     }
 }
 
 impl Host {
+    pub async fn from_config(cfg: HostConfig) -> Result<Host, Box<dyn Error>> {
+        let ip = crate::get_ip(&cfg.interface)?;
+        println!(
+            "On interface {:?}, the device IP is: {:?}",
+            &cfg.interface, &ip
+        );
+
+        let raw_addr = ip.to_owned() + ":" + &cfg.socket_num.to_string();
+        println!("Raw address string: {:?}", &raw_addr);
+        let addr: SocketAddr = raw_addr.parse()?;
+        let listener = TcpListener::bind(addr).await?;
+
+        let config = sled::Config::default().path(cfg.store_name).temporary(true);
+        let store: sled::Db = config.open()?;
+
+        Ok(Host {
+            listener,
+            store,
+            reply_count: Arc::new(Mutex::new(0)),
+        })
+    }
+
     pub async fn default(store_name: &str) -> Result<Host, Box<dyn Error>> {
         let ip = "127.0.0.1:"; // Defaults to localhost
 
-        //let socket = UdpSocket::bind(ip.to_owned() + "25000")?;
         let listener = TcpListener::bind(ip.to_owned() + "25000").await?;
 
         let config = sled::Config::default().path(store_name).temporary(true);
@@ -73,38 +80,14 @@ impl Host {
         let host = Host {
             listener,
             store,
-            thread_start: None,
-            reply_count: Arc::new(Mutex::new(0))
+            reply_count: Arc::new(Mutex::new(0)),
         };
 
         Ok(host)
     }
 
-    /*
-    pub fn get<T: Serialize + DeserializeOwned + std::fmt::Debug>(
-        &mut self,
-        query: &str,
-    ) -> Option<T> {
-        // let store = self.store.lock().unwrap();
-        println!("Asking for '{}' from the store", &query);
-        let val: Option<T> = match self.store.get(query).ok()? {
-            Some(bytes) => {
-                let v: T = from_bytes(&bytes[..]).unwrap();
-                Some(v)
-            }
-            None => None,
-        };
-        /*println!(
-            "From the kv store using query '{}', we got {:?}",
-            query, bytes
-        );*/
-        //let v: T = from_bytes(&bytes[..]).unwrap();
-        //v
-        val
-    }
-    */
-
     pub async fn start(&mut self) -> Result<(), Box<dyn Error>> {
+        println!("- Starting Rhiza Host on {}", self.listener.local_addr()?);
         loop {
             let (stream, _) = self.listener.accept().await?;
             let db = self.store.clone();
@@ -114,7 +97,7 @@ impl Host {
             });
         }
     }
-
+    
     pub fn stop(&mut self) -> Result<(), Box<dyn Error>> {
         panic!("unimplemented!");
         Ok(())
