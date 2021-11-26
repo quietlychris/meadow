@@ -1,9 +1,12 @@
 use rhiza::host::{Host, HostConfig};
+use std::thread;
 use tokio::time::{sleep, Duration};
 
 #[tokio::main]
 async fn run_host() {
-    let cfg = HostConfig::new("lo").socket_num(25_000).store_name("store");
+    let cfg = HostConfig::new("wlp5s0")
+        .socket_num(25_000)
+        .store_name("store");
     let mut host = Host::from_config(cfg).await.unwrap();
     host.start().await.unwrap(); // This runs indefinitely
 }
@@ -11,7 +14,7 @@ async fn run_host() {
 fn main() {
     // We could run the host directly in a #[tokio::main] main function
     // or hand it off to a
-    let handle = std::thread::spawn(|| {
+    let handle = thread::spawn(|| {
         run_host();
     });
 

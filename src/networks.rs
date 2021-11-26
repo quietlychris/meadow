@@ -5,10 +5,13 @@ pub fn get_ip(interface_name: &str) -> Result<String, Box<dyn Error>> {
     let interface = pnet::datalink::interfaces()
         .into_iter()
         .find(|iface| iface.name == interface_name)
-        .expect(&format!(
-            "IP address for interface \"{}\" does not exist or is not up",
-            interface_name
-        ));
+        .unwrap_or_else(|| {
+            panic!(
+                "IP address for interface {} does n
+        ot exist or is not up",
+                interface_name
+            )
+        });
 
     // dbg!(&interface);
     let source_ip = interface
@@ -19,10 +22,13 @@ pub fn get_ip(interface_name: &str) -> Result<String, Box<dyn Error>> {
             IpAddr::V4(ip) => ip,
             _ => unreachable!(),
         })
-        .expect(&format!(
-            "IP address for interface {} does not exist or is not up",
-            interface_name
-        ))
+        .unwrap_or_else(|| {
+            panic!(
+                "IP address for interface {} does n
+        ot exist or is not up",
+                interface_name
+            )
+        })
         .to_string();
 
     Ok(source_ip)

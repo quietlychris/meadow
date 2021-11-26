@@ -1,6 +1,5 @@
 /target
-examples/sled_multithread.rs
-examples/get_ip.rs
-examples/tcp_host.rs
 Cargo.lock
 store
+sync.sh
+examples/get_ip.rs

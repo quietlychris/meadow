@@ -3,9 +3,9 @@
 This is an early-stage robotics-focused publish/request middleware for embedded Linux and compatibility with  `#![no_std]` embedded systems. It uses a star-shaped network topology, with a focus on ease-of-use and transparent operation.  
 
 Under the hood, this `rhiza` relies on:
-    - [`sled`](https://github.com/spacejam/sled): An high-performance embedded, thread-safe database 
-    - [`tokio`](https://tokio.rs): An async runtime, enabling a large number of simultaneous connections
-    - [`postcard`](https://github.com/jamesmunns/postcard): An efficient `#![no_std]`, [serde](https://serde.rs/)-compatible de/serializer designed for embedded or constrained environments 
+* [`sled`](https://github.com/spacejam/sled): An high-performance embedded, thread-safe database 
+* [`tokio`](https://tokio.rs): An async runtime, enabling a large number of simultaneous connections
+* [`postcard`](https://github.com/jamesmunns/postcard): An efficient `#![no_std]`, [serde](https://serde.rs/)-compatible de/serializer designed for embedded or constrained environments 
 
 ### Node
 ```rust

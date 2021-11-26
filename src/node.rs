@@ -143,7 +143,7 @@ impl<T: Serialize + DeserializeOwned + std::fmt::Debug> Node<T> {
                 Ok(0) => continue,
                 Ok(n) => {
                     let bytes = &buf[..n];
-                    let msg: RhizaMsg<T> = from_bytes(&bytes).unwrap();
+                    let msg: RhizaMsg<T> = from_bytes(bytes).unwrap();
                     return Ok(msg.data);
                 }
                 Err(e) => {
