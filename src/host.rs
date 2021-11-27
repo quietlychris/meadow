@@ -1,14 +1,14 @@
 // Tokio for async
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
-use tokio::task::JoinHandle;
-use tokio::sync::Mutex; // as TokioMutex;
+use tokio::sync::Mutex;
+use tokio::task::JoinHandle; // as TokioMutex;
 
 use postcard::*;
 
+use std::ops::DerefMut;
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
-use std::ops::DerefMut;
 
 use std::error::Error;
 use std::net::SocketAddr;
@@ -29,7 +29,7 @@ pub struct Host {
 pub struct HostConfig {
     interface: String,
     socket_num: usize,
-    store_name: String,
+    store_filename: String,
 }
 
 impl HostConfig {
@@ -37,7 +37,7 @@ impl HostConfig {
         HostConfig {
             interface: interface.into(),
             socket_num: 25_000,
-            store_name: "rhiza_store".into(),
+            store_filename: "rhiza_store".into(),
         }
     }
 
@@ -46,8 +46,8 @@ impl HostConfig {
         self
     }
 
-    pub fn store_name(mut self, store_name: impl Into<String>) -> HostConfig {
-        self.store_name = store_name.into();
+    pub fn store_filename(mut self, store_filename: impl Into<String>) -> HostConfig {
+        self.store_filename = store_filename.into();
         self
     }
 }
@@ -62,13 +62,17 @@ impl Host {
 
         let raw_addr = ip.to_owned() + ":" + &cfg.socket_num.to_string();
         // If the address won't parse, this should panic
-        let _addr: SocketAddr = raw_addr.parse()
-            .expect(&format!("The provided address string, \"{}\" is invalid",&raw_addr));
+        let _addr: SocketAddr = raw_addr.parse().expect(&format!(
+            "The provided address string, \"{}\" is invalid",
+            &raw_addr
+        ));
         let connections = Arc::new(StdMutex::new(Vec::new()));
 
-        let config = sled::Config::default().path(&cfg.store_name).temporary(true);
+        let config = sled::Config::default()
+            .path(&cfg.store_filename)
+            .temporary(true);
         let store: sled::Db = config.open()?;
-   
+
         let reply_count = Arc::new(Mutex::new(0));
 
         Ok(Host {
@@ -76,12 +80,11 @@ impl Host {
             connections,
             task_listen: None,
             store,
-            reply_count
+            reply_count,
         })
     }
 
     pub async fn start(&mut self) -> Result<(), Box<dyn Error>> {
-        
         let ip = crate::get_ip(&self.cfg.interface)?;
         let raw_addr = ip.to_owned() + ":" + &self.cfg.socket_num.to_string();
         let addr: SocketAddr = raw_addr.parse()?;
@@ -89,11 +92,10 @@ impl Host {
         let connections_clone = self.connections.clone();
 
         let db = self.store.clone();
-        
 
         let counter = self.reply_count.clone();
 
-        let task_listen = tokio::spawn( async move {
+        let task_listen = tokio::spawn(async move {
             loop {
                 let (stream, _) = listener.accept().await.unwrap();
                 let db = db.clone();
@@ -108,14 +110,10 @@ impl Host {
 
         self.task_listen = Some(task_listen);
 
-
-
-
         Ok(())
     }
 
     pub async fn stop(&mut self) -> Result<(), Box<dyn Error>> {
-                
         for handle in self.connections.lock().unwrap().deref_mut() {
             handle.abort();
         }

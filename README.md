@@ -48,7 +48,7 @@ use tokio::time::{sleep, Duration};
 
 #[tokio::main]
 async fn run_host() {
-    let cfg = HostConfig::new("lo").socket_num(25_000).store_name("store");
+    let cfg = HostConfig::new("lo").socket_num(25_000).store_filename("store");
     let mut host = Host::from_config(cfg).await.unwrap();
     host.start().await.unwrap(); // This runs indefinitely
 }

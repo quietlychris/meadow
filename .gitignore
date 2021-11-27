@@ -2,4 +2,6 @@
 Cargo.lock
 store
 sync.sh
+check.sh
 examples/get_ip.rs
+.gitignore

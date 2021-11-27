@@ -1,8 +1,8 @@
 // use std::time::{sleep, Duration};
-use tokio::time::{sleep, Duration};
-use tokio::task::JoinHandle;
 use rhiza::node::{Node, NodeConfig};
 use rhiza::Pose;
+use tokio::task::JoinHandle;
+use tokio::time::{sleep, Duration};
 
 #[tokio::main]
 async fn main() {
@@ -40,5 +40,4 @@ async fn main() {
     for handle in handles {
         handle.abort();
     }
-
 }

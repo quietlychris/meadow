@@ -33,7 +33,7 @@ pub struct RhizaRequest {
     pub type_info: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
 #[repr(C)]
 pub struct Pose {
     pub x: f32,
