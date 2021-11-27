@@ -10,13 +10,16 @@ name = "rhiza"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# de/serialization and message sending
 serde = {version = "1", default-features = false, features = ["derive"]}
 postcard = {version = "0.7", features = ["alloc"]}
 heapless = "0.7"
-
+# key value store, networking, and async
 sled = "0.34.6"
 pnet = "0.28"
 tokio = { version = "1.14.0", features = ["full"] }
+# command-line 
+clap = "3.0.0-beta.5"
 
 [dev-dependencies]
 serial_test = "0.5.1"
