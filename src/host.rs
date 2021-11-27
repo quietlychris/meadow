@@ -1,10 +1,14 @@
 // Tokio for async
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
+use tokio::task::JoinHandle;
+use tokio::sync::Mutex; // as TokioMutex;
 
 use postcard::*;
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use std::sync::Mutex as StdMutex;
+use std::ops::DerefMut;
 
 use std::error::Error;
 use std::net::SocketAddr;
@@ -14,7 +18,9 @@ use crate::msg::*;
 
 #[derive(Debug)]
 pub struct Host {
-    listener: TcpListener,
+    cfg: HostConfig,
+    connections: Arc<StdMutex<Vec<JoinHandle<()>>>>,
+    task_listen: Option<JoinHandle<()>>,
     store: sled::Db,
     reply_count: Arc<Mutex<usize>>,
 }
@@ -47,7 +53,7 @@ impl HostConfig {
 }
 
 impl Host {
-    pub async fn from_config(cfg: HostConfig) -> Result<Host, Box<dyn Error>> {
+    pub fn from_config(cfg: HostConfig) -> Result<Host, Box<dyn Error>> {
         let ip = crate::get_ip(&cfg.interface)?;
         println!(
             "On interface {:?}, the device IP is: {:?}",
@@ -55,51 +61,64 @@ impl Host {
         );
 
         let raw_addr = ip.to_owned() + ":" + &cfg.socket_num.to_string();
-        println!("Raw address string: {:?}", &raw_addr);
-        let addr: SocketAddr = raw_addr.parse()?;
-        let listener = TcpListener::bind(addr).await?;
+        // If the address won't parse, this should panic
+        let _addr: SocketAddr = raw_addr.parse()
+            .expect(&format!("The provided address string, \"{}\" is invalid",&raw_addr));
+        let connections = Arc::new(StdMutex::new(Vec::new()));
 
-        let config = sled::Config::default().path(cfg.store_name).temporary(true);
+        let config = sled::Config::default().path(&cfg.store_name).temporary(true);
         let store: sled::Db = config.open()?;
+   
+        let reply_count = Arc::new(Mutex::new(0));
 
         Ok(Host {
-            listener,
+            cfg,
+            connections,
+            task_listen: None,
             store,
-            reply_count: Arc::new(Mutex::new(0)),
+            reply_count
         })
     }
 
-    pub async fn default(store_name: &str) -> Result<Host, Box<dyn Error>> {
-        let ip = "127.0.0.1:"; // Defaults to localhost
-
-        let listener = TcpListener::bind(ip.to_owned() + "25000").await?;
-
-        let config = sled::Config::default().path(store_name).temporary(true);
-        let store: sled::Db = config.open()?;
-
-        let host = Host {
-            listener,
-            store,
-            reply_count: Arc::new(Mutex::new(0)),
-        };
-
-        Ok(host)
-    }
-
     pub async fn start(&mut self) -> Result<(), Box<dyn Error>> {
-        println!("- Starting Rhiza Host on {}", self.listener.local_addr()?);
-        loop {
-            let (stream, _) = self.listener.accept().await?;
-            let db = self.store.clone();
-            let counter = self.reply_count.clone();
-            tokio::spawn(async move {
-                process(stream, db, counter.clone()).await;
-            });
-        }
+        
+        let ip = crate::get_ip(&self.cfg.interface)?;
+        let raw_addr = ip.to_owned() + ":" + &self.cfg.socket_num.to_string();
+        let addr: SocketAddr = raw_addr.parse()?;
+        let listener = TcpListener::bind(addr).await?;
+        let connections_clone = self.connections.clone();
+
+        let db = self.store.clone();
+        
+
+        let counter = self.reply_count.clone();
+
+        let task_listen = tokio::spawn( async move {
+            loop {
+                let (stream, _) = listener.accept().await.unwrap();
+                let db = db.clone();
+                let counter = counter.clone();
+                let connections = Arc::clone(&connections_clone.clone());
+                let handle = tokio::spawn(async move {
+                    process(stream, db, counter).await;
+                });
+                connections.lock().unwrap().push(handle);
+            }
+        });
+
+        self.task_listen = Some(task_listen);
+
+
+
+
+        Ok(())
     }
 
-    pub fn stop(&mut self) -> Result<(), Box<dyn Error>> {
-        panic!("unimplemented!");
+    pub async fn stop(&mut self) -> Result<(), Box<dyn Error>> {
+                
+        for handle in self.connections.lock().unwrap().deref_mut() {
+            handle.abort();
+        }
         Ok(())
     }
 }
@@ -136,7 +155,7 @@ async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
                         match stream.try_write(&return_bytes) {
                             Ok(n) => {
                                 println!("Successfully replied with {} bytes", n);
-                                let mut count = count.lock().unwrap();
+                                let mut count = count.lock().await; //.unwrap();
                                 *count += 1;
                                 break;
                             }
@@ -158,9 +177,4 @@ async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
             }
         }
     }
-}
-
-#[test]
-fn test_default() {
-    let host = Host::default("store");
 }

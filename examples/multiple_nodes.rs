@@ -1,12 +1,13 @@
 // use std::time::{sleep, Duration};
 use tokio::time::{sleep, Duration};
-
+use tokio::task::JoinHandle;
 use rhiza::node::{Node, NodeConfig};
 use rhiza::Pose;
 
 #[tokio::main]
 async fn main() {
     // Run n publish-subscribe loops in different processes
+    let mut handles: Vec<JoinHandle<()>> = Vec::new();
     for i in 0..3 {
         let handle = tokio::spawn(async move {
             let thread_num = i;
@@ -32,7 +33,12 @@ async fn main() {
                 println!("From thread {}, got: {:?}", thread_num, result);
             }
         });
+        handles.push(handle);
     }
 
-    loop {}
+    sleep(Duration::from_secs(10)).await;
+    for handle in handles {
+        handle.abort();
+    }
+
 }

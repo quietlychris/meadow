@@ -11,7 +11,7 @@ struct Coordinate {
 
 #[tokio::main]
 async fn main() {
-    let addr = "192.168.8.145:25000"
+    let addr = "192.168.8.105:25000"
         .parse::<std::net::SocketAddr>()
         .unwrap();
     let cfg: NodeConfig<Coordinate> = NodeConfig::new("pose").host_addr(addr);
