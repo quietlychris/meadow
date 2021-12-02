@@ -27,9 +27,9 @@ async fn main() {
                 // node.publish(8).await.unwrap();
                 // node.publish("world".to_string()).await.unwrap();
 
-                node.publish(pose.clone()).await.unwrap();
+                node.publish_to("pose", pose.clone()).await.unwrap();
                 sleep(Duration::from_millis(i)).await;
-                let result = node.request().await.unwrap();
+                let result: Pose = node.request("pose").await.unwrap();
                 println!("From thread {}, got: {:?}", thread_num, result);
             }
         });

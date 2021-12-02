@@ -60,12 +60,15 @@ impl Host {
             &cfg.interface, &ip
         );
 
-        let raw_addr = ip.to_owned() + ":" + &cfg.socket_num.to_string();
+        let raw_addr = ip + ":" + &cfg.socket_num.to_string();
         // If the address won't parse, this should panic
-        let _addr: SocketAddr = raw_addr.parse().expect(&format!(
-            "The provided address string, \"{}\" is invalid",
-            &raw_addr
-        ));
+        let _addr: SocketAddr = raw_addr.parse().unwrap_or_else(|_| {
+            panic!(
+                "The provided address st
+        ring, \"{}\" is invalid",
+                raw_addr
+            )
+        });
         let connections = Arc::new(StdMutex::new(Vec::new()));
 
         let config = sled::Config::default()
@@ -125,7 +128,7 @@ async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
     let mut buf = [0u8; 4096];
     loop {
         stream.readable().await.unwrap();
-        dbg!(&count);
+        // dbg!(&count);
         match stream.try_read(&mut buf) {
             Ok(0) => break,
             Ok(n) => {
@@ -133,22 +136,25 @@ async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
 
                 let bytes = &buf[..n];
                 let msg: GenericRhizaMsg = from_bytes(bytes).unwrap();
-                dbg!(&msg);
+                // dbg!(&msg);
 
                 match msg.msg_type {
                     Msg::SET => {
-                        println!("received {} bytes, to be assigned to: {}", n, &msg.name);
+                        // println!("received {} bytes, to be assigned to: {}", n, &msg.name);
                         db.insert(msg.name.as_bytes(), bytes).unwrap();
                     }
                     Msg::GET => loop {
+                        /*
                         println!(
                             "received {} bytes, asking for reply on topic: {}",
                             n, &msg.name
-                        );
+                        );*/
 
-                        println!("Wait for stream to be writeable");
+                        // println!("Wait for stream to be writeable");
                         // stream.writable().await.unwrap();
-                        println!("Stream now writeable");
+                        // println!("Stream now writeable");
+                        // TO_DO: This tosses a recoverable/non-fatal error if asked by a Node for a topic
+                        // that doesn't exist
                         let return_bytes = db.get(&msg.name).unwrap().unwrap();
                         match stream.try_write(&return_bytes) {
                             Ok(n) => {

@@ -1,4 +1,5 @@
-//pub mod messages;
+// If an async Future goes unused, toss a compile-time error
+#![deny(unused_must_use)]
 
 pub mod host;
 pub mod msg;
