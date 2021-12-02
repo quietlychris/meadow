@@ -1,4 +1,10 @@
 use tokio::net::TcpStream;
+// use tokio::sync::oneshot;
+// use tokio::task::JoinHandle;
+// use tokio::time::{sleep, Duration};
+
+// use std::sync::{Arc, Mutex as StdMutex};
+// use tokio::sync::Mutex;
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
@@ -11,22 +17,26 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use crate::msg::*;
 
-#[derive(Debug, Clone)]
-pub struct NodeConfig<T: Serialize + DeserializeOwned + std::fmt::Debug> {
+use std::fmt::Debug;
+pub trait Message: Serialize + DeserializeOwned + Debug + Send {}
+impl<T> Message for T where T: Serialize + DeserializeOwned + Debug + Send {}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct NodeConfig<T: Message> {
     host_addr: SocketAddr,
     topic_name: String,
     phantom: PhantomData<T>,
 }
 
 #[derive(Debug)]
-pub struct Node<T: Serialize + DeserializeOwned + std::fmt::Debug> {
+pub struct Node<T: Message> {
     stream: Option<TcpStream>,
     topic_name: String,
     host_addr: SocketAddr,
     phantom: PhantomData<T>,
 }
 
-impl<T: Serialize + DeserializeOwned + std::fmt::Debug> NodeConfig<T> {
+impl<T: Message> NodeConfig<T> {
     pub fn new(topic_name: impl Into<String>) -> NodeConfig<T> {
         NodeConfig {
             topic_name: topic_name.into(),
@@ -46,7 +56,7 @@ impl<T: Serialize + DeserializeOwned + std::fmt::Debug> NodeConfig<T> {
     }
 }
 
-impl<T: Serialize + DeserializeOwned + std::fmt::Debug> Node<T> {
+impl<T: Message + 'static> Node<T> {
     pub fn from_config(cfg: NodeConfig<T>) -> Node<T> {
         Node::<T> {
             stream: None,
@@ -74,11 +84,16 @@ impl<T: Serialize + DeserializeOwned + std::fmt::Debug> Node<T> {
         Ok(())
     }
 
-    pub async fn publish(&mut self, val: T) -> Result<(), Box<dyn Error>> {
+    // Type M of published message is not necessarily the same as Type T assigned to the Node
+    pub async fn publish_to<M: Message>(
+        &mut self,
+        topic_name: impl Into<String>,
+        val: M,
+    ) -> Result<(), Box<dyn Error>> {
         let packet = RhizaMsg {
             msg_type: Msg::SET,
             name: self.topic_name.to_string(),
-            data_type: std::any::type_name::<T>().to_string(),
+            data_type: std::any::type_name::<M>().to_string(),
             data: val,
         };
 
@@ -104,11 +119,14 @@ impl<T: Serialize + DeserializeOwned + std::fmt::Debug> Node<T> {
         Ok(())
     }
 
-    pub async fn request(&mut self) -> Result<T, Box<dyn Error>> {
+    pub async fn request<M: Message>(
+        &mut self,
+        topic_name: impl Into<String>,
+    ) -> Result<M, Box<dyn Error>> {
         let packet = GenericRhizaMsg {
             msg_type: Msg::GET,
             name: self.topic_name.to_string(),
-            data_type: std::any::type_name::<T>().to_string(),
+            data_type: std::any::type_name::<M>().to_string(),
             data: Vec::new(),
         };
         // println!("{:?}", &packet);
@@ -143,7 +161,7 @@ impl<T: Serialize + DeserializeOwned + std::fmt::Debug> Node<T> {
                 Ok(0) => continue,
                 Ok(n) => {
                     let bytes = &buf[..n];
-                    let msg: RhizaMsg<T> = from_bytes(bytes).unwrap();
+                    let msg: RhizaMsg<M> = from_bytes(bytes).unwrap();
                     return Ok(msg.data);
                 }
                 Err(e) => {
@@ -151,6 +169,53 @@ impl<T: Serialize + DeserializeOwned + std::fmt::Debug> Node<T> {
                     continue;
                 }
             }
+        }
+    }
+
+    /*
+    pub async fn subscribe_to(
+        &mut self,
+        topic_name: impl Into<String>,
+        freq: tokio::time::Duration,
+    ) -> Result<(), Box<dyn Error + '_>> {
+        let topic: String = topic_name.into();
+        let cfg = self.rebuild_config();
+
+        let (tx, rx) = oneshot::channel();
+        let sv_clone = self.
+        let task_assign = tokio::spawn(async move {
+
+        });
+
+
+        let task_subscription = tokio::spawn(async move {
+            let mut subscription_node = Node::<T>::from_config(cfg);
+            subscription_node.connect().await.unwrap();
+            loop {
+                println!("requesting");
+                let result: T = subscription_node.request(&topic).await.unwrap();
+                sleep(freq).await;
+            }
+        });
+        self.task_subscription = Some(task_subscription);
+
+        Ok(())
+    }
+    */
+
+    pub fn rebuild_config(&self) -> NodeConfig<T> {
+        let topic_name = self.topic_name.clone();
+        dbg!(&topic_name);
+        let host_addr = match &self.stream {
+            Some(stream) => stream.peer_addr().unwrap(),
+            None => SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 25_000),
+        };
+        dbg!(&host_addr);
+
+        NodeConfig {
+            host_addr,
+            topic_name,
+            phantom: PhantomData,
         }
     }
 }

@@ -1,3 +1,4 @@
+#![deny(unused_must_use)]
 use serial_test::serial;
 
 use rhiza::host::*;
@@ -28,9 +29,9 @@ async fn integrate_host_and_single_node() {
     // Could get this by reading a GPS, for example
     let pose = Pose { x: 4.0, y: 4.0 };
 
-    node.publish(pose.clone()).await.unwrap();
+    node.publish_to("pose", pose.clone()).await.unwrap();
     sleep(Duration::from_millis(1_000)).await;
-    result = node.request().await.unwrap();
+    result = node.request("pose").await.unwrap();
     println!("Got position: {:?}", result);
 
     assert_eq!(pose, result);
