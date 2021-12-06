@@ -155,7 +155,14 @@ async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
                         // println!("Stream now writeable");
                         // TO_DO: This tosses a recoverable/non-fatal error if asked by a Node for a topic
                         // that doesn't exist
-                        let return_bytes = db.get(&msg.name).unwrap().unwrap();
+                        let return_bytes = match db.get(&msg.name).unwrap() {
+                            Some(msg) => msg,
+                            None => {
+                                let e: String =
+                                    format!("Error: no message with the name {} exists", &msg.name);
+                                e.as_bytes().into()
+                            }
+                        };
                         match stream.try_write(&return_bytes) {
                             Ok(n) => {
                                 println!("Successfully replied with {} bytes", n);

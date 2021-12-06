@@ -17,16 +17,8 @@ struct Coordinate {
 
 #[tokio::main]
 async fn main() {
-    /*
-    // Start a host on localhost:25000
-    let cfg = HostConfig::new("lo")
-        .socket_num(25_000)
-        .store_filename("store");
-    let mut host = Host::from_config(cfg).unwrap();
-    host.start().await.unwrap();
-    */
     let mut rng = rand::thread_rng();
-    // Seed host with a single value
+    // Seed host with a known value
     {
         let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
         let cfg: NodeConfig<Coordinate> = NodeConfig::new("pose").host_addr(addr);

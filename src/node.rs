@@ -161,8 +161,14 @@ impl<T: Message + 'static> Node<T> {
                 Ok(0) => continue,
                 Ok(n) => {
                     let bytes = &buf[..n];
-                    let msg: RhizaMsg<M> = from_bytes(bytes).unwrap();
-                    return Ok(msg.data);
+                    let msg: Result<RhizaMsg<M>, Box<dyn Error>> = match from_bytes(bytes) {
+                        Ok(msg) => {
+                            let msg: RhizaMsg<M> = msg;
+                            return Ok(msg.data);
+                        }
+                        Err(e) => return Err(Box::new(e)),
+                    };
+                    // return Ok(msg.data);
                 }
                 Err(e) => {
                     if e.kind() == std::io::ErrorKind::WouldBlock {}

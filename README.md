@@ -23,21 +23,22 @@ struct Coordinate {
 #[tokio::main]
 async fn main() {
     let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-    let cfg: NodeConfig<Coordinate> = NodeConfig::new("position").host_addr(addr);
+    let cfg: NodeConfig<Coordinate> = NodeConfig::new("pose").host_addr(addr);
     let mut node: Node<Coordinate> = Node::from_config(cfg);
     node.connect().await.unwrap();
 
-    loop {
-        // Could get this by reading a GPS, for example
-        let c = Coordinate { x: 3.0, y: 4.0 };
+    let c = Coordinate { x: 4.0, y: 4.0 };
+    node.publish_to("pose", c).await.unwrap();
 
-        node.publish(c).await.unwrap();
+    for _ in 0..5 {
+        // Could get this by reading a GPS, for example
+        let c = Coordinate { x: 4.0, y: 4.0 };
+        node.publish_to("pose", c).await.unwrap();
         sleep(Duration::from_millis(1_000)).await;
-        let result = node.request().await.unwrap();
+        let result: Coordinate = node.request("pose").await.unwrap();
         println!("Got position: {:?}", result);
     }
 }
-
 ```
 ### Host 
 ```rust
@@ -47,25 +48,17 @@ use rhiza::host::{Host, HostConfig};
 use tokio::time::{sleep, Duration};
 
 #[tokio::main]
-async fn run_host() {
-    let cfg = HostConfig::new("lo").socket_num(25_000).store_filename("store");
-    let mut host = Host::from_config(cfg).await.unwrap();
-    host.start().await.unwrap(); // This runs indefinitely
-}
+async fn main() {
+    let cfg = HostConfig::new("lo") 
+        .socket_num(25_000)
+        .store_filename("store");
+    let mut host = Host::from_config(cfg).unwrap();
+    host.start().await.unwrap();
 
-fn main() {
-    // We could run the host directly in a #[tokio::main] main function
-    // or hand it off to a
-    let handle = std::thread::spawn(|| {
-        run_host();
-    });
+    // Other tasks can operate while the host is running in the background
+    sleep(Duration::from_secs(10)).await;
 
-    println!("Host should be running in the background");
-    // Other tasks can operate while the host is running on it's own thread
-    thread::sleep(std::time::Duration::from_secs(15));
-
-    // Need to kill host manually
-    handle.join().unwrap();
+    host.stop().await.unwrap();
 }
 
 ```

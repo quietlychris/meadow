@@ -1,5 +1,6 @@
 #![deny(unused_must_use)]
 use serial_test::serial;
+use std::error::Error;
 
 use rhiza::host::*;
 use rhiza::node::*;
@@ -35,5 +36,32 @@ async fn integrate_host_and_single_node() {
     println!("Got position: {:?}", result);
 
     assert_eq!(pose, result);
+    host.stop().await.unwrap();
+}
+
+#[tokio::main]
+#[test]
+#[serial]
+async fn request_non_existent_topic() {
+    let cfg = HostConfig::new("lo")
+        .socket_num(25_000)
+        .store_filename("store");
+    let mut host = Host::from_config(cfg).unwrap();
+    host.start().await.unwrap();
+    println!("Host should be running in the background");
+
+    // Get the host up and running
+    let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
+    let cfg: NodeConfig<Pose> = NodeConfig::new("pose").host_addr(addr);
+    let mut node: Node<Pose> = Node::from_config(cfg);
+    node.connect().await.unwrap();
+
+    for i in 0..5 {
+        println!("on loop: {}", i);
+        let result: Result<Pose, Box<dyn Error>> = node.request("doesnt_exist").await;
+        dbg!(&result);
+        sleep(Duration::from_millis(50)).await;
+    }
+
     host.stop().await.unwrap();
 }
