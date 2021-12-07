@@ -141,7 +141,25 @@ async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
                 match msg.msg_type {
                     Msg::SET => {
                         // println!("received {} bytes, to be assigned to: {}", n, &msg.name);
-                        db.insert(msg.name.as_bytes(), bytes).unwrap();
+                        let db_result = match db.insert(msg.name.as_bytes(), bytes) {
+                            Ok(_prev_msg) => "SUCCESS".to_string(),
+                            Err(e) => e.to_string(),
+                        };
+
+                        loop {
+                            match stream.try_write(&db_result.as_bytes()) {
+                                Ok(n) => {
+                                    println!("Successfully replied with {} bytes", n);
+                                    let mut count = count.lock().await; //.unwrap();
+                                    *count += 1;
+                                    break;
+                                }
+                                Err(e) => {
+                                    if e.kind() == std::io::ErrorKind::WouldBlock {}
+                                    continue;
+                                }
+                            }
+                        }
                     }
                     Msg::GET => loop {
                         /*
@@ -150,11 +168,6 @@ async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
                             n, &msg.name
                         );*/
 
-                        // println!("Wait for stream to be writeable");
-                        // stream.writable().await.unwrap();
-                        // println!("Stream now writeable");
-                        // TO_DO: This tosses a recoverable/non-fatal error if asked by a Node for a topic
-                        // that doesn't exist
                         let return_bytes = match db.get(&msg.name).unwrap() {
                             Some(msg) => msg,
                             None => {
@@ -163,6 +176,7 @@ async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
                                 e.as_bytes().into()
                             }
                         };
+
                         match stream.try_write(&return_bytes) {
                             Ok(n) => {
                                 println!("Successfully replied with {} bytes", n);
@@ -184,7 +198,6 @@ async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
             }
             Err(e) => {
                 println!("Error: {:?}", e);
-                // return Err(e.into());
             }
         }
     }

@@ -1,10 +1,4 @@
 use tokio::net::TcpStream;
-// use tokio::sync::oneshot;
-// use tokio::task::JoinHandle;
-// use tokio::time::{sleep, Duration};
-
-// use std::sync::{Arc, Mutex as StdMutex};
-// use tokio::sync::Mutex;
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
@@ -116,6 +110,32 @@ impl<T: Message + 'static> Node<T> {
             }
         }
 
+        // Wait for the publish acknowledgement
+        //stream.readable().await?;
+        let mut buf = [0u8; 4096];
+        loop {
+            stream.readable().await?;
+            match stream.try_read(&mut buf) {
+                Ok(0) => continue,
+                Ok(n) => {
+                    let bytes = &buf[..n];
+                    let msg: Result<String, Box<dyn Error>> = match from_bytes(bytes) {
+                        Ok(ack) => {
+                            
+                            return Ok(ack);
+                        }
+                        Err(e) => return Err(Box::new(e)),
+                    };
+                    // return Ok(msg.data);
+                }
+                Err(e) => {
+                    if e.kind() == std::io::ErrorKind::WouldBlock {}
+                    continue;
+                }
+            }
+        }
+
+
         Ok(())
     }
 
@@ -177,37 +197,6 @@ impl<T: Message + 'static> Node<T> {
             }
         }
     }
-
-    /*
-    pub async fn subscribe_to(
-        &mut self,
-        topic_name: impl Into<String>,
-        freq: tokio::time::Duration,
-    ) -> Result<(), Box<dyn Error + '_>> {
-        let topic: String = topic_name.into();
-        let cfg = self.rebuild_config();
-
-        let (tx, rx) = oneshot::channel();
-        let sv_clone = self.
-        let task_assign = tokio::spawn(async move {
-
-        });
-
-
-        let task_subscription = tokio::spawn(async move {
-            let mut subscription_node = Node::<T>::from_config(cfg);
-            subscription_node.connect().await.unwrap();
-            loop {
-                println!("requesting");
-                let result: T = subscription_node.request(&topic).await.unwrap();
-                sleep(freq).await;
-            }
-        });
-        self.task_subscription = Some(task_subscription);
-
-        Ok(())
-    }
-    */
 
     pub fn rebuild_config(&self) -> NodeConfig<T> {
         let topic_name = self.topic_name.clone();
