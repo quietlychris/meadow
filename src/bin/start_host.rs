@@ -49,5 +49,5 @@ async fn main() {
     signal::ctrl_c().await.unwrap();
     println!("\nShutting down Rhiza Host");
 
-    host.stop().await.unwrap();
+    host.stop().unwrap();
 }

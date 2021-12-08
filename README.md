@@ -28,7 +28,7 @@ async fn main() {
     // Other tasks can operate while the host is running in the background
     sleep(Duration::from_secs(10)).await;
 
-    host.stop().await.unwrap();
+    host.stop().unwrap();
 }
 ```
 

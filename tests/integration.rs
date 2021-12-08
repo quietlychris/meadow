@@ -36,7 +36,7 @@ async fn integrate_host_and_single_node() {
     println!("Got position: {:?}", result);
 
     assert_eq!(pose, result);
-    host.stop().await.unwrap();
+    host.stop().unwrap();
 }
 
 #[tokio::main]
@@ -63,5 +63,5 @@ async fn request_non_existent_topic() {
         sleep(Duration::from_millis(50)).await;
     }
 
-    host.stop().await.unwrap();
+    host.stop().unwrap();
 }

@@ -6,7 +6,7 @@ use tokio::task::JoinHandle; // as TokioMutex;
 
 use postcard::*;
 
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 
@@ -20,7 +20,7 @@ use crate::msg::*;
 pub struct Connection {
     handle: JoinHandle<()>,
     stream_addr: SocketAddr,
-    name: String
+    name: String,
 }
 
 #[derive(Debug)]
@@ -108,16 +108,19 @@ impl Host {
         let task_listen = tokio::spawn(async move {
             loop {
                 let (stream, stream_addr) = listener.accept().await.unwrap();
+                let (stream, name) = handshake(stream);
+
                 let db = db.clone();
                 let counter = counter.clone();
                 let connections = Arc::clone(&connections_clone.clone());
+
                 let handle = tokio::spawn(async move {
                     process(stream, db, counter).await;
                 });
                 let connection = Connection {
                     handle,
                     stream_addr,
-                    name: "placeholder".to_string()
+                    name,
                 };
 
                 connections.lock().unwrap().push(connection);
@@ -129,16 +132,60 @@ impl Host {
         Ok(())
     }
 
-    pub async fn stop(&mut self) -> Result<(), Box<dyn Error>> {
+    pub fn stop(&mut self) -> Result<(), Box<dyn Error>> {
         for conn in self.connections.lock().unwrap().deref_mut() {
+            println!("Aborting connection: {}", conn.name);
             conn.handle.abort();
+        }
+        Ok(())
+    }
+
+    #[no_mangle]
+    pub fn print_connections(&mut self) -> Result<(), Box<dyn Error + '_>> {
+        println!("Connections:");
+        for conn in self.connections.lock()?.deref() {
+            let name = conn.name.clone();
+            println!("\t- {}", name);
         }
         Ok(())
     }
 }
 
+fn pass_stream(stream: TcpStream) -> TcpStream {
+    stream
+}
+
+#[inline]
+fn handshake(stream: TcpStream) -> (TcpStream, String) {
+    // Handshake
+    let mut buf = [0u8; 4096];
+    let mut name: String = String::with_capacity(100);
+    loop {
+        match stream.try_read(&mut buf) {
+            Ok(n) => {
+                name = match std::str::from_utf8(&buf[..n]) {
+                    Ok(name) => name.to_owned(),
+                    Err(e) => {
+                        println!("Error during handshake (Host-side): {:?}", e);
+                        "placeholder".to_owned()
+                    }
+                };
+                break;
+            }
+            Err(e) => {
+                if e.kind() == std::io::ErrorKind::WouldBlock {
+                } else {
+                    println!("Error: {:?}", e);
+                }
+            }
+        }
+    }
+    (stream, name)
+}
+
 async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
     let mut buf = [0u8; 4096];
+
     loop {
         stream.readable().await.unwrap();
         // dbg!(&count);
