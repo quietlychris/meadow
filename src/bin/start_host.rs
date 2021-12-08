@@ -15,21 +15,21 @@ async fn main() {
                 .short('i')
                 .long("interface")
                 .default_value("lo")
-                .about("Sets the proper network interface"),
+                .help("Sets the proper network interface"),
         )
         .arg(
             Arg::new("socket")
                 .short('s')
                 .long("tcp_socket_num")
                 .default_value("25000")
-                .about("Sets an alternative TCP socket"),
+                .help("Sets an alternative TCP socket"),
         )
         .arg(
             Arg::new("store_filename")
                 .short('f')
                 .long("store_filename")
                 .default_value("store")
-                .about("Sets the filename for the `sled`-based key-value store"),
+                .help("Sets the filename for the `sled`-based key-value store"),
         )
         .get_matches();
 
@@ -37,10 +37,11 @@ async fn main() {
     let store_filename: String = matches.value_of("store_filename").unwrap().to_string();
     let socket: usize = matches.value_of("socket").unwrap().parse().unwrap();
 
-    let cfg = HostConfig::new(interface)
+    let mut host: Host = HostConfig::new(interface)
         .socket_num(socket)
-        .store_filename(store_filename);
-    let mut host = Host::from_config(cfg).unwrap();
+        .store_filename(store_filename)
+        .build()
+        .unwrap();
     host.start().await.unwrap();
 
     println!("Rhiza Host should be running in the background");
@@ -48,5 +49,5 @@ async fn main() {
     signal::ctrl_c().await.unwrap();
     println!("\nShutting down Rhiza Host");
 
-    host.stop().await.unwrap();
+    host.stop().unwrap();
 }

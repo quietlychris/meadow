@@ -18,16 +18,17 @@ use tokio::time::{sleep, Duration};
 async fn main() {
     // By default, Rhiza Hosts run on the localhost, but other interfaces
     // are allowed, allowing connections over Ethernet or WiFi
-    let cfg = HostConfig::new("lo")  
+    let mut host: Host = HostConfig::new("lo")  
         .socket_num(25_000)       // Port 25000 is the default address  
-        .store_filename("store"); // sled databases allow persistence across reboots
-    let mut host = Host::from_config(cfg).unwrap();
+        .store_filename("store")  // sled DBs allow persistence across reboots
+        .build()
+        .unwrap(); 
     host.start().await.unwrap();
 
     // Other tasks can operate while the host is running in the background
     sleep(Duration::from_secs(10)).await;
 
-    host.stop().await.unwrap();
+    host.stop().unwrap();
 }
 ```
 
@@ -48,8 +49,7 @@ struct Coordinate {
 async fn main() {
     // This is the default TCP address of the central Rhiza Host
     let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-    let cfg: NodeConfig<Coordinate> = NodeConfig::new("pose").host_addr(addr);
-    let mut node: Node<Coordinate> = Node::from_config(cfg);
+    let mut node: Node<Coordinate> = NodeConfig::new("pose").host_addr(addr).build();
     // Each node establishs a TCP connection with central host
     node.connect().await.unwrap();
 

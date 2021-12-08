@@ -6,7 +6,7 @@ use tokio::task::JoinHandle; // as TokioMutex;
 
 use postcard::*;
 
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 
@@ -17,9 +17,16 @@ use std::result::Result;
 use crate::msg::*;
 
 #[derive(Debug)]
+pub struct Connection {
+    handle: JoinHandle<()>,
+    stream_addr: SocketAddr,
+    name: String,
+}
+
+#[derive(Debug)]
 pub struct Host {
     cfg: HostConfig,
-    connections: Arc<StdMutex<Vec<JoinHandle<()>>>>,
+    connections: Arc<StdMutex<Vec<Connection>>>,
     task_listen: Option<JoinHandle<()>>,
     store: sled::Db,
     reply_count: Arc<Mutex<usize>>,
@@ -37,7 +44,7 @@ impl HostConfig {
         HostConfig {
             interface: interface.into(),
             socket_num: 25_000,
-            store_filename: "rhiza_store".into(),
+            store_filename: "store".into(),
         }
     }
 
@@ -50,17 +57,15 @@ impl HostConfig {
         self.store_filename = store_filename.into();
         self
     }
-}
 
-impl Host {
-    pub fn from_config(cfg: HostConfig) -> Result<Host, Box<dyn Error>> {
-        let ip = crate::get_ip(&cfg.interface)?;
+    pub fn build(self) -> Result<Host, Box<dyn Error>> {
+        let ip = crate::get_ip(&self.interface)?;
         println!(
             "On interface {:?}, the device IP is: {:?}",
-            &cfg.interface, &ip
+            &self.interface, &ip
         );
 
-        let raw_addr = ip + ":" + &cfg.socket_num.to_string();
+        let raw_addr = ip + ":" + &self.socket_num.to_string();
         // If the address won't parse, this should panic
         let _addr: SocketAddr = raw_addr.parse().unwrap_or_else(|_| {
             panic!(
@@ -72,21 +77,23 @@ impl Host {
         let connections = Arc::new(StdMutex::new(Vec::new()));
 
         let config = sled::Config::default()
-            .path(&cfg.store_filename)
+            .path(&self.store_filename)
             .temporary(true);
         let store: sled::Db = config.open()?;
 
         let reply_count = Arc::new(Mutex::new(0));
 
         Ok(Host {
-            cfg,
+            cfg: self,
             connections,
             task_listen: None,
             store,
             reply_count,
         })
     }
+}
 
+impl Host {
     pub async fn start(&mut self) -> Result<(), Box<dyn Error>> {
         let ip = crate::get_ip(&self.cfg.interface)?;
         let raw_addr = ip.to_owned() + ":" + &self.cfg.socket_num.to_string();
@@ -100,14 +107,23 @@ impl Host {
 
         let task_listen = tokio::spawn(async move {
             loop {
-                let (stream, _) = listener.accept().await.unwrap();
+                let (stream, stream_addr) = listener.accept().await.unwrap();
+                let (stream, name) = handshake(stream);
+
                 let db = db.clone();
                 let counter = counter.clone();
                 let connections = Arc::clone(&connections_clone.clone());
+
                 let handle = tokio::spawn(async move {
                     process(stream, db, counter).await;
                 });
-                connections.lock().unwrap().push(handle);
+                let connection = Connection {
+                    handle,
+                    stream_addr,
+                    name,
+                };
+
+                connections.lock().unwrap().push(connection);
             }
         });
 
@@ -116,16 +132,60 @@ impl Host {
         Ok(())
     }
 
-    pub async fn stop(&mut self) -> Result<(), Box<dyn Error>> {
-        for handle in self.connections.lock().unwrap().deref_mut() {
-            handle.abort();
+    pub fn stop(&mut self) -> Result<(), Box<dyn Error>> {
+        for conn in self.connections.lock().unwrap().deref_mut() {
+            println!("Aborting connection: {}", conn.name);
+            conn.handle.abort();
+        }
+        Ok(())
+    }
+
+    #[no_mangle]
+    pub fn print_connections(&mut self) -> Result<(), Box<dyn Error + '_>> {
+        println!("Connections:");
+        for conn in self.connections.lock()?.deref() {
+            let name = conn.name.clone();
+            println!("\t- {}", name);
         }
         Ok(())
     }
 }
 
+fn pass_stream(stream: TcpStream) -> TcpStream {
+    stream
+}
+
+#[inline]
+fn handshake(stream: TcpStream) -> (TcpStream, String) {
+    // Handshake
+    let mut buf = [0u8; 4096];
+    let mut name: String = String::with_capacity(100);
+    loop {
+        match stream.try_read(&mut buf) {
+            Ok(n) => {
+                name = match std::str::from_utf8(&buf[..n]) {
+                    Ok(name) => name.to_owned(),
+                    Err(e) => {
+                        println!("Error during handshake (Host-side): {:?}", e);
+                        "placeholder".to_owned()
+                    }
+                };
+                break;
+            }
+            Err(e) => {
+                if e.kind() == std::io::ErrorKind::WouldBlock {
+                } else {
+                    println!("Error: {:?}", e);
+                }
+            }
+        }
+    }
+    (stream, name)
+}
+
 async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
     let mut buf = [0u8; 4096];
+
     loop {
         stream.readable().await.unwrap();
         // dbg!(&count);

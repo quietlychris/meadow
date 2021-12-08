@@ -21,8 +21,7 @@ async fn main() {
     // Seed host with a known value
     {
         let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-        let cfg: NodeConfig<Coordinate> = NodeConfig::new("pose").host_addr(addr);
-        let mut node: Node<Coordinate> = Node::from_config(cfg);
+        let mut node: Node<Coordinate> = NodeConfig::new("pose").host_addr(addr).build();
         node.connect().await.unwrap();
         let c = Coordinate { x: 4.0, y: 4.0 };
         node.publish_to("pose", c).await.unwrap();
@@ -33,8 +32,7 @@ async fn main() {
 
     let subscription = tokio::spawn(async move {
         let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-        let cfg: NodeConfig<Coordinate> = NodeConfig::new("pose").host_addr(addr);
-        let mut node: Node<Coordinate> = Node::from_config(cfg);
+        let mut node: Node<Coordinate> = NodeConfig::new("pose").host_addr(addr).build();
         node.connect().await.unwrap();
 
         loop {
