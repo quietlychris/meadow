@@ -16,12 +16,17 @@ use std::result::Result;
 
 use crate::msg::*;
 
-pub struct Connection {}
+#[derive(Debug)]
+pub struct Connection {
+    handle: JoinHandle<()>,
+    stream_addr: SocketAddr,
+    name: String
+}
 
 #[derive(Debug)]
 pub struct Host {
     cfg: HostConfig,
-    connections: Arc<StdMutex<Vec<JoinHandle<()>>>>,
+    connections: Arc<StdMutex<Vec<Connection>>>,
     task_listen: Option<JoinHandle<()>>,
     store: sled::Db,
     reply_count: Arc<Mutex<usize>>,
@@ -39,7 +44,7 @@ impl HostConfig {
         HostConfig {
             interface: interface.into(),
             socket_num: 25_000,
-            store_filename: "rhiza_store".into(),
+            store_filename: "store".into(),
         }
     }
 
@@ -102,14 +107,20 @@ impl Host {
 
         let task_listen = tokio::spawn(async move {
             loop {
-                let (stream, _) = listener.accept().await.unwrap();
+                let (stream, stream_addr) = listener.accept().await.unwrap();
                 let db = db.clone();
                 let counter = counter.clone();
                 let connections = Arc::clone(&connections_clone.clone());
                 let handle = tokio::spawn(async move {
                     process(stream, db, counter).await;
                 });
-                connections.lock().unwrap().push(handle);
+                let connection = Connection {
+                    handle,
+                    stream_addr,
+                    name: "placeholder".to_string()
+                };
+
+                connections.lock().unwrap().push(connection);
             }
         });
 
@@ -119,8 +130,8 @@ impl Host {
     }
 
     pub async fn stop(&mut self) -> Result<(), Box<dyn Error>> {
-        for handle in self.connections.lock().unwrap().deref_mut() {
-            handle.abort();
+        for conn in self.connections.lock().unwrap().deref_mut() {
+            conn.handle.abort();
         }
         Ok(())
     }

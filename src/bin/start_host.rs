@@ -15,21 +15,21 @@ async fn main() {
                 .short('i')
                 .long("interface")
                 .default_value("lo")
-                .about("Sets the proper network interface"),
+                .help("Sets the proper network interface"),
         )
         .arg(
             Arg::new("socket")
                 .short('s')
                 .long("tcp_socket_num")
                 .default_value("25000")
-                .about("Sets an alternative TCP socket"),
+                .help("Sets an alternative TCP socket"),
         )
         .arg(
             Arg::new("store_filename")
                 .short('f')
                 .long("store_filename")
                 .default_value("store")
-                .about("Sets the filename for the `sled`-based key-value store"),
+                .help("Sets the filename for the `sled`-based key-value store"),
         )
         .get_matches();
 

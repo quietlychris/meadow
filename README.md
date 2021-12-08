@@ -49,8 +49,7 @@ struct Coordinate {
 async fn main() {
     // This is the default TCP address of the central Rhiza Host
     let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-    let cfg: NodeConfig<Coordinate> = NodeConfig::new("pose").host_addr(addr);
-    let mut node: Node<Coordinate> = Node::from_config(cfg);
+    let mut node: Node<Coordinate> = NodeConfig::new("pose").host_addr(addr).build();
     // Each node establishs a TCP connection with central host
     node.connect().await.unwrap();
 
