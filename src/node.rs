@@ -48,18 +48,18 @@ impl<T: Message> NodeConfig<T> {
         self.topic_name = topic_name.into();
         self
     }
-}
 
-impl<T: Message + 'static> Node<T> {
-    pub fn from_config(cfg: NodeConfig<T>) -> Node<T> {
+    pub fn build(self) -> Node<T> {
         Node::<T> {
             stream: None,
-            host_addr: cfg.host_addr,
-            topic_name: cfg.topic_name,
+            host_addr: self.host_addr,
+            topic_name: self.topic_name,
             phantom: PhantomData,
         }
     }
+}
 
+impl<T: Message + 'static> Node<T> {
     pub async fn connect(&mut self) -> Result<(), Box<dyn Error>> {
         // let ip = crate::get_ip(interface).unwrap();
         // dbg!(ip);
@@ -121,7 +121,6 @@ impl<T: Message + 'static> Node<T> {
                     let bytes = &buf[..n];
                     let msg: Result<String, Box<dyn Error>> = match from_bytes(bytes) {
                         Ok(ack) => {
-                            
                             return Ok(ack);
                         }
                         Err(e) => return Err(Box::new(e)),
@@ -134,9 +133,6 @@ impl<T: Message + 'static> Node<T> {
                 }
             }
         }
-
-
-        Ok(())
     }
 
     pub async fn request<M: Message>(

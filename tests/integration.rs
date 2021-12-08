@@ -12,17 +12,17 @@ use tokio::time::{sleep, Duration};
 #[test]
 #[serial]
 async fn integrate_host_and_single_node() {
-    let cfg = HostConfig::new("lo")
+    let mut host: Host = HostConfig::new("lo")
         .socket_num(25_000)
-        .store_filename("store");
-    let mut host = Host::from_config(cfg).unwrap();
+        .store_filename("store")
+        .build()
+        .unwrap();
     host.start().await.unwrap();
     println!("Host should be running in the background");
 
     // Get the host up and running
     let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-    let cfg: NodeConfig<Pose> = NodeConfig::new("pose").host_addr(addr);
-    let mut node: Node<Pose> = Node::from_config(cfg);
+    let mut node: Node<Pose> = NodeConfig::new("pose").host_addr(addr).build();
     node.connect().await.unwrap();
 
     let mut result = Pose::default();
@@ -43,17 +43,17 @@ async fn integrate_host_and_single_node() {
 #[test]
 #[serial]
 async fn request_non_existent_topic() {
-    let cfg = HostConfig::new("lo")
+    let mut host: Host = HostConfig::new("lo")
         .socket_num(25_000)
-        .store_filename("store");
-    let mut host = Host::from_config(cfg).unwrap();
+        .store_filename("store")
+        .build()
+        .unwrap();
     host.start().await.unwrap();
     println!("Host should be running in the background");
 
     // Get the host up and running
     let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-    let cfg: NodeConfig<Pose> = NodeConfig::new("pose").host_addr(addr);
-    let mut node: Node<Pose> = Node::from_config(cfg);
+    let mut node: Node<Pose> = NodeConfig::new("pose").host_addr(addr).build();
     node.connect().await.unwrap();
 
     for i in 0..5 {

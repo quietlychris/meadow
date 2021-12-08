@@ -18,8 +18,7 @@ async fn main() {
 
             // Create our node
             let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-            let cfg: NodeConfig<Pose> = NodeConfig::new("pose").host_addr(addr);
-            let mut node: Node<Pose> = Node::from_config(cfg.clone());
+            let mut node: Node<Pose> = NodeConfig::new("pose").host_addr(addr).build();
             node.connect().await.unwrap();
 
             loop {

@@ -18,10 +18,11 @@ use tokio::time::{sleep, Duration};
 async fn main() {
     // By default, Rhiza Hosts run on the localhost, but other interfaces
     // are allowed, allowing connections over Ethernet or WiFi
-    let cfg = HostConfig::new("lo")  
+    let mut host: Host = HostConfig::new("lo")  
         .socket_num(25_000)       // Port 25000 is the default address  
-        .store_filename("store"); // sled databases allow persistence across reboots
-    let mut host = Host::from_config(cfg).unwrap();
+        .store_filename("store")  // sled DBs allow persistence across reboots
+        .build()
+        .unwrap(); 
     host.start().await.unwrap();
 
     // Other tasks can operate while the host is running in the background

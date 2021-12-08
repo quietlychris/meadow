@@ -37,10 +37,11 @@ async fn main() {
     let store_filename: String = matches.value_of("store_filename").unwrap().to_string();
     let socket: usize = matches.value_of("socket").unwrap().parse().unwrap();
 
-    let cfg = HostConfig::new(interface)
+    let mut host: Host = HostConfig::new(interface)
         .socket_num(socket)
-        .store_filename(store_filename);
-    let mut host = Host::from_config(cfg).unwrap();
+        .store_filename(store_filename)
+        .build()
+        .unwrap();
     host.start().await.unwrap();
 
     println!("Rhiza Host should be running in the background");

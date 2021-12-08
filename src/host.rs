@@ -16,6 +16,8 @@ use std::result::Result;
 
 use crate::msg::*;
 
+pub struct Connection {}
+
 #[derive(Debug)]
 pub struct Host {
     cfg: HostConfig,
@@ -50,17 +52,15 @@ impl HostConfig {
         self.store_filename = store_filename.into();
         self
     }
-}
 
-impl Host {
-    pub fn from_config(cfg: HostConfig) -> Result<Host, Box<dyn Error>> {
-        let ip = crate::get_ip(&cfg.interface)?;
+    pub fn build(self) -> Result<Host, Box<dyn Error>> {
+        let ip = crate::get_ip(&self.interface)?;
         println!(
             "On interface {:?}, the device IP is: {:?}",
-            &cfg.interface, &ip
+            &self.interface, &ip
         );
 
-        let raw_addr = ip + ":" + &cfg.socket_num.to_string();
+        let raw_addr = ip + ":" + &self.socket_num.to_string();
         // If the address won't parse, this should panic
         let _addr: SocketAddr = raw_addr.parse().unwrap_or_else(|_| {
             panic!(
@@ -72,21 +72,23 @@ impl Host {
         let connections = Arc::new(StdMutex::new(Vec::new()));
 
         let config = sled::Config::default()
-            .path(&cfg.store_filename)
+            .path(&self.store_filename)
             .temporary(true);
         let store: sled::Db = config.open()?;
 
         let reply_count = Arc::new(Mutex::new(0));
 
         Ok(Host {
-            cfg,
+            cfg: self,
             connections,
             task_listen: None,
             store,
             reply_count,
         })
     }
+}
 
+impl Host {
     pub async fn start(&mut self) -> Result<(), Box<dyn Error>> {
         let ip = crate::get_ip(&self.cfg.interface)?;
         let raw_addr = ip.to_owned() + ":" + &self.cfg.socket_num.to_string();

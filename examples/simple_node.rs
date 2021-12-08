@@ -13,8 +13,7 @@ struct Coordinate {
 async fn main() {
     // let addr = "192.168.8.105:25000"
     let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-    let cfg: NodeConfig<Coordinate> = NodeConfig::new("pose").host_addr(addr);
-    let mut node: Node<Coordinate> = Node::from_config(cfg);
+    let mut node: Node<Coordinate> = NodeConfig::new("pose").host_addr(addr).build();
     node.connect().await.unwrap();
 
     let c = Coordinate { x: 4.0, y: 4.0 };
