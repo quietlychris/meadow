@@ -68,7 +68,7 @@ impl<T: Message> NodeConfig<T> {
     }
 }
 
-impl<T: Message + 'static + std::marker::Sync> Node<T> {
+impl<T: Message + 'static> Node<T> {
     pub fn connect(&mut self) -> Result<(), Box<dyn Error>> {
         // let ip = crate::get_ip(interface).unwrap();
         // dbg!(ip);
@@ -148,9 +148,9 @@ impl<T: Message + 'static + std::marker::Sync> Node<T> {
         Ok(())
     }
 
+    // TO_DO: The error handling in the async blocks need to be improved 
     // Type M of published message is not necessarily the same as Type T assigned to the Node
-    /*
-    pub async fn publish_to<M: Message>(
+    pub fn publish_to<M: Message>(
         &mut self,
         name: impl Into<String>,
         val: M,
@@ -164,50 +164,54 @@ impl<T: Message + 'static + std::marker::Sync> Node<T> {
 
         let packet_as_bytes: heapless::Vec<u8, 4096> = to_vec(&packet).unwrap();
 
-        let stream = self.stream.lock().unwrap();; // .as_ref().unwrap();
+        //let stream = self.stream.lock().unwrap(); // .as_ref().unwrap();
+        let stream = &mut self.stream.as_ref().unwrap();
 
-
-        loop {
-            *stream.writable().await?;
-            match *stream.try_write(&packet_as_bytes) {
-                Ok(_n) => {
-                    // println!("Successfully wrote {} bytes to host", n);
-                    break;
-                }
-                Err(e) => {
-                    if e.kind() == std::io::ErrorKind::WouldBlock {}
-                    continue;
+        let result = self.runtime.block_on(async {
+            loop {
+                stream.writable().await.unwrap();
+                match stream.try_write(&packet_as_bytes) {
+                    Ok(_n) => {
+                        // println!("Successfully wrote {} bytes to host", n);
+                        break;
+                    }
+                    Err(e) => {
+                        if e.kind() == std::io::ErrorKind::WouldBlock {}
+                        continue;
+                    }
                 }
             }
-        }
-
-        // Wait for the publish acknowledgement
-        //stream.readable().await?;
-        let mut buf = [0u8; 4096];
-        loop {
-            stream.readable().await?;
-            match stream.try_read(&mut buf) {
-                Ok(0) => continue,
-                Ok(n) => {
-                    let bytes = &buf[..n];
-                    let msg: Result<String, Box<dyn Error>> = match from_bytes(bytes) {
-                        Ok(ack) => {
-                            return Ok(ack);
-                        }
-                        Err(e) => return Err(Box::new(e)),
-                    };
-                    // return Ok(msg.data);
-                }
-                Err(e) => {
-                    if e.kind() == std::io::ErrorKind::WouldBlock {}
-                    continue;
+    
+            // Wait for the publish acknowledgement
+            //stream.readable().await?;
+            let mut buf = [0u8; 4096];
+            loop {
+                stream.readable().await.unwrap();
+                match stream.try_read(&mut buf) {
+                    Ok(0) => continue,
+                    Ok(n) => {
+                        let bytes = &buf[..n];
+                        let msg: Result<String, Box<dyn Error>> = match from_bytes(bytes) {
+                            Ok(ack) => {
+                                return Ok(ack);
+                            }
+                            Err(e) => return Err(Box::new(e)),
+                        };
+                        // return Ok(msg.data);
+                    }
+                    Err(e) => {
+                        if e.kind() == std::io::ErrorKind::WouldBlock {}
+                        continue;
+                    }
                 }
             }
-        }
+            Ok(())
+        });
 
         Ok(())
     }
 
+    /*
     pub async fn request<M: Message>(
         &mut self,
         name: impl Into<String>,
