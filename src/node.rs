@@ -1,5 +1,9 @@
 use tokio::net::TcpStream;
+use tokio::runtime::Runtime;
 use tokio::time::{sleep, Duration};
+
+use std::ops::{Deref, DerefMut};
+use std::sync::{Arc, Mutex};
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
@@ -25,6 +29,7 @@ pub struct NodeConfig<T: Message> {
 
 #[derive(Debug)]
 pub struct Node<T: Message> {
+    runtime: Runtime,
     stream: Option<TcpStream>,
     name: String,
     host_addr: SocketAddr,
@@ -50,21 +55,61 @@ impl<T: Message> NodeConfig<T> {
         self
     }
 
-    pub fn build(self) -> Node<T> {
-        Node::<T> {
+    pub fn build(self) -> Result<Node<T>, Box<dyn Error>> {
+        let runtime = tokio::runtime::Runtime::new()?;
+
+        Ok(Node::<T> {
+            runtime,
             stream: None,
             host_addr: self.host_addr,
             name: self.name,
             phantom: PhantomData,
-        }
+        })
     }
 }
 
-impl<T: Message + 'static> Node<T> {
-    pub async fn connect(&mut self) -> Result<(), Box<dyn Error>> {
+impl<T: Message + 'static + std::marker::Sync> Node<T> {
+    pub fn connect(&mut self) -> Result<(), Box<dyn Error>> {
         // let ip = crate::get_ip(interface).unwrap();
         // dbg!(ip);
         //let mut socket_num = 25_001;
+
+        // let stream: Arc<Mutex<Option<TcpStream>>> = Arc::new(Mutex::new(None));
+        let host_addr = self.host_addr.clone();
+        let name = self.name.clone();
+        let stream = &mut self.stream;
+
+        self.runtime.block_on(async {
+            // println!("hello!");
+            match TcpStream::connect(host_addr).await {
+                Ok(my_stream) => {
+                    *stream = Some(my_stream);
+                }
+                Err(e) => println!("Error: {:?}", e),
+            }
+
+            let mut stream = stream.as_ref().unwrap();
+            loop {
+                stream.writable().await.unwrap();
+                match stream.try_write(name.as_bytes()) {
+                    Ok(_n) => {
+                        // println!("Successfully wrote {} bytes to host", n);
+                        break;
+                    }
+                    Err(e) => {
+                        if e.kind() == std::io::ErrorKind::WouldBlock {
+                        } else {
+                            println!("Handshake error: {:?}", e);
+                        }
+                    }
+                }
+            }
+        });
+        // bg!(&stream);
+
+        // val.try_write(b"boop")?;
+
+        /*
         while self.stream.is_none() {
             match TcpStream::connect(self.host_addr).await {
                 Ok(stream) => {
@@ -98,11 +143,13 @@ impl<T: Message + 'static> Node<T> {
                 Err(e) => println!("Error: {:?}", e),
             };
         }
+        */
 
         Ok(())
     }
 
     // Type M of published message is not necessarily the same as Type T assigned to the Node
+    /*
     pub async fn publish_to<M: Message>(
         &mut self,
         name: impl Into<String>,
@@ -117,10 +164,12 @@ impl<T: Message + 'static> Node<T> {
 
         let packet_as_bytes: heapless::Vec<u8, 4096> = to_vec(&packet).unwrap();
 
-        let stream = self.stream.as_ref().unwrap();
+        let stream = self.stream.lock().unwrap();; // .as_ref().unwrap();
+
+
         loop {
-            stream.writable().await?;
-            match stream.try_write(&packet_as_bytes) {
+            *stream.writable().await?;
+            match *stream.try_write(&packet_as_bytes) {
                 Ok(_n) => {
                     // println!("Successfully wrote {} bytes to host", n);
                     break;
@@ -155,6 +204,8 @@ impl<T: Message + 'static> Node<T> {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub async fn request<M: Message>(
@@ -216,6 +267,7 @@ impl<T: Message + 'static> Node<T> {
         }
     }
 
+
     pub fn rebuild_config(&self) -> NodeConfig<T> {
         let name = self.name.clone();
         dbg!(&name);
@@ -231,4 +283,5 @@ impl<T: Message + 'static> Node<T> {
             phantom: PhantomData,
         }
     }
+    */
 }

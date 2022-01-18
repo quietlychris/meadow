@@ -9,13 +9,13 @@ struct Coordinate {
     y: f32,
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
     // let addr = "192.168.8.105:25000"
     let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-    let mut node: Node<Coordinate> = NodeConfig::new("pose").host_addr(addr).build();
-    node.connect().await.unwrap();
+    let mut node: Node<Coordinate> = NodeConfig::new("pose").host_addr(addr).build().unwrap();
+    node.connect().unwrap();
 
+    /*
     let c = Coordinate { x: 4.0, y: 4.0 };
     node.publish_to("pose", c).await.unwrap();
 
@@ -27,4 +27,5 @@ async fn main() {
         let result: Coordinate = node.request("pose").await.unwrap();
         println!("Got position: {:?}", result);
     }
+    */
 }

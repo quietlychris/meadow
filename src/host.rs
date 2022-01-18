@@ -1,8 +1,9 @@
 // Tokio for async
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
-use tokio::sync::Mutex;
-use tokio::task::JoinHandle; // as TokioMutex;
+use tokio::runtime::Runtime;
+use tokio::sync::Mutex; // as TokioMutex;
+use tokio::task::JoinHandle;
 
 use postcard::*;
 
@@ -26,6 +27,7 @@ pub struct Connection {
 #[derive(Debug)]
 pub struct Host {
     cfg: HostConfig,
+    runtime: Runtime,
     connections: Arc<StdMutex<Vec<Connection>>>,
     task_listen: Option<JoinHandle<()>>,
     store: sled::Db,
@@ -74,6 +76,9 @@ impl HostConfig {
                 raw_addr
             )
         });
+
+        let runtime = tokio::runtime::Runtime::new()?;
+
         let connections = Arc::new(StdMutex::new(Vec::new()));
 
         let config = sled::Config::default()
@@ -85,6 +90,7 @@ impl HostConfig {
 
         Ok(Host {
             cfg: self,
+            runtime,
             connections,
             task_listen: None,
             store,
@@ -94,17 +100,43 @@ impl HostConfig {
 }
 
 impl Host {
-    pub async fn start(&mut self) -> Result<(), Box<dyn Error>> {
+    pub fn start(&mut self) -> Result<(), Box<dyn Error + '_>> {
         let ip = crate::get_ip(&self.cfg.interface)?;
         let raw_addr = ip.to_owned() + ":" + &self.cfg.socket_num.to_string();
         let addr: SocketAddr = raw_addr.parse()?;
-        let listener = TcpListener::bind(addr).await?;
+
         let connections_clone = self.connections.clone();
 
         let db = self.store.clone();
 
         let counter = self.reply_count.clone();
 
+        let task_listen = self.runtime.spawn(async move {
+            let listener = TcpListener::bind(addr).await.unwrap();
+
+            loop {
+                let (stream, stream_addr) = listener.accept().await.unwrap();
+                let (stream, name) = handshake(stream);
+
+                let db = db.clone();
+                let counter = counter.clone();
+                let connections = Arc::clone(&connections_clone.clone());
+
+                let handle = tokio::spawn(async move {
+                    process(stream, db, counter).await;
+                });
+                let connection = Connection {
+                    handle,
+                    stream_addr,
+                    name,
+                };
+                dbg!(&connection);
+
+                connections.lock().unwrap().push(connection);
+            }
+        });
+
+        /*
         let task_listen = tokio::spawn(async move {
             loop {
                 let (stream, stream_addr) = listener.accept().await.unwrap();
@@ -126,6 +158,7 @@ impl Host {
                 connections.lock().unwrap().push(connection);
             }
         });
+        */
 
         self.task_listen = Some(task_listen);
 
