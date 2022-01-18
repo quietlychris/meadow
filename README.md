@@ -12,31 +12,31 @@ Under the hood, `rhiza` relies on:
 // A simple host, which can be run remotely or co-located
 // with the attached nodes 
 use rhiza::host::{Host, HostConfig};
-use tokio::time::{sleep, Duration};
+use std::thread;
+use std::time::Duration;
 
-#[tokio::main]
-async fn main() {
-    // By default, Rhiza Hosts run on the localhost, but other interfaces
-    // are allowed, allowing connections over Ethernet or WiFi
-    let mut host: Host = HostConfig::new("lo")  
-        .socket_num(25_000)       // Port 25000 is the default address  
-        .store_filename("store")  // sled DBs allow persistence across reboots
+fn main() {
+    let mut host: Host = HostConfig::new("lo")
+        .socket_num(25_000)
+        .store_filename("store")
         .build()
-        .unwrap(); 
-    host.start().await.unwrap();
+        .unwrap();
+    host.start().unwrap();
 
     // Other tasks can operate while the host is running in the background
-    sleep(Duration::from_secs(10)).await;
+    thread::sleep(Duration::from_secs(10));
 
     host.stop().unwrap();
 }
+
 ```
 
 ### Node
 ```rust
 // A simple node (client-side)
 use rhiza::node::{Node, NodeConfig};
-use tokio::time::{sleep, Duration};
+use std::thread;
+use std::time::Duration;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -45,24 +45,23 @@ struct Coordinate {
     y: f32,
 }
 
-#[tokio::main]
-async fn main() {
-    // This is the default TCP address of the central Rhiza Host
+fn main() {
+    // let addr = "192.168.8.105:25000"
     let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-    let mut node: Node<Coordinate> = NodeConfig::new("pose").host_addr(addr).build();
-    // Each node establishs a TCP connection with central host
-    node.connect().await.unwrap();
+    let mut node: Node<Coordinate> = NodeConfig::new("pose").host_addr(addr).build().unwrap();
+    node.connect().unwrap();
 
     let c = Coordinate { x: 4.0, y: 4.0 };
-    node.publish_to("pose", c).await.unwrap();
+    node.publish_to("pose", c).unwrap();
 
-    for _ in 0..5 {
+    loop {
         // Could get this by reading a GPS, for example
         let c = Coordinate { x: 4.0, y: 4.0 };
-        node.publish_to("pose", c).await.unwrap();
-        sleep(Duration::from_millis(1_000)).await;
-        let result: Coordinate = node.request("pose").await.unwrap();
+        node.publish_to("pose", c).unwrap();
+        thread::sleep(Duration::from_millis(1_000));
+        let result: Coordinate = node.request("pose").unwrap();
         println!("Got position: {:?}", result);
     }
 }
+
 ```

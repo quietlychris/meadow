@@ -184,10 +184,6 @@ impl Host {
     }
 }
 
-fn pass_stream(stream: TcpStream) -> TcpStream {
-    stream
-}
-
 #[inline]
 fn handshake(stream: TcpStream) -> (TcpStream, String) {
     // Handshake

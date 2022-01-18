@@ -75,7 +75,7 @@ impl<T: Message + 'static> Node<T> {
         //let mut socket_num = 25_001;
 
         // let stream: Arc<Mutex<Option<TcpStream>>> = Arc::new(Mutex::new(None));
-        let host_addr = self.host_addr.clone();
+        let host_addr = self.host_addr;
         let name = self.name.clone();
         let stream = &mut self.stream;
 
@@ -87,6 +87,8 @@ impl<T: Message + 'static> Node<T> {
                 }
                 Err(e) => println!("Error: {:?}", e),
             }
+
+            sleep(Duration::from_millis(2)).await;
 
             let mut stream = stream.as_ref().unwrap();
             loop {
@@ -105,50 +107,11 @@ impl<T: Message + 'static> Node<T> {
                 }
             }
         });
-        // bg!(&stream);
-
-        // val.try_write(b"boop")?;
-
-        /*
-        while self.stream.is_none() {
-            match TcpStream::connect(self.host_addr).await {
-                Ok(stream) => {
-                    println!("- Assigning to {:?}", &stream.local_addr()?);
-                    self.stream = Some(stream);
-
-                    let stream = self.stream.as_ref().unwrap();
-                    // stream.try_write(self.name.as_bytes()).unwrap();
-                    loop {
-                        stream.writable().await?;
-                        match stream.try_write(self.name.as_bytes()) {
-                            Ok(_n) => {
-                                // println!("Successfully wrote {} bytes to host", n);
-                                break;
-                            }
-                            Err(e) => {
-                                if e.kind() == std::io::ErrorKind::WouldBlock {
-                                } else {
-                                    println!("Handshake error: {:?}", e);
-                                }
-                            }
-                        }
-                    }
-
-                    // TO_DO: Get rid of this sleep statement without overwriting buffer
-                    // during immediately consecutive connect()/publish() calls
-                    sleep(Duration::from_millis(2)).await;
-
-                    println!("\t - Successfully assigned")
-                }
-                Err(e) => println!("Error: {:?}", e),
-            };
-        }
-        */
 
         Ok(())
     }
 
-    // TO_DO: The error handling in the async blocks need to be improved 
+    // TO_DO: The error handling in the async blocks need to be improved
     // Type M of published message is not necessarily the same as Type T assigned to the Node
     pub fn publish_to<M: Message>(
         &mut self,
@@ -181,7 +144,7 @@ impl<T: Message + 'static> Node<T> {
                     }
                 }
             }
-    
+
             // Wait for the publish acknowledgement
             //stream.readable().await?;
             let mut buf = [0u8; 4096];
@@ -211,11 +174,10 @@ impl<T: Message + 'static> Node<T> {
         Ok(())
     }
 
-    /*
-    pub async fn request<M: Message>(
+    pub fn request<M: Message>(
         &mut self,
         name: impl Into<String>,
-    ) -> Result<M, Box<dyn Error>> {
+    ) -> Result<M, Box<postcard::Error>> {
         let packet = GenericRhizaMsg {
             msg_type: Msg::GET,
             name: self.name.to_string(),
@@ -226,51 +188,52 @@ impl<T: Message + 'static> Node<T> {
 
         let packet_as_bytes: heapless::Vec<u8, 4096> = to_vec(&packet).unwrap();
 
-        let stream = self.stream.as_ref().unwrap();
+        let stream = &mut self.stream.as_ref().unwrap();
         //let stream = stream.as_ref().unwrap().lock().await;
 
-        stream.writable().await?;
+        self.runtime.block_on(async {
+            stream.writable().await.unwrap();
 
-        // Write the request
-        loop {
-            match stream.try_write(&packet_as_bytes) {
-                Ok(_n) => {
-                    // println!("Successfully wrote {}-byte request to host", n);
-                    break;
-                }
-                Err(e) => {
-                    if e.kind() == std::io::ErrorKind::WouldBlock {}
-                    continue;
+            // Write the request
+            loop {
+                match stream.try_write(&packet_as_bytes) {
+                    Ok(_n) => {
+                        // println!("Successfully wrote {}-byte request to host", n);
+                        break;
+                    }
+                    Err(e) => {
+                        if e.kind() == std::io::ErrorKind::WouldBlock {}
+                        continue;
+                    }
                 }
             }
-        }
 
-        // Wait for the response
-        //stream.readable().await?;
-        let mut buf = [0u8; 4096];
-        loop {
-            stream.readable().await?;
-            match stream.try_read(&mut buf) {
-                Ok(0) => continue,
-                Ok(n) => {
-                    let bytes = &buf[..n];
-                    let msg: Result<RhizaMsg<M>, Box<dyn Error>> = match from_bytes(bytes) {
-                        Ok(msg) => {
-                            let msg: RhizaMsg<M> = msg;
-                            return Ok(msg.data);
-                        }
-                        Err(e) => return Err(Box::new(e)),
-                    };
-                    // return Ok(msg.data);
-                }
-                Err(e) => {
-                    if e.kind() == std::io::ErrorKind::WouldBlock {}
-                    continue;
+            // Wait for the response
+            //stream.readable().await?;
+            let mut buf = [0u8; 4096];
+            loop {
+                stream.readable().await.unwrap();
+                match stream.try_read(&mut buf) {
+                    Ok(0) => continue,
+                    Ok(n) => {
+                        let bytes = &buf[..n];
+                        let msg: Result<RhizaMsg<M>, Box<dyn Error>> = match from_bytes(bytes) {
+                            Ok(msg) => {
+                                let msg: RhizaMsg<M> = msg;
+                                return Ok(msg.data);
+                            }
+                            Err(e) => return Err(Box::new(e)),
+                        };
+                        // return Ok(msg.data);
+                    }
+                    Err(e) => {
+                        if e.kind() == std::io::ErrorKind::WouldBlock {}
+                        continue;
+                    }
                 }
             }
-        }
+        })
     }
-
 
     pub fn rebuild_config(&self) -> NodeConfig<T> {
         let name = self.name.clone();
@@ -287,5 +250,4 @@ impl<T: Message + 'static> Node<T> {
             phantom: PhantomData,
         }
     }
-    */
 }

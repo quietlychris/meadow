@@ -1,5 +1,6 @@
 use rhiza::node::{Node, NodeConfig};
-use tokio::time::{sleep, Duration};
+use std::thread;
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
@@ -15,17 +16,15 @@ fn main() {
     let mut node: Node<Coordinate> = NodeConfig::new("pose").host_addr(addr).build().unwrap();
     node.connect().unwrap();
 
-    /*
     let c = Coordinate { x: 4.0, y: 4.0 };
-    node.publish_to("pose", c).await.unwrap();
+    node.publish_to("pose", c).unwrap();
 
     loop {
         // Could get this by reading a GPS, for example
         let c = Coordinate { x: 4.0, y: 4.0 };
-        node.publish_to("pose", c).await.unwrap();
-        sleep(Duration::from_millis(1_000)).await;
-        let result: Coordinate = node.request("pose").await.unwrap();
+        node.publish_to("pose", c).unwrap();
+        thread::sleep(Duration::from_millis(1_000));
+        let result: Coordinate = node.request("pose").unwrap();
         println!("Got position: {:?}", result);
     }
-    */
 }
