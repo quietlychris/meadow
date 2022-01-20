@@ -5,6 +5,7 @@ use tokio::runtime::Runtime;
 use tokio::sync::Mutex; // as TokioMutex;
 use tokio::task::JoinHandle;
 // Tracing for logging
+use hex_slice::*;
 use tracing::*;
 // Postcard is the default de/serializer
 use postcard::*;
@@ -102,6 +103,7 @@ impl HostConfig {
 }
 
 impl Host {
+    
     #[tracing::instrument]
     pub fn start(&mut self) -> Result<(), Box<dyn Error + '_>> {
         let ip = crate::get_ip(&self.cfg.interface)?;
@@ -178,9 +180,13 @@ fn handshake(stream: TcpStream) -> (TcpStream, String) {
                 name = match std::str::from_utf8(&buf[..n]) {
                     Ok(name) => name.to_owned(),
                     Err(e) => {
-                        error!("Error occurred during handshake on host-side: {}", e);
-                        println!("Error during handshake (Host-side): {:?}", e);
-                        "placeholder".to_owned()
+                        error!("Error occurred during handshake on host-side: {} on byte string: {:?}, which in hex is: {:x}", e,&buf[..n],&buf[..n].as_hex());
+
+                        //let emsg = format!("Error parsing the following bytes: {:?}",&buf[..n]);
+                        //panic!("{}",emsg);
+
+                        // println!("Error during handshake (Host-side): {:?}", e);
+                        "HOST_CONNECTION_ERROR".to_owned()
                     }
                 };
                 break;
@@ -188,7 +194,8 @@ fn handshake(stream: TcpStream) -> (TcpStream, String) {
             Err(e) => {
                 if e.kind() == std::io::ErrorKind::WouldBlock {
                 } else {
-                    println!("Error: {:?}", e);
+                    error!("{:?}", e);
+                    // println!("Error: {:?}", e);
                 }
             }
         }

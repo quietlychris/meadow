@@ -6,4 +6,4 @@ check.sh
 examples/get_ip.rs
 .gitignore
 examples/node_subscription.rs
-logs/*
+logs

@@ -4,8 +4,8 @@ use tokio::time::{sleep, Duration};
 
 use tracing::*;
 
-use std::ops::{Deref, DerefMut};
-use std::sync::{Arc, Mutex};
+// use std::ops::{Deref, DerefMut};
+// use std::sync::{Arc, Mutex};
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
@@ -18,7 +18,7 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use crate::msg::*;
 
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 pub trait Message: Serialize + DeserializeOwned + Debug + Send {}
 impl<T> Message for T where T: Serialize + DeserializeOwned + Debug + Send {}
 
@@ -71,6 +71,7 @@ impl<T: Message> NodeConfig<T> {
 }
 
 impl<T: Message + 'static> Node<T> {
+    #[tracing::instrument]
     pub fn connect(&mut self) -> Result<(), Box<dyn Error>> {
         // let ip = crate::get_ip(interface).unwrap();
         // dbg!(ip);
@@ -98,6 +99,7 @@ impl<T: Message + 'static> Node<T> {
                 match stream.try_write(name.as_bytes()) {
                     Ok(_n) => {
                         // println!("Successfully wrote {} bytes to host", n);
+                        info!("{}: Wrote {} bytes to host", name, _n);
                         break;
                     }
                     Err(e) => {
@@ -108,7 +110,7 @@ impl<T: Message + 'static> Node<T> {
                     }
                 }
             }
-            info!("{}: Successfully wrote connected to host", name);
+            info!("{}: Successfully connected to host", name);
         });
 
         Ok(())
@@ -116,9 +118,10 @@ impl<T: Message + 'static> Node<T> {
 
     // TO_DO: The error handling in the async blocks need to be improved
     // Type M of published message is not necessarily the same as Type T assigned to the Node
+    #[tracing::instrument]
     pub fn publish_to<M: Message>(
         &mut self,
-        name: impl Into<String>,
+        name: impl Into<String> + Debug + Display,
         val: M,
     ) -> Result<(), Box<dyn Error>> {
         let packet = RhizaMsg {
@@ -130,7 +133,7 @@ impl<T: Message + 'static> Node<T> {
 
         let packet_as_bytes: heapless::Vec<u8, 4096> = to_vec(&packet).unwrap();
 
-        //let stream = self.stream.lock().unwrap(); // .as_ref().unwrap();
+        let name = &self.name;
         let stream = &mut self.stream.as_ref().unwrap();
 
         let result = self.runtime.block_on(async {
@@ -139,7 +142,7 @@ impl<T: Message + 'static> Node<T> {
                 match stream.try_write(&packet_as_bytes) {
                     Ok(_n) => {
                         // println!("Successfully wrote {} bytes to host", n);
-                        info!("Successfully wrote {} bytes to host", _n);
+                        info!("{}: Successfully wrote {} bytes to host", name.to_string(), _n);
                         break;
                     }
                     Err(e) => {
@@ -162,7 +165,10 @@ impl<T: Message + 'static> Node<T> {
                             Ok(ack) => {
                                 return Ok(ack);
                             }
-                            Err(e) => return Err(Box::new(e)),
+                            Err(e) => {
+                                error!("{}: {:?}", name, &e);
+                                return Err(Box::new(e));
+                            }
                         };
                         // return Ok(msg.data);
                     }
@@ -178,9 +184,10 @@ impl<T: Message + 'static> Node<T> {
         Ok(())
     }
 
+    #[tracing::instrument]
     pub fn request<M: Message>(
         &mut self,
-        name: impl Into<String>,
+        name: impl Into<String> + Debug + Display,
     ) -> Result<M, Box<postcard::Error>> {
         let packet = GenericRhizaMsg {
             msg_type: Msg::GET,
@@ -226,7 +233,10 @@ impl<T: Message + 'static> Node<T> {
                                 let msg: RhizaMsg<M> = msg;
                                 return Ok(msg.data);
                             }
-                            Err(e) => return Err(Box::new(e)),
+                            Err(e) => {
+                                error!("{}: {:?}", name.to_string(), &e);
+                                return Err(Box::new(e))
+                            },
                         };
                         // return Ok(msg.data);
                     }
