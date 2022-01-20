@@ -17,6 +17,10 @@ const LABELS: [&str; 9] = [
     "view",
 ];
 fn main() {
+    let file_appender = tracing_appender::rolling::minutely("logs/", "multiple_nodes");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    tracing_subscriber::fmt().with_writer(non_blocking).init();
+
     let mut host: Host = HostConfig::new("lo")
         .socket_num(25_000)
         .store_filename("store")
@@ -39,7 +43,7 @@ fn main() {
             let mut node: Node<Pose> = NodeConfig::new(LABELS[i]).host_addr(addr).build().unwrap();
             node.connect().unwrap();
 
-            for i in 0..10 {
+            for i in 0..100 {
                 node.publish_to("pose", pose.clone()).unwrap();
                 thread::sleep(Duration::from_millis(i * 5 as u64));
                 let result: Pose = node.request("pose").unwrap();
@@ -49,7 +53,7 @@ fn main() {
         handles.push(handle);
     }
 
-    thread::sleep(Duration::from_secs(3));
+    thread::sleep(Duration::from_secs(10));
 
     for handle in handles {
         handle.join().unwrap();

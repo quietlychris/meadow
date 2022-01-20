@@ -4,13 +4,15 @@ use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex; // as TokioMutex;
 use tokio::task::JoinHandle;
-
+// Tracing for logging
+use tracing::*;
+// Postcard is the default de/serializer
 use postcard::*;
-
+// Multi-threading primitives
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
-
+// Misc other imports
 use std::error::Error;
 use std::net::SocketAddr;
 use std::result::Result;
@@ -100,6 +102,7 @@ impl HostConfig {
 }
 
 impl Host {
+    #[tracing::instrument]
     pub fn start(&mut self) -> Result<(), Box<dyn Error + '_>> {
         let ip = crate::get_ip(&self.cfg.interface)?;
         let raw_addr = ip.to_owned() + ":" + &self.cfg.socket_num.to_string();
@@ -130,35 +133,12 @@ impl Host {
                     stream_addr,
                     name,
                 };
-                dbg!(&connection);
+                info!("Received connection from {:?}", &connection);
+                // dbg!(&connection);
 
                 connections.lock().unwrap().push(connection);
             }
         });
-
-        /*
-        let task_listen = tokio::spawn(async move {
-            loop {
-                let (stream, stream_addr) = listener.accept().await.unwrap();
-                let (stream, name) = handshake(stream);
-
-                let db = db.clone();
-                let counter = counter.clone();
-                let connections = Arc::clone(&connections_clone.clone());
-
-                let handle = tokio::spawn(async move {
-                    process(stream, db, counter).await;
-                });
-                let connection = Connection {
-                    handle,
-                    stream_addr,
-                    name,
-                };
-
-                connections.lock().unwrap().push(connection);
-            }
-        });
-        */
 
         self.task_listen = Some(task_listen);
 
@@ -167,7 +147,8 @@ impl Host {
 
     pub fn stop(&mut self) -> Result<(), Box<dyn Error>> {
         for conn in self.connections.lock().unwrap().deref_mut() {
-            println!("Aborting connection: {}", conn.name);
+            // println!("Aborting connection: {}", conn.name);
+            info!("Aborting connection: {}", conn.name);
             conn.handle.abort();
         }
         Ok(())
@@ -185,9 +166,11 @@ impl Host {
 }
 
 #[inline]
+#[tracing::instrument]
 fn handshake(stream: TcpStream) -> (TcpStream, String) {
     // Handshake
     let mut buf = [0u8; 4096];
+    // TO_DO: Don't have the name String have a hard-coded capacity
     let mut name: String = String::with_capacity(100);
     loop {
         match stream.try_read(&mut buf) {
@@ -195,6 +178,7 @@ fn handshake(stream: TcpStream) -> (TcpStream, String) {
                 name = match std::str::from_utf8(&buf[..n]) {
                     Ok(name) => name.to_owned(),
                     Err(e) => {
+                        error!("Error occurred during handshake on host-side: {}", e);
                         println!("Error during handshake (Host-side): {:?}", e);
                         "placeholder".to_owned()
                     }
@@ -212,6 +196,7 @@ fn handshake(stream: TcpStream) -> (TcpStream, String) {
     (stream, name)
 }
 
+#[tracing::instrument]
 async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
     let mut buf = [0u8; 4096];
 
@@ -238,7 +223,7 @@ async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
                         loop {
                             match stream.try_write(&db_result.as_bytes()) {
                                 Ok(n) => {
-                                    println!("Successfully replied with {} bytes", n);
+                                    // println!("Successfully replied with {} bytes", n);
                                     let mut count = count.lock().await; //.unwrap();
                                     *count += 1;
                                     break;
@@ -262,13 +247,14 @@ async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
                             None => {
                                 let e: String =
                                     format!("Error: no message with the name {} exists", &msg.name);
+                                error!("{}", &e);
                                 e.as_bytes().into()
                             }
                         };
 
                         match stream.try_write(&return_bytes) {
                             Ok(n) => {
-                                println!("Successfully replied with {} bytes", n);
+                                // println!("Successfully replied with {} bytes", n);
                                 let mut count = count.lock().await; //.unwrap();
                                 *count += 1;
                                 break;
@@ -286,7 +272,8 @@ async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
                 continue;
             }
             Err(e) => {
-                println!("Error: {:?}", e);
+                // println!("Error: {:?}", e);
+                error!("Error: {:?}", e);
             }
         }
     }

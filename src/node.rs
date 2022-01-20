@@ -2,6 +2,8 @@ use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio::time::{sleep, Duration};
 
+use tracing::*;
+
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex};
 
@@ -106,6 +108,7 @@ impl<T: Message + 'static> Node<T> {
                     }
                 }
             }
+            info!("{}: Successfully wrote connected to host", name);
         });
 
         Ok(())
@@ -136,6 +139,7 @@ impl<T: Message + 'static> Node<T> {
                 match stream.try_write(&packet_as_bytes) {
                     Ok(_n) => {
                         // println!("Successfully wrote {} bytes to host", n);
+                        info!("Successfully wrote {} bytes to host", _n);
                         break;
                     }
                     Err(e) => {
@@ -237,12 +241,12 @@ impl<T: Message + 'static> Node<T> {
 
     pub fn rebuild_config(&self) -> NodeConfig<T> {
         let name = self.name.clone();
-        dbg!(&name);
+        // dbg!(&name);
         let host_addr = match &self.stream {
             Some(stream) => stream.peer_addr().unwrap(),
             None => SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 25_000),
         };
-        dbg!(&host_addr);
+        // dbg!(&host_addr);
 
         NodeConfig {
             host_addr,
