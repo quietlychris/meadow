@@ -84,11 +84,22 @@ impl<T: Message + 'static> Node<T> {
 
         self.runtime.block_on(async {
             // println!("hello!");
-            match TcpStream::connect(host_addr).await {
-                Ok(my_stream) => {
-                    *stream = Some(my_stream);
+            let mut connection_attempts = 0;
+            loop {
+                if connection_attempts > 5 {
+                    break;
                 }
-                Err(e) => println!("Error: {:?}", e),
+                match TcpStream::connect(host_addr).await {
+                    Ok(my_stream) => {
+                        *stream = Some(my_stream);
+                        break;
+                    }
+                    Err(e) => {
+                        connection_attempts += 1;
+                        sleep(Duration::from_millis(10)).await;
+                        println!("Error: {:?}", e)
+                    }
+                }
             }
 
             sleep(Duration::from_millis(2)).await;
@@ -142,7 +153,11 @@ impl<T: Message + 'static> Node<T> {
                 match stream.try_write(&packet_as_bytes) {
                     Ok(_n) => {
                         // println!("Successfully wrote {} bytes to host", n);
-                        info!("{}: Successfully wrote {} bytes to host", name.to_string(), _n);
+                        info!(
+                            "{}: Successfully wrote {} bytes to host",
+                            name.to_string(),
+                            _n
+                        );
                         break;
                     }
                     Err(e) => {
@@ -235,8 +250,8 @@ impl<T: Message + 'static> Node<T> {
                             }
                             Err(e) => {
                                 error!("{}: {:?}", name.to_string(), &e);
-                                return Err(Box::new(e))
-                            },
+                                return Err(Box::new(e));
+                            }
                         };
                         // return Ok(msg.data);
                     }

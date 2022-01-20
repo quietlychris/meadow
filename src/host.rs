@@ -103,7 +103,6 @@ impl HostConfig {
 }
 
 impl Host {
-    
     #[tracing::instrument]
     pub fn start(&mut self) -> Result<(), Box<dyn Error + '_>> {
         let ip = crate::get_ip(&self.cfg.interface)?;
@@ -121,6 +120,7 @@ impl Host {
 
             loop {
                 let (stream, stream_addr) = listener.accept().await.unwrap();
+                // TO_DO: The handshake function is not always happy
                 let (stream, name) = handshake(stream);
 
                 let db = db.clone();

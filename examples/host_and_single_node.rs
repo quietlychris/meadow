@@ -3,7 +3,6 @@ use std::thread;
 use std::time::Duration;
 
 fn main() {
-
     // Set up logging
     let file_appender = tracing_appender::rolling::minutely("logs/", "example");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);

@@ -32,7 +32,7 @@ fn main() {
 ```
 
 ### Node
-```rust
+```rust,no_run
 // A simple node (client-side)
 use rhiza::node::{Node, NodeConfig};
 use std::thread;
@@ -46,7 +46,7 @@ struct Coordinate {
 }
 
 fn main() {
-    // let addr = "192.168.8.105:25000"
+
     let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
     let mut node: Node<Coordinate> = NodeConfig::new("pose").host_addr(addr).build().unwrap();
     node.connect().unwrap();
@@ -63,5 +63,4 @@ fn main() {
         println!("Got position: {:?}", result);
     }
 }
-
 ```
