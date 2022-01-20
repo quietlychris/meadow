@@ -1,3 +1,6 @@
+fn main() {}
+/*
+
 use rhiza::host::{Host, HostConfig};
 use rhiza::node::{Node, NodeConfig};
 use tokio::time::{sleep, Duration};
@@ -51,3 +54,5 @@ async fn main() {
 }
 
 fn create_subscription<T: rhiza::Message>(node: Node<T>, val: Arc<Mutex<T>>, interval: Duration) {}
+
+*/

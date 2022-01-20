@@ -3,9 +3,14 @@ use rhiza::host::{Host, HostConfig};
 use tokio::signal;
 
 use clap::{App, Arg};
+use tracing_appender;
+use tracing_subscriber;
 
-#[tokio::main]
-async fn main() {
+fn main() -> ! {
+    let file_appender = tracing_appender::rolling::minutely("logs/", "start_host");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    tracing_subscriber::fmt().with_writer(non_blocking).init();
+
     let matches = App::new("Rhiza Host")
         .version("0.1")
         .author("Christopher Moran <christopher.and.moran@gmail.com>")
@@ -42,12 +47,9 @@ async fn main() {
         .store_filename(store_filename)
         .build()
         .unwrap();
-    host.start().await.unwrap();
+    host.start().unwrap();
 
-    println!("Rhiza Host should be running in the background");
+    println!("Rhiza Host should be running");
     // Other tasks can operate while the host is running on it's own thread
-    signal::ctrl_c().await.unwrap();
-    println!("\nShutting down Rhiza Host");
-
-    host.stop().unwrap();
+    loop {}
 }
