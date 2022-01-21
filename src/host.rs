@@ -33,7 +33,7 @@ pub struct Host {
     runtime: Runtime,
     connections: Arc<StdMutex<Vec<Connection>>>,
     task_listen: Option<JoinHandle<()>>,
-    store: sled::Db,
+    store: Option<sled::Db>,
     reply_count: Arc<Mutex<usize>>,
 }
 
@@ -96,7 +96,7 @@ impl HostConfig {
             runtime,
             connections,
             task_listen: None,
-            store,
+            store: Some(store),
             reply_count,
         })
     }
@@ -111,7 +111,13 @@ impl Host {
 
         let connections_clone = self.connections.clone();
 
-        let db = self.store.clone();
+        let db = match self.store.clone() {
+            Some(db) => db,
+            None => {
+                error!("Must open a sled database to start the Host");
+                panic!("Must open a sled database to start the Host");
+            }
+        };
 
         let counter = self.reply_count.clone();
 
@@ -147,12 +153,17 @@ impl Host {
         Ok(())
     }
 
-    pub fn stop(&mut self) -> Result<(), Box<dyn Error>> {
+    /// Shuts down all networking connections and releases Host object handle
+    /// This also makes sure that temporary sled::Db's built are also dropped 
+    /// following the shutdown of a Host 
+    pub fn stop(mut self) -> Result<(), Box<dyn Error>> {
         for conn in self.connections.lock().unwrap().deref_mut() {
             // println!("Aborting connection: {}", conn.name);
             info!("Aborting connection: {}", conn.name);
             conn.handle.abort();
         }
+        self.store = None;
+
         Ok(())
     }
 
