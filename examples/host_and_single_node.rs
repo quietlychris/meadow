@@ -23,14 +23,17 @@ fn main() {
 
     let mut result = Pose::default();
 
-    // Could get this by reading a GPS, for example
-    let pose = Pose { x: 4.0, y: 4.0 };
+    for i in 0..5 {
+        // Could get this by reading a GPS, for example
+        let pose = Pose { x: i as f32, y: i as f32};
 
-    node.publish_to("pose", pose.clone()).unwrap();
-    thread::sleep(Duration::from_millis(1_000));
-    result = node.request("pose").unwrap();
-    println!("Got position: {:?}", result);
+        node.publish_to("pose", pose.clone()).unwrap();
+        thread::sleep(Duration::from_millis(1_000));
+        result = node.request("pose").unwrap();
+        println!("Got position: {:?}", result);
 
-    assert_eq!(pose, result);
+        assert_eq!(pose, result);
+    }
+
     host.stop().unwrap();
 }
