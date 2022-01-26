@@ -1,42 +1,43 @@
 use serde::{Deserialize, Serialize};
-// use std::net::IpAddr;
 
+/// Msg definitions for publish or request of topic data
 #[derive(Debug, Serialize, Deserialize)]
-pub enum Msg {
+pub enum MsgType {
     SET,
     GET,
 }
 
+/// Message format containing a strongly-typed data payload and associated metadata
 #[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
-pub struct RhizaMsg<T> {
-    pub msg_type: Msg,
+pub struct Msg<T> {
+    pub msg_type: MsgType,
     pub name: String,
     pub topic: String,
     pub data_type: String,
     pub data: T,
 }
 
+/// Message format containing a generic Vec<u8> data payload and associated metadata
 #[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
-pub struct GenericRhizaMsg {
-    pub msg_type: Msg,
+pub struct GenericMsg {
+    pub msg_type: MsgType,
     pub name: String,
     pub topic: String,
     pub data_type: String,
     pub data: Vec<u8>,
 }
 
-// TO_DO: IpAddr can't be serialized, but we can do a parse check
-// on the node side s.t. we're sure it will be okay
-// for the host to respond to (check on the host side as well)
+/// Request passed between Node and Host for the desired topic information
 #[derive(Debug, Serialize, Deserialize)]
-pub struct RhizaRequest {
+pub struct Request {
     pub topic: String,
     pub ip: String,
     pub type_info: String,
 }
 
+/// Example test struct for docs and tests
 #[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
 #[repr(C)]
 pub struct Pose {
@@ -44,5 +45,8 @@ pub struct Pose {
     pub y: f32,
 }
 
+/// Example test struct for docs and tests, incompatible with Pose
 #[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
-pub struct NotPose {a: isize}
+pub struct NotPose {
+    a: isize,
+}

@@ -5,7 +5,6 @@ pub mod host;
 pub mod msg;
 pub mod networks;
 pub mod node;
-mod error;
 
 // Require that the README examples are valid
 // Will fail `cargo test` if not
@@ -17,5 +16,3 @@ pub use crate::host::*;
 pub use crate::msg::*;
 pub use crate::networks::*;
 pub use crate::node::*;
-// use error::{Error, Result};
-

@@ -1,11 +1,12 @@
 [package]
-name = "rhiza"
+name = "bissel"
 version = "0.1.0"
+description = "Robotics-focused publish/request middleware for embedded Linux"
 authors = ["Christopher Moran <christopher.and.moran@gmail.com>"]
 edition = "2018"
 
 [lib]
-name = "rhiza"
+name = "bissel"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

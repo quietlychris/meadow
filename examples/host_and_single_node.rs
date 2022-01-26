@@ -1,8 +1,8 @@
-use rhiza::*;
+use bissel::*;
 
+use std::error::Error;
 use std::thread;
 use std::time::Duration;
-use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Set up logging
@@ -17,10 +17,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Get the host up and running
     let mut node: Node<Pose> = NodeConfig::new("TEAPOT").topic("pose").build().unwrap();
     node.connect()?;
-    println!("The size of an active Rhiza Node is: {}",std::mem::size_of_val(&node));
+    println!(
+        "The size of an active bissel Node is: {}",
+        std::mem::size_of_val(&node)
+    );
 
     // This following two functions should fail to compile
-    // node.publish(NotPose::default())?; 
+    // node.publish(NotPose::default())?;
     // let not_pose: NotPose = node.request()?;
 
     for i in 0..5 {
@@ -38,7 +41,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         assert_eq!(pose, result);
     }
 
-    println!("The size of an a Rhiza Host before shutdown is: {}",std::mem::size_of_val(&host));
+    println!(
+        "The size of an a bissel Host before shutdown is: {}",
+        std::mem::size_of_val(&host)
+    );
     host.stop()?;
     Ok(())
 }

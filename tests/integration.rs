@@ -1,9 +1,9 @@
 #![deny(unused_must_use)]
 use std::error::Error;
 
-use rhiza::host::*;
-use rhiza::node::*;
-use rhiza::Pose;
+use bissel::host::*;
+use bissel::node::*;
+use bissel::Pose;
 
 use std::thread;
 use std::time::Duration;
@@ -19,10 +19,7 @@ fn integrate_host_and_single_node() {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let mut node: Node<Pose> = NodeConfig::new("TEST_NODE")
-        .topic("pose")
-        .build()
-        .unwrap();
+    let mut node: Node<Pose> = NodeConfig::new("TEST_NODE").topic("pose").build().unwrap();
     node.connect().unwrap();
 
     for i in 0..5 {
@@ -63,7 +60,7 @@ fn request_non_existent_topic() {
     // Requesting a topic that doesn't exist should return a recoverable error
     for i in 0..5 {
         println!("on loop: {}", i);
-        let result  = node.request();
+        let result = node.request();
         dbg!(&result);
         thread::sleep(Duration::from_millis(50));
     }

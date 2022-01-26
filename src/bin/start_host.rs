@@ -1,4 +1,4 @@
-use rhiza::host::{Host, HostConfig};
+use bissel::host::{Host, HostConfig};
 
 use clap::{App, Arg};
 use tracing_appender;
@@ -10,10 +10,10 @@ async fn main() {
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
     tracing_subscriber::fmt().with_writer(non_blocking).init();
 
-    let matches = App::new("Rhiza Host")
+    let matches = App::new("bissel Host")
         .version("0.1")
         .author("Christopher Moran <christopher.and.moran@gmail.com>")
-        .about("Start a Rhiza host")
+        .about("Start a bissel host")
         .arg(
             Arg::new("interface")
                 .short('i')
@@ -48,7 +48,7 @@ async fn main() {
         .unwrap();
     host.start().unwrap();
 
-    println!("Rhiza Host should be running");
+    println!("bissel Host should be running");
     tokio::signal::ctrl_c()
         .await
         .expect("failed to listen for event");

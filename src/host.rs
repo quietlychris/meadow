@@ -45,6 +45,8 @@ pub struct HostConfig {
 }
 
 impl HostConfig {
+
+    /// Create a new HostConfig with all default options
     pub fn new(interface: impl Into<String>) -> HostConfig {
         HostConfig {
             interface: interface.into(),
@@ -53,16 +55,19 @@ impl HostConfig {
         }
     }
 
+    /// Assign a particular socket number for the Host's TcpListener
     pub fn socket_num(mut self, socket_num: usize) -> HostConfig {
         self.socket_num = socket_num;
         self
     }
 
+    /// Change the filename of the Host's sled key-value store
     pub fn store_filename(mut self, store_filename: impl Into<String>) -> HostConfig {
         self.store_filename = store_filename.into();
         self
     }
 
+    /// Construct a Host based on the HostConfig's parameters
     pub fn build(self) -> Result<Host, Box<dyn Error>> {
         let ip = crate::get_ip(&self.interface)?;
         println!(
@@ -103,6 +108,7 @@ impl HostConfig {
 }
 
 impl Host {
+    /// Allow Host to begin accepting incoming connections
     #[tracing::instrument]
     pub fn start(&mut self) -> Result<(), Box<dyn Error>> {
         let ip = crate::get_ip(&self.cfg.interface)?;
@@ -167,17 +173,19 @@ impl Host {
         Ok(())
     }
 
+    /// Print information about all Host connections
     #[no_mangle]
     pub fn print_connections(&mut self) -> Result<(), Box<dyn Error + '_>> {
         println!("Connections:");
         for conn in self.connections.lock()?.deref() {
             let name = conn.name.clone();
-            println!("\t- {}", name);
+            println!("\t- {}:{}", name, &conn.stream_addr);
         }
         Ok(())
     }
 }
 
+/// Initiate a connection with a Node
 #[inline]
 #[tracing::instrument]
 fn handshake(stream: TcpStream) -> (TcpStream, String) {
@@ -214,6 +222,7 @@ fn handshake(stream: TcpStream) -> (TcpStream, String) {
     (stream, name)
 }
 
+/// Host process for handling incoming connections from Nodes
 #[tracing::instrument]
 async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
     let mut buf = [0u8; 10_000];
@@ -227,20 +236,17 @@ async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
                 stream.writable().await.unwrap();
 
                 let bytes = &buf[..n];
-                let msg: GenericRhizaMsg = match from_bytes(bytes) {
+                let msg: GenericMsg = match from_bytes(bytes) {
                     Ok(msg) => msg,
                     Err(e) => {
-                        error!(
-                            "Had received RhizaMsg of {} bytes: {:?}, Error: {}",
-                            n, bytes, e
-                        );
+                        error!("Had received Msg of {} bytes: {:?}, Error: {}", n, bytes, e);
                         panic!("{}", e);
                     }
                 };
                 // dbg!(&msg);
 
                 match msg.msg_type {
-                    Msg::SET => {
+                    MsgType::SET => {
                         // println!("received {} bytes, to be assigned to: {}", n, &msg.name);
                         let db_result = match db.insert(msg.topic.as_bytes(), bytes) {
                             Ok(_prev_msg) => "SUCCESS".to_string(),
@@ -249,7 +255,7 @@ async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
 
                         loop {
                             match stream.try_write(&db_result.as_bytes()) {
-                                Ok(n) => {
+                                Ok(_n) => {
                                     // println!("Successfully replied with {} bytes", n);
                                     let mut count = count.lock().await; //.unwrap();
                                     *count += 1;
@@ -262,7 +268,7 @@ async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
                             }
                         }
                     }
-                    Msg::GET => loop {
+                    MsgType::GET => loop {
                         /*
                         println!(
                             "received {} bytes, asking for reply on topic: {}",
@@ -280,7 +286,7 @@ async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
                         };
 
                         match stream.try_write(&return_bytes) {
-                            Ok(n) => {
+                            Ok(_n) => {
                                 // println!("Successfully replied with {} bytes", n);
                                 let mut count = count.lock().await; //.unwrap();
                                 *count += 1;

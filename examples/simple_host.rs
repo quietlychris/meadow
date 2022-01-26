@@ -1,4 +1,4 @@
-use rhiza::host::{Host, HostConfig};
+use bissel::host::{Host, HostConfig};
 use std::thread;
 use std::time::Duration;
 

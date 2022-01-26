@@ -1,10 +1,10 @@
-use rhiza::host::*;
-use rhiza::node::{Node, NodeConfig};
-use rhiza::Pose;
+use bissel::host::*;
+use bissel::node::{Node, NodeConfig};
+use bissel::Pose;
 
+use std::error::Error;
 use std::thread;
 use std::time::Duration;
-use std::error::Error;
 
 const LABELS: usize = 36;
 fn main() -> Result<(), Box<dyn Error>> {
@@ -38,13 +38,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
 
-            
             node.publish(pose.clone()).unwrap();
             thread::sleep(Duration::from_millis((100 / (i + 1)) as u64));
             let result: Pose = node.request().unwrap();
             println!("From thread {}, got: {:?}", thread_num, result);
-            
-            println!("Thread {} returning!",i);
+
+            println!("Thread {} returning!", i);
             // thread::sleep(Duration::from_millis(10));
             // std::process::exit(0);
         });

@@ -1,4 +1,4 @@
-use rhiza::node::{Node, NodeConfig};
+use bissel::node::{Node, NodeConfig};
 use std::thread;
 use std::time::Duration;
 
