@@ -104,7 +104,7 @@ impl HostConfig {
 
 impl Host {
     #[tracing::instrument]
-    pub fn start(&mut self) -> Result<(), Box<dyn Error + '_>> {
+    pub fn start(&mut self) -> Result<(), Box<dyn Error>> {
         let ip = crate::get_ip(&self.cfg.interface)?;
         let raw_addr = ip.to_owned() + ":" + &self.cfg.socket_num.to_string();
         let addr: SocketAddr = raw_addr.parse()?;
@@ -154,8 +154,8 @@ impl Host {
     }
 
     /// Shuts down all networking connections and releases Host object handle
-    /// This also makes sure that temporary sled::Db's built are also dropped 
-    /// following the shutdown of a Host 
+    /// This also makes sure that temporary sled::Db's built are also dropped
+    /// following the shutdown of a Host
     pub fn stop(mut self) -> Result<(), Box<dyn Error>> {
         for conn in self.connections.lock().unwrap().deref_mut() {
             // println!("Aborting connection: {}", conn.name);
@@ -216,7 +216,7 @@ fn handshake(stream: TcpStream) -> (TcpStream, String) {
 
 #[tracing::instrument]
 async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
-    let mut buf = [0u8; 4096];
+    let mut buf = [0u8; 10_000];
 
     loop {
         stream.readable().await.unwrap();
@@ -227,13 +227,22 @@ async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
                 stream.writable().await.unwrap();
 
                 let bytes = &buf[..n];
-                let msg: GenericRhizaMsg = from_bytes(bytes).unwrap();
+                let msg: GenericRhizaMsg = match from_bytes(bytes) {
+                    Ok(msg) => msg,
+                    Err(e) => {
+                        error!(
+                            "Had received RhizaMsg of {} bytes: {:?}, Error: {}",
+                            n, bytes, e
+                        );
+                        panic!("{}", e);
+                    }
+                };
                 // dbg!(&msg);
 
                 match msg.msg_type {
                     Msg::SET => {
                         // println!("received {} bytes, to be assigned to: {}", n, &msg.name);
-                        let db_result = match db.insert(msg.name.as_bytes(), bytes) {
+                        let db_result = match db.insert(msg.topic.as_bytes(), bytes) {
                             Ok(_prev_msg) => "SUCCESS".to_string(),
                             Err(e) => e.to_string(),
                         };
@@ -260,7 +269,7 @@ async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
                             n, &msg.name
                         );*/
 
-                        let return_bytes = match db.get(&msg.name).unwrap() {
+                        let return_bytes = match db.get(&msg.topic).unwrap() {
                             Some(msg) => msg,
                             None => {
                                 let e: String =

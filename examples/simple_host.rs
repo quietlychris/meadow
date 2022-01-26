@@ -16,5 +16,4 @@ fn main() {
     host.stop().unwrap();
     println!("Host is stopped and maybe dropped?");
     thread::sleep(Duration::from_secs(10));
-
 }

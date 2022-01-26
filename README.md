@@ -24,7 +24,7 @@ fn main() {
     host.start().unwrap();
 
     // Other tasks can operate while the host is running in the background
-    thread::sleep(Duration::from_secs(10));
+    thread::sleep(Duration::from_secs(5));
 
     host.stop().unwrap();
 }
@@ -48,18 +48,26 @@ struct Coordinate {
 fn main() {
 
     let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-    let mut node: Node<Coordinate> = NodeConfig::new("pose").host_addr(addr).build().unwrap();
+    let mut node: Node<Coordinate> = NodeConfig::new("GPS_NODE")
+        .topic("position")
+        .host_addr(addr)
+        .build()
+        .unwrap();
     node.connect().unwrap();
 
     let c = Coordinate { x: 4.0, y: 4.0 };
-    node.publish_to("pose", c).unwrap();
+    node.publish(c).unwrap();
 
-    loop {
+    // The following lines would fail at compile-time due to type errors!
+    // node.publish(1usize).unwrap()
+    // let result: bool = node.request().unwrap();
+
+    for i in 0..5 {
         // Could get this by reading a GPS, for example
-        let c = Coordinate { x: 4.0, y: 4.0 };
-        node.publish_to("pose", c).unwrap();
+        let c = Coordinate { x: i as f32, y: i as f32 };
+        node.publish(c).unwrap();
         thread::sleep(Duration::from_millis(1_000));
-        let result: Coordinate = node.request("pose").unwrap();
+        let result = node.request().unwrap();
         println!("Got position: {:?}", result);
     }
 }

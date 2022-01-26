@@ -8,17 +8,21 @@ pub enum Msg {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[repr(C)]
 pub struct RhizaMsg<T> {
     pub msg_type: Msg,
     pub name: String,
+    pub topic: String,
     pub data_type: String,
     pub data: T,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[repr(C)]
 pub struct GenericRhizaMsg {
     pub msg_type: Msg,
     pub name: String,
+    pub topic: String,
     pub data_type: String,
     pub data: Vec<u8>,
 }
@@ -28,7 +32,7 @@ pub struct GenericRhizaMsg {
 // for the host to respond to (check on the host side as well)
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RhizaRequest {
-    pub name: String,
+    pub topic: String,
     pub ip: String,
     pub type_info: String,
 }
@@ -39,3 +43,6 @@ pub struct Pose {
     pub x: f32,
     pub y: f32,
 }
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
+pub struct NotPose {a: isize}
