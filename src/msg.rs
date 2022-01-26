@@ -8,6 +8,7 @@ pub enum Msg {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[repr(C)]
 pub struct RhizaMsg<T> {
     pub msg_type: Msg,
     pub name: String,
@@ -16,6 +17,7 @@ pub struct RhizaMsg<T> {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[repr(C)]
 pub struct GenericRhizaMsg {
     pub msg_type: Msg,
     pub name: String,

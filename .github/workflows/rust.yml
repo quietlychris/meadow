@@ -21,6 +21,8 @@ jobs:
         toolchain: stable
         components: clippy
     - name: Build
-      run: cargo build --verbose
+      run: cargo build --all --verbose
     - name: Build examples
       run: cargo build --verbose --examples --all
+    - name: test
+      run: cargo test -- --nocapture --test-threads=1

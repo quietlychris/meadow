@@ -85,10 +85,7 @@ impl<T: Message + 'static> Node<T> {
         self.runtime.block_on(async {
             // println!("hello!");
             let mut connection_attempts = 0;
-            loop {
-                if connection_attempts > 5 {
-                    break;
-                }
+            while connection_attempts < 5 {
                 match TcpStream::connect(host_addr).await {
                     Ok(my_stream) => {
                         *stream = Some(my_stream);
@@ -96,8 +93,9 @@ impl<T: Message + 'static> Node<T> {
                     }
                     Err(e) => {
                         connection_attempts += 1;
-                        sleep(Duration::from_millis(10)).await;
-                        println!("Error: {:?}", e)
+                        sleep(Duration::from_millis(1_000)).await;
+                        warn!("{:?}",e);
+                        // println!("Error: {:?}", e)
                     }
                 }
             }
@@ -116,12 +114,16 @@ impl<T: Message + 'static> Node<T> {
                     Err(e) => {
                         if e.kind() == std::io::ErrorKind::WouldBlock {
                         } else {
-                            println!("Handshake error: {:?}", e);
+                            // println!("Handshake error: {:?}", e);
+                            error!("NODE handshake error: {:?}",e);
                         }
                     }
                 }
             }
             info!("{}: Successfully connected to host", name);
+            // TO_DO: Is there a better way to do this?
+            // Pause after connection to avoid accidentally including published data in initial handshake
+            sleep(Duration::from_millis(20)).await;
         });
 
         Ok(())
@@ -132,17 +134,28 @@ impl<T: Message + 'static> Node<T> {
     #[tracing::instrument]
     pub fn publish_to<M: Message>(
         &mut self,
-        name: impl Into<String> + Debug + Display,
+        topic_name: impl Into<String> + Debug + Display,
         val: M,
     ) -> Result<(), Box<dyn Error>> {
-        let packet = RhizaMsg {
-            msg_type: Msg::SET,
-            name: self.name.to_string(),
-            data_type: std::any::type_name::<M>().to_string(),
-            data: val,
-        };
 
-        let packet_as_bytes: heapless::Vec<u8, 4096> = to_vec(&packet).unwrap();
+        // let val_vec: heapless::Vec<u8, 4096> = to_vec(&val).unwrap();
+        let val_vec: Vec<u8> = to_allocvec(&val).unwrap();
+
+        // println!("Number of bytes in data for {:?} is {}",std::any::type_name::<M>(),val_vec.len());
+        let packet = GenericRhizaMsg {
+            msg_type: Msg::SET,
+            name: topic_name.to_string(),
+            data_type: std::any::type_name::<M>().to_string(),
+            data: val_vec.to_vec(),
+        };
+        println!("The Node's packet to send looks like: {:?}",&packet);
+
+        // We're losing a set of 8 bytes in this function!
+        //let packet_as_bytes: heapless::Vec<u8, 4096> = to_vec(&packet).unwrap();
+        extern crate alloc;
+        use alloc::vec::Vec;
+        let packet_as_bytes: Vec<u8> = to_allocvec(&packet).unwrap();
+        println!("Node is publishing: {:?}",&packet_as_bytes);
 
         let name = &self.name;
         let stream = &mut self.stream.as_ref().unwrap();
@@ -202,17 +215,18 @@ impl<T: Message + 'static> Node<T> {
     #[tracing::instrument]
     pub fn request<M: Message>(
         &mut self,
-        name: impl Into<String> + Debug + Display,
+        topic_name: impl Into<String> + Debug + Display,
     ) -> Result<M, Box<postcard::Error>> {
         let packet = GenericRhizaMsg {
             msg_type: Msg::GET,
-            name: self.name.to_string(),
+            name: topic_name.to_string(),
             data_type: std::any::type_name::<M>().to_string(),
             data: Vec::new(),
         };
         // println!("{:?}", &packet);
 
-        let packet_as_bytes: heapless::Vec<u8, 4096> = to_vec(&packet).unwrap();
+        //let packet_as_bytes: heapless::Vec<u8, 4096> = to_vec(&packet).unwrap();
+        let packet_as_bytes: Vec<u8> = to_allocvec(&packet).unwrap();
 
         let stream = &mut self.stream.as_ref().unwrap();
         //let stream = stream.as_ref().unwrap().lock().await;
@@ -243,17 +257,25 @@ impl<T: Message + 'static> Node<T> {
                     Ok(0) => continue,
                     Ok(n) => {
                         let bytes = &buf[..n];
-                        let msg: Result<RhizaMsg<M>, Box<dyn Error>> = match from_bytes(bytes) {
+                        let msg: Result<GenericRhizaMsg, Box<dyn Error>> = match from_bytes(bytes) {
                             Ok(msg) => {
-                                let msg: RhizaMsg<M> = msg;
-                                return Ok(msg.data);
+                                let msg: GenericRhizaMsg = msg;
+                                println!("Node has received msg data: {:?}",&msg.data);
+
+                                match from_bytes::<M>(&msg.data) {
+                                    Ok(data) => return Ok(data),
+                                    Err(e) => {
+                                        println!("Error: {:?}, &msg.data: {:?}",e,&msg.data);
+                                        println!("Expected type: {}",std::any::type_name::<M>());
+                                        return Err(Box::new(e))
+                                    }
+                                }
                             }
                             Err(e) => {
-                                error!("{}: {:?}", name.to_string(), &e);
+                                error!("{}: {:?}", topic_name.to_string(), &e);
                                 return Err(Box::new(e));
                             }
                         };
-                        // return Ok(msg.data);
                     }
                     Err(e) => {
                         if e.kind() == std::io::ErrorKind::WouldBlock {}

@@ -25,7 +25,10 @@ fn main() {
 
     for i in 0..5 {
         // Could get this by reading a GPS, for example
-        let pose = Pose { x: i as f32, y: i as f32};
+        let pose = Pose {
+            x: i as f32,
+            y: i as f32,
+        };
 
         node.publish_to("pose", pose.clone()).unwrap();
         thread::sleep(Duration::from_millis(1_000));

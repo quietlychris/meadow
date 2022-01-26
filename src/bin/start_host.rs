@@ -1,13 +1,12 @@
 use rhiza::host::{Host, HostConfig};
-// use tokio::time::{sleep, Duration};
-use tokio::signal;
 
 use clap::{App, Arg};
 use tracing_appender;
 use tracing_subscriber;
 
-fn main() -> ! {
-    let file_appender = tracing_appender::rolling::minutely("logs/", "start_host");
+#[tokio::main]
+async fn main() {
+    let file_appender = tracing_appender::rolling::hourly("logs/", "start_host");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
     tracing_subscriber::fmt().with_writer(non_blocking).init();
 
@@ -50,6 +49,9 @@ fn main() -> ! {
     host.start().unwrap();
 
     println!("Rhiza Host should be running");
+    tokio::signal::ctrl_c()
+        .await
+        .expect("failed to listen for event");
     // Other tasks can operate while the host is running on it's own thread
-    loop {}
+    host.stop().unwrap();
 }

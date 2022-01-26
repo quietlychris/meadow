@@ -53,6 +53,7 @@ fn main() {
         handles.push(handle);
         thread::sleep(Duration::from_millis(1));
     }
+    println!("I'm a little teapot!");
 
     thread::sleep(Duration::from_secs(10));
 
