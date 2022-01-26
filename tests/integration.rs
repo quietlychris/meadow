@@ -1,5 +1,5 @@
 #![deny(unused_must_use)]
-use std::error::Error;
+
 
 use bissel::host::*;
 use bissel::node::*;
@@ -85,7 +85,7 @@ fn publish_boolean() {
         .unwrap();
     node.connect().unwrap();
 
-    for i in 0..5 {
+    for _i in 0..5 {
         node.publish(true).unwrap();
         thread::sleep(Duration::from_millis(50));
         assert_eq!(true, node.request().unwrap());

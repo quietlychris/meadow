@@ -33,12 +33,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                 Ok(()) => {
                     println!("NODE_{} connected successfully", i);
                 }
-                Err(e) => {
+                Err(_e) => {
                     panic!("NODE_{} did NOT connect successfully", i);
                 }
             }
 
-            node.publish(pose.clone()).unwrap();
+            node.publish(pose).unwrap();
             thread::sleep(Duration::from_millis((100 / (i + 1)) as u64));
             let result: Pose = node.request().unwrap();
             println!("From thread {}, got: {:?}", thread_num, result);

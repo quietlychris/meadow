@@ -1,8 +1,8 @@
 use bissel::host::{Host, HostConfig};
 
 use clap::{App, Arg};
-use tracing_appender;
-use tracing_subscriber;
+
+
 
 #[tokio::main]
 async fn main() {

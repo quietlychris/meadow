@@ -112,7 +112,7 @@ impl Host {
     #[tracing::instrument]
     pub fn start(&mut self) -> Result<(), Box<dyn Error>> {
         let ip = crate::get_ip(&self.cfg.interface)?;
-        let raw_addr = ip.to_owned() + ":" + &self.cfg.socket_num.to_string();
+        let raw_addr = ip + ":" + &self.cfg.socket_num.to_string();
         let addr: SocketAddr = raw_addr.parse()?;
 
         let connections_clone = self.connections.clone();
@@ -254,7 +254,7 @@ async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
                         };
 
                         loop {
-                            match stream.try_write(&db_result.as_bytes()) {
+                            match stream.try_write(db_result.as_bytes()) {
                                 Ok(_n) => {
                                     // println!("Successfully replied with {} bytes", n);
                                     let mut count = count.lock().await; //.unwrap();

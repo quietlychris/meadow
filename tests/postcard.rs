@@ -1,9 +1,10 @@
 use postcard::*;
 extern crate alloc;
 use alloc::vec::Vec;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
-use rhiza::msg::*;
+
+
 #[derive(Debug, Serialize, Deserialize)]
 struct WrappedU8 {
     val: u8,
@@ -77,7 +78,6 @@ struct WrappedUsize {
 #[test]
 fn test_postcard_usize() {
     let val = WrappedUsize { val: 0 };
-    // std::any::type_name::<M>().to_string()
     let bytes: Vec<u8> = to_allocvec(&val).unwrap();
     println!("value: {:?}", bytes);
     let result: WrappedUsize = from_bytes(&bytes).unwrap();
