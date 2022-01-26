@@ -19,11 +19,11 @@ fn integrate_host_and_single_node() {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-    let mut node: Node<Pose> = NodeConfig::new("pose").host_addr(addr).build().unwrap();
+    let mut node: Node<Pose> = NodeConfig::new("TEST_NODE")
+        .topic("pose")
+        .build()
+        .unwrap();
     node.connect().unwrap();
-
-    let mut result = Pose::default();
 
     for i in 0..5 {
         // Could get this by reading a GPS, for example
@@ -32,9 +32,9 @@ fn integrate_host_and_single_node() {
             y: i as f32,
         };
 
-        node.publish_to("pose", pose.clone()).unwrap();
+        node.publish(pose.clone()).unwrap();
         thread::sleep(Duration::from_millis(1_000));
-        result = node.request("pose").unwrap();
+        let result = node.request().unwrap();
         println!("Got position: {:?}", result);
 
         assert_eq!(pose, result);
@@ -54,13 +54,16 @@ fn request_non_existent_topic() {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-    let mut node: Node<Pose> = NodeConfig::new("pose").host_addr(addr).build().unwrap();
+    let mut node: Node<Pose> = NodeConfig::new("TEST_NODE")
+        .topic("doesnt_exist")
+        .build()
+        .unwrap();
     node.connect().unwrap();
 
+    // Requesting a topic that doesn't exist should return a recoverable error
     for i in 0..5 {
         println!("on loop: {}", i);
-        let result: Result<Pose, Box<postcard::Error>> = node.request("doesnt_exist");
+        let result  = node.request();
         dbg!(&result);
         thread::sleep(Duration::from_millis(50));
     }
@@ -79,14 +82,16 @@ fn publish_boolean() {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-    let mut node: Node<bool> = NodeConfig::new("pose").host_addr(addr).build().unwrap();
+    let mut node: Node<bool> = NodeConfig::new("TEST_NODE")
+        .topic("my_boolean")
+        .build()
+        .unwrap();
     node.connect().unwrap();
 
     for i in 0..5 {
-        // Could get this by reading a GPS, for example
-        let val = false;
-        node.publish_to("boolean", val).unwrap();
+        node.publish(true).unwrap();
+        thread::sleep(Duration::from_millis(50));
+        assert_eq!(true, node.request().unwrap());
     }
 
     host.stop().unwrap();

@@ -1,11 +1,10 @@
+extern crate alloc;
+
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio::time::{sleep, Duration};
 
 use tracing::*;
-
-// use std::ops::{Deref, DerefMut};
-// use std::sync::{Arc, Mutex};
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
@@ -14,6 +13,7 @@ use std::marker::PhantomData;
 use std::result::Result;
 
 use postcard::*;
+use alloc::vec::Vec;
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::msg::*;
@@ -26,6 +26,7 @@ impl<T> Message for T where T: Serialize + DeserializeOwned + Debug + Send {}
 pub struct NodeConfig<T: Message> {
     host_addr: SocketAddr,
     name: String,
+    topic: Option<String>,
     phantom: PhantomData<T>,
 }
 
@@ -34,6 +35,7 @@ pub struct Node<T: Message> {
     runtime: Runtime,
     stream: Option<TcpStream>,
     name: String,
+    topic: String,
     host_addr: SocketAddr,
     phantom: PhantomData<T>,
 }
@@ -42,9 +44,15 @@ impl<T: Message> NodeConfig<T> {
     pub fn new(name: impl Into<String>) -> NodeConfig<T> {
         NodeConfig {
             name: name.into(),
+            topic: None,
             host_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 25_000),
             phantom: PhantomData,
         }
+    }
+
+    pub fn topic(mut self, topic: impl Into<String>) -> Self {
+        self.topic = Some(topic.into());
+        self
     }
 
     pub fn host_addr(mut self, host_addr: impl Into<SocketAddr>) -> Self {
@@ -52,25 +60,27 @@ impl<T: Message> NodeConfig<T> {
         self
     }
 
-    pub fn name(mut self, name: impl Into<String>) -> Self {
-        self.name = name.into();
-        self
-    }
-
     pub fn build(self) -> Result<Node<T>, Box<dyn Error>> {
         let runtime = tokio::runtime::Runtime::new()?;
+        
+        let topic = match self.topic {
+            Some(topic) => topic,
+            None => panic!("Nodes must have an assigned topic to be built")
+        };
 
         Ok(Node::<T> {
             runtime,
             stream: None,
             host_addr: self.host_addr,
             name: self.name,
+            topic,
             phantom: PhantomData,
         })
     }
 }
 
 impl<T: Message + 'static> Node<T> {
+    
     #[tracing::instrument]
     pub fn connect(&mut self) -> Result<(), Box<dyn Error>> {
         // let ip = crate::get_ip(interface).unwrap();
@@ -79,7 +89,7 @@ impl<T: Message + 'static> Node<T> {
 
         // let stream: Arc<Mutex<Option<TcpStream>>> = Arc::new(Mutex::new(None));
         let host_addr = self.host_addr;
-        let name = self.name.clone();
+        let topic = self.topic.clone();
         let stream = &mut self.stream;
 
         self.runtime.block_on(async {
@@ -105,10 +115,10 @@ impl<T: Message + 'static> Node<T> {
             let mut stream = stream.as_ref().unwrap();
             loop {
                 stream.writable().await.unwrap();
-                match stream.try_write(name.as_bytes()) {
+                match stream.try_write(topic.as_bytes()) {
                     Ok(_n) => {
                         // println!("Successfully wrote {} bytes to host", n);
-                        info!("{}: Wrote {} bytes to host", name, _n);
+                        info!("{}: Wrote {} bytes to host", topic, _n);
                         break;
                     }
                     Err(e) => {
@@ -120,7 +130,7 @@ impl<T: Message + 'static> Node<T> {
                     }
                 }
             }
-            info!("{}: Successfully connected to host", name);
+            info!("{}: Successfully connected to host", topic);
             // TO_DO: Is there a better way to do this?
             // Pause after connection to avoid accidentally including published data in initial handshake
             sleep(Duration::from_millis(20)).await;
@@ -132,10 +142,10 @@ impl<T: Message + 'static> Node<T> {
     // TO_DO: The error handling in the async blocks need to be improved
     // Type M of published message is not necessarily the same as Type T assigned to the Node
     #[tracing::instrument]
-    pub fn publish_to<M: Message>(
+    pub fn publish(
         &mut self,
-        topic_name: impl Into<String> + Debug + Display,
-        val: M,
+        // topic: impl Into<String> + Debug + Display,
+        val: T,
     ) -> Result<(), Box<dyn Error>> {
 
         // let val_vec: heapless::Vec<u8, 4096> = to_vec(&val).unwrap();
@@ -144,20 +154,17 @@ impl<T: Message + 'static> Node<T> {
         // println!("Number of bytes in data for {:?} is {}",std::any::type_name::<M>(),val_vec.len());
         let packet = GenericRhizaMsg {
             msg_type: Msg::SET,
-            name: topic_name.to_string(),
-            data_type: std::any::type_name::<M>().to_string(),
+            name: self.name.to_string(),
+            topic: self.topic.to_string(),
+            data_type: std::any::type_name::<T>().to_string(),
             data: val_vec.to_vec(),
         };
-        println!("The Node's packet to send looks like: {:?}",&packet);
+        // info!("The Node's packet to send looks like: {:?}",&packet);
 
-        // We're losing a set of 8 bytes in this function!
-        //let packet_as_bytes: heapless::Vec<u8, 4096> = to_vec(&packet).unwrap();
-        extern crate alloc;
-        use alloc::vec::Vec;
         let packet_as_bytes: Vec<u8> = to_allocvec(&packet).unwrap();
-        println!("Node is publishing: {:?}",&packet_as_bytes);
+        // info!("Node is publishing: {:?}",&packet_as_bytes);
 
-        let name = &self.name;
+        let topic = &self.topic;
         let stream = &mut self.stream.as_ref().unwrap();
 
         let result = self.runtime.block_on(async {
@@ -168,7 +175,7 @@ impl<T: Message + 'static> Node<T> {
                         // println!("Successfully wrote {} bytes to host", n);
                         info!(
                             "{}: Successfully wrote {} bytes to host",
-                            name.to_string(),
+                            topic.to_string(),
                             _n
                         );
                         break;
@@ -194,7 +201,7 @@ impl<T: Message + 'static> Node<T> {
                                 return Ok(ack);
                             }
                             Err(e) => {
-                                error!("{}: {:?}", name, &e);
+                                error!("{}: {:?}", topic, &e);
                                 return Err(Box::new(e));
                             }
                         };
@@ -213,23 +220,22 @@ impl<T: Message + 'static> Node<T> {
     }
 
     #[tracing::instrument]
-    pub fn request<M: Message>(
+    pub fn request(
         &mut self,
-        topic_name: impl Into<String> + Debug + Display,
-    ) -> Result<M, Box<postcard::Error>> {
+        // topic: impl Into<String> + Debug + Display,
+    ) -> Result<T, Box<postcard::Error>> {
         let packet = GenericRhizaMsg {
             msg_type: Msg::GET,
-            name: topic_name.to_string(),
-            data_type: std::any::type_name::<M>().to_string(),
+            name: self.name.to_string(),
+            topic: self.topic.to_string(),
+            data_type: std::any::type_name::<T>().to_string(),
             data: Vec::new(),
         };
-        // println!("{:?}", &packet);
+        // info!("{:?}",&packet);
 
-        //let packet_as_bytes: heapless::Vec<u8, 4096> = to_vec(&packet).unwrap();
         let packet_as_bytes: Vec<u8> = to_allocvec(&packet).unwrap();
 
         let stream = &mut self.stream.as_ref().unwrap();
-        //let stream = stream.as_ref().unwrap().lock().await;
 
         self.runtime.block_on(async {
             stream.writable().await.unwrap();
@@ -238,7 +244,7 @@ impl<T: Message + 'static> Node<T> {
             loop {
                 match stream.try_write(&packet_as_bytes) {
                     Ok(_n) => {
-                        // println!("Successfully wrote {}-byte request to host", n);
+                        // info!("Node successfully wrote {}-byte request to host",n);
                         break;
                     }
                     Err(e) => {
@@ -248,8 +254,6 @@ impl<T: Message + 'static> Node<T> {
                 }
             }
 
-            // Wait for the response
-            //stream.readable().await?;
             let mut buf = [0u8; 4096];
             loop {
                 stream.readable().await.unwrap();
@@ -260,19 +264,19 @@ impl<T: Message + 'static> Node<T> {
                         let msg: Result<GenericRhizaMsg, Box<dyn Error>> = match from_bytes(bytes) {
                             Ok(msg) => {
                                 let msg: GenericRhizaMsg = msg;
-                                println!("Node has received msg data: {:?}",&msg.data);
+                                // info!("Node has received msg data: {:?}",&msg.data);
 
-                                match from_bytes::<M>(&msg.data) {
+                                match from_bytes::<T>(&msg.data) {
                                     Ok(data) => return Ok(data),
                                     Err(e) => {
                                         println!("Error: {:?}, &msg.data: {:?}",e,&msg.data);
-                                        println!("Expected type: {}",std::any::type_name::<M>());
+                                        println!("Expected type: {}",std::any::type_name::<T>());
                                         return Err(Box::new(e))
                                     }
                                 }
                             }
                             Err(e) => {
-                                error!("{}: {:?}", topic_name.to_string(), &e);
+                                error!("{}: {:?}", self.name.to_string(), &e);
                                 return Err(Box::new(e));
                             }
                         };
@@ -287,8 +291,7 @@ impl<T: Message + 'static> Node<T> {
     }
 
     pub fn rebuild_config(&self) -> NodeConfig<T> {
-        let name = self.name.clone();
-        // dbg!(&name);
+        let topic = self.topic.clone();
         let host_addr = match &self.stream {
             Some(stream) => stream.peer_addr().unwrap(),
             None => SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 25_000),
@@ -297,7 +300,8 @@ impl<T: Message + 'static> Node<T> {
 
         NodeConfig {
             host_addr,
-            name,
+            topic: Some(topic),
+            name: self.name.clone(),
             phantom: PhantomData,
         }
     }
