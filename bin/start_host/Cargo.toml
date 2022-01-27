@@ -1,0 +1,11 @@
+[package]
+name = "start_host"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bissel_std = {path = "../../crates/bissel_std"}
+tokio = { version = "1.14.0", features = ["full", "rt-multi-thread"] }
+clap = "3"

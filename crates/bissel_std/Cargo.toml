@@ -1,0 +1,28 @@
+[package]
+name = "bissel_std"
+version = "0.2.0"
+edition = "2018"
+description = "An internal Bissel crate used to facilitate optional dynamic linking via the 'dynamic' feature"
+
+[lib]
+name = "bissel"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+log-to-file = ["tracing-subscriber","tracing-appender"]
+
+[dependencies]
+# de/serialization and message sending
+serde = {version = "1", default-features = false, features = ["derive"]}
+postcard = {version = "0.7", features = ["alloc"]}
+# key value store, networking, and async
+sled = "0.34.6"
+pnet = "0.28"
+tokio = { version = "1.14.0", features = ["full", "rt-multi-thread"] }
+# logging
+tracing = "0.1"
+hex-slice = "0.1"
+
+tracing-subscriber = {version = "0.3", optional= true}
+tracing-appender = {version = "0.2",optional = true}
+

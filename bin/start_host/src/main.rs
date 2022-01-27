@@ -1,12 +1,13 @@
-use bissel::host::{Host, HostConfig};
 
+// extern crate bissel_std as bissel;
+use bissel::*;
 use clap::{App, Arg};
 
 #[tokio::main]
 async fn main() {
-    let file_appender = tracing_appender::rolling::hourly("logs/", "start_host");
-    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-    tracing_subscriber::fmt().with_writer(non_blocking).init();
+    //let file_appender = tracing_appender::rolling::hourly("logs/", "start_host");
+    //let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    //tracing_subscriber::fmt().with_writer(non_blocking).init();
 
     let matches = App::new("bissel Host")
         .version("0.1")

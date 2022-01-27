@@ -1,6 +1,6 @@
 [package]
 name = "bissel"
-version = "0.1.0"
+version = "0.2.0"
 description = "Robotics-focused publish/request middleware for embedded Linux"
 authors = ["Christopher Moran <christopher.and.moran@gmail.com>"]
 edition = "2018"
@@ -8,24 +8,34 @@ license = "LGPL-3.0"
 repository = "https://github.com/quietlychris/bissel"
 keywords = ["robotics", "middleware", "autonomy"]
 
-[lib]
-name = "bissel"
+[workspace]
+members = ["crates/*", "bin/*"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+dynamic = ["bissel_dylib"]
 
 [dependencies]
-# de/serialization and message sending
+bissel_std = {path = "crates/bissel_std", version = "0.2.0"}
+bissel_dylib = {path = "crates/bissel_dylib", version = "0.2.0", optional = true}
+
+[dev-dependencies]
 serde = {version = "1", default-features = false, features = ["derive"]}
-postcard = {version = "0.7", features = ["alloc"]}
-# key value store, networking, and async
-sled = "0.34.6"
-pnet = "0.28"
-tokio = { version = "1.14.0", features = ["full", "rt-multi-thread"] }
-# command-line utilties
-clap = "3"
-# logging
-tracing = "0.1"
 tracing-subscriber = "0.3"
 tracing-appender = "0.2"
-hex-slice = "0.1"
+postcard = {version = "0.7", features = ["alloc"]}
 
+[[example]]
+name = "host_and_single_node"
+path = "examples/host_and_single_node.rs"
+
+[[example]]
+name = "simple_host"
+path = "examples/simple_host.rs"
+
+[[example]]
+name = "simple_node"
+path = "examples/simple_node.rs"
+
+[[example]]
+name = "multiple_nodes"
+path = "examples/multiple_nodes.rs"
