@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "Robotics-focused publish/request middleware for embedded Linux"
 authors = ["Christopher Moran <christopher.and.moran@gmail.com>"]
 edition = "2018"
+license = "LGPL-3.0"
+repository = "https://github.com/quietlychris/bissel"
+keywords = ["robotics", "middleware", "autonomy"]
 
 [lib]
 name = "bissel"
