@@ -1,6 +1,5 @@
 #![deny(unused_must_use)]
 
-
 use bissel::host::*;
 use bissel::node::*;
 use bissel::Pose;

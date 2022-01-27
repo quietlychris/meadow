@@ -43,7 +43,6 @@ pub struct Node<T: Message> {
 }
 
 impl<T: Message> NodeConfig<T> {
-
     /// Create a named, strongly-typed Node without an assigned topic
     pub fn new(name: impl Into<String>) -> NodeConfig<T> {
         NodeConfig {
@@ -87,7 +86,6 @@ impl<T: Message> NodeConfig<T> {
 }
 
 impl<T: Message + 'static> Node<T> {
-
     /// Attempt connection from the Node to the Host located at the specified address
     #[tracing::instrument]
     pub fn connect(&mut self) -> Result<(), Box<dyn Error>> {

@@ -2,8 +2,6 @@ use bissel::host::{Host, HostConfig};
 
 use clap::{App, Arg};
 
-
-
 #[tokio::main]
 async fn main() {
     let file_appender = tracing_appender::rolling::hourly("logs/", "start_host");

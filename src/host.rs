@@ -20,6 +20,7 @@ use std::result::Result;
 
 use crate::msg::*;
 
+/// Named task handle for each Hosted connection
 #[derive(Debug)]
 pub struct Connection {
     handle: JoinHandle<()>,
@@ -27,6 +28,7 @@ pub struct Connection {
     name: String,
 }
 
+/// Central coordination process, which stores published data and responds to requests
 #[derive(Debug)]
 pub struct Host {
     cfg: HostConfig,
@@ -37,6 +39,7 @@ pub struct Host {
     reply_count: Arc<Mutex<usize>>,
 }
 
+/// Host configuration structure
 #[derive(Debug)]
 pub struct HostConfig {
     interface: String,
@@ -45,7 +48,6 @@ pub struct HostConfig {
 }
 
 impl HostConfig {
-
     /// Create a new HostConfig with all default options
     pub fn new(interface: impl Into<String>) -> HostConfig {
         HostConfig {
