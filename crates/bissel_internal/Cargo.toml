@@ -1,15 +1,15 @@
 [package]
-name = "bissel_std"
+name = "bissel_internal"
 version = "0.2.0"
 edition = "2018"
 description = "An internal Bissel crate used to facilitate optional dynamic linking via the 'dynamic' feature"
 
 [lib]
-name = "bissel"
+name = "bissel_internal"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[features]
-log-to-file = ["tracing-subscriber","tracing-appender"]
+#[features]
+#file-logging = ["tracing-subscriber","tracing-appender"]
 
 [dependencies]
 # de/serialization and message sending
@@ -23,6 +23,6 @@ tokio = { version = "1.14.0", features = ["full", "rt-multi-thread"] }
 tracing = "0.1"
 hex-slice = "0.1"
 
-tracing-subscriber = {version = "0.3", optional= true}
-tracing-appender = {version = "0.2",optional = true}
+#tracing-subscriber = {version = "0.3", optional= true}
+#tracing-appender = {version = "0.2",optional = true}
 

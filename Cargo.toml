@@ -7,19 +7,22 @@ edition = "2018"
 license = "LGPL-3.0"
 repository = "https://github.com/quietlychris/bissel"
 keywords = ["robotics", "middleware", "autonomy"]
+categories = ["simulation","network-programming", "science::robotics"]
 
 [workspace]
-members = ["crates/*", "bin/*"]
+members = ["crates/*"]
 
 [features]
 dynamic = ["bissel_dylib"]
 
 [dependencies]
-bissel_std = {path = "crates/bissel_std", version = "0.2.0"}
+bissel_internal = {path = "crates/bissel_internal", version = "0.2.0"}
 bissel_dylib = {path = "crates/bissel_dylib", version = "0.2.0", optional = true}
 
 [dev-dependencies]
 serde = {version = "1", default-features = false, features = ["derive"]}
+tokio = { version = "1.14.0", features = ["full", "rt-multi-thread"] }
+clap = "3"
 tracing-subscriber = "0.3"
 tracing-appender = "0.2"
 postcard = {version = "0.7", features = ["alloc"]}
