@@ -1,4 +1,5 @@
 use bissel::*;
+use tracing::*;
 
 use std::error::Error;
 use std::thread;
@@ -6,7 +7,7 @@ use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Set up logging
-    let file_appender = tracing_appender::rolling::minutely("logs/", "example");
+    let file_appender = tracing_appender::rolling::hourly("logs/", "example");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
     tracing_subscriber::fmt().with_writer(non_blocking).init();
 
@@ -17,6 +18,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Get the host up and running
     let mut node: Node<Pose> = NodeConfig::new("TEAPOT").topic("pose").build().unwrap();
     node.connect()?;
+    info!("Node should now be connected");
     println!(
         "The size of an active bissel Node is: {}",
         std::mem::size_of_val(&node)

@@ -135,7 +135,8 @@ impl Host {
             loop {
                 let (stream, stream_addr) = listener.accept().await.unwrap();
                 // TO_DO: The handshake function is not always happy
-                let (stream, name) = handshake(stream);
+                let (stream, name) = handshake(stream).await;
+                info!("Host received connection from {:?}", &name);
 
                 let db = db.clone();
                 let counter = counter.clone();
@@ -149,7 +150,6 @@ impl Host {
                     stream_addr,
                     name,
                 };
-                info!("Received connection from {:?}", &connection);
                 // dbg!(&connection);
 
                 connections.lock().unwrap().push(connection);
@@ -164,6 +164,7 @@ impl Host {
     /// Shuts down all networking connections and releases Host object handle
     /// This also makes sure that temporary sled::Db's built are also dropped
     /// following the shutdown of a Host
+    #[tracing::instrument]
     pub fn stop(mut self) -> Result<(), Box<dyn Error>> {
         for conn in self.connections.lock().unwrap().deref_mut() {
             // println!("Aborting connection: {}", conn.name);
@@ -190,16 +191,23 @@ impl Host {
 /// Initiate a connection with a Node
 #[inline]
 #[tracing::instrument]
-fn handshake(stream: TcpStream) -> (TcpStream, String) {
+async fn handshake(stream: TcpStream) -> (TcpStream, String) {
     // Handshake
     let mut buf = [0u8; 4096];
+    info!("Starting handshake");
     // TO_DO: Don't have the name String have a hard-coded capacity
     let mut name: String = String::with_capacity(100);
+    let mut count = 0;
+    stream.readable().await.unwrap();
     loop {
+        info!("In handshake loop");
         match stream.try_read(&mut buf) {
             Ok(n) => {
                 name = match std::str::from_utf8(&buf[..n]) {
-                    Ok(name) => name.to_owned(),
+                    Ok(name) => {
+                        info!("Received connection from {}",&name);
+                        name.to_owned()
+                    },
                     Err(e) => {
                         error!("Error occurred during handshake on host-side: {} on byte string: {:?}, which in hex is: {:x}", e,&buf[..n],&buf[..n].as_hex());
 
@@ -214,6 +222,11 @@ fn handshake(stream: TcpStream) -> (TcpStream, String) {
             }
             Err(e) => {
                 if e.kind() == std::io::ErrorKind::WouldBlock {
+                    count +=1;
+                    if count > 20 {
+                        error!("Host Handshake not unblocking!");
+                        panic!("Stream won't unblock");
+                    }
                 } else {
                     error!("{:?}", e);
                     // println!("Error: {:?}", e);
@@ -221,6 +234,7 @@ fn handshake(stream: TcpStream) -> (TcpStream, String) {
             }
         }
     }
+    info!("Returning from handshake: ({:?}, {})",&stream, &name);
     (stream, name)
 }
 
