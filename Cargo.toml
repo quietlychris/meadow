@@ -22,7 +22,7 @@ hex-slice = "0.1.4"
 # key value store, networking, and async
 sled = "0.34.6"
 pnet = "0.29.0"
-tokio = { version = "1.16.1", features = ["full", "rt-multi-thread"] }
+tokio = { version = "1.16.1", features = ["full", "rt-multi-thread", "io-util"] }
 # logging
 tracing = "0.1.29"
 
