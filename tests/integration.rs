@@ -29,7 +29,7 @@ fn integrate_host_and_single_node() {
         };
 
         node.publish(pose.clone()).unwrap();
-        thread::sleep(Duration::from_millis(1_000));
+        thread::sleep(Duration::from_millis(10));
         let result = node.request().unwrap();
         println!("Got position: {:?}", result);
 

@@ -45,6 +45,8 @@ pub struct HostConfig {
     interface: String,
     socket_num: usize,
     store_filename: String,
+    max_buffer_size: usize,
+    max_name_size: usize
 }
 
 impl HostConfig {
@@ -54,12 +56,26 @@ impl HostConfig {
             interface: interface.into(),
             socket_num: 25_000,
             store_filename: "store".into(),
+            max_buffer_size: 10_000,
+            max_name_size: 100
         }
     }
 
     /// Assign a particular socket number for the Host's TcpListener
     pub fn socket_num(mut self, socket_num: usize) -> HostConfig {
         self.socket_num = socket_num;
+        self
+    }
+
+    /// Change the maximum size of the buffer space allocated for received messages
+    pub fn max_buffer_size(mut self, max_buffer_size: impl Into<usize>) -> HostConfig {
+        self.max_buffer_size = max_buffer_size.into();
+        self
+    }
+
+    /// Change the maximum size of the buffer space allocated for Node names
+    pub fn max_name_size(mut self, max_name_size: impl Into<usize>) -> HostConfig {
+        self.max_buffer_size = max_name_size.into();
         self
     }
 
@@ -117,6 +133,8 @@ impl Host {
         let raw_addr = ip + ":" + &self.cfg.socket_num.to_string();
         let addr: SocketAddr = raw_addr.parse()?;
 
+        let (max_buffer_size, max_name_size) = (self.cfg.max_buffer_size, self.cfg.max_name_size);
+
         let connections_clone = self.connections.clone();
 
         let db = match self.store.clone() {
@@ -135,21 +153,21 @@ impl Host {
             loop {
                 let (stream, stream_addr) = listener.accept().await.unwrap();
                 // TO_DO: The handshake function is not always happy
-                let (stream, name) = handshake(stream);
+                let (stream, name) = handshake(stream, max_buffer_size, max_name_size).await;
+                info!("Host received connection from {:?}", &name);
 
                 let db = db.clone();
                 let counter = counter.clone();
                 let connections = Arc::clone(&connections_clone.clone());
 
                 let handle = tokio::spawn(async move {
-                    process(stream, db, counter).await;
+                    process(stream, db, counter, max_buffer_size).await;
                 });
                 let connection = Connection {
                     handle,
                     stream_addr,
                     name,
                 };
-                info!("Received connection from {:?}", &connection);
                 // dbg!(&connection);
 
                 connections.lock().unwrap().push(connection);
@@ -164,6 +182,7 @@ impl Host {
     /// Shuts down all networking connections and releases Host object handle
     /// This also makes sure that temporary sled::Db's built are also dropped
     /// following the shutdown of a Host
+    #[tracing::instrument]
     pub fn stop(mut self) -> Result<(), Box<dyn Error>> {
         for conn in self.connections.lock().unwrap().deref_mut() {
             // println!("Aborting connection: {}", conn.name);
@@ -190,16 +209,24 @@ impl Host {
 /// Initiate a connection with a Node
 #[inline]
 #[tracing::instrument]
-fn handshake(stream: TcpStream) -> (TcpStream, String) {
+async fn handshake(stream: TcpStream, max_buffer_size: usize, max_name_size: usize) -> (TcpStream, String) {
     // Handshake
-    let mut buf = [0u8; 4096];
-    // TO_DO: Don't have the name String have a hard-coded capacity
-    let mut name: String = String::with_capacity(100);
+    // let mut buf = [0u8; 4096];
+    // TO_DO_PART_A: This seems fine, but PART_B errors out for some reason?
+    let mut buf = Vec::with_capacity(max_buffer_size);
+    info!("Starting handshake");
+    let mut name: String = String::with_capacity(max_name_size);
+    let mut count = 0;
+    stream.readable().await.unwrap();
     loop {
-        match stream.try_read(&mut buf) {
+        info!("In handshake loop");
+        match stream.try_read_buf(&mut buf) {
             Ok(n) => {
                 name = match std::str::from_utf8(&buf[..n]) {
-                    Ok(name) => name.to_owned(),
+                    Ok(name) => {
+                        info!("Received connection from {}",&name);
+                        name.to_owned()
+                    },
                     Err(e) => {
                         error!("Error occurred during handshake on host-side: {} on byte string: {:?}, which in hex is: {:x}", e,&buf[..n],&buf[..n].as_hex());
 
@@ -214,6 +241,11 @@ fn handshake(stream: TcpStream) -> (TcpStream, String) {
             }
             Err(e) => {
                 if e.kind() == std::io::ErrorKind::WouldBlock {
+                    count +=1;
+                    if count > 20 {
+                        error!("Host Handshake not unblocking!");
+                        panic!("Stream won't unblock");
+                    }
                 } else {
                     error!("{:?}", e);
                     // println!("Error: {:?}", e);
@@ -221,19 +253,22 @@ fn handshake(stream: TcpStream) -> (TcpStream, String) {
             }
         }
     }
+    info!("Returning from handshake: ({:?}, {})",&stream, &name);
     (stream, name)
 }
 
 /// Host process for handling incoming connections from Nodes
 #[tracing::instrument]
-async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>) {
+#[inline]
+async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>, max_buffer_size: usize) {
     let mut buf = [0u8; 10_000];
-
+    // TO_DO_PART_B: Tried to with try_read_buf(), but seems to panic?
+    // let mut buf = Vec::with_capacity(max_buffer_size); 
     loop {
         stream.readable().await.unwrap();
         // dbg!(&count);
         match stream.try_read(&mut buf) {
-            Ok(0) => break,
+            Ok(0) => break, // TO_DO: break or continue?
             Ok(n) => {
                 stream.writable().await.unwrap();
 
