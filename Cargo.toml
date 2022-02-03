@@ -32,3 +32,5 @@ clap = "3.0.13"
 # logging to file
 tracing-subscriber = "0.3.7"
 tracing-appender = "0.2.0"
+# benchmarking
+rand = "0.8"
