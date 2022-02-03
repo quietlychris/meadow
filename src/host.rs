@@ -46,7 +46,7 @@ pub struct HostConfig {
     socket_num: usize,
     store_filename: String,
     max_buffer_size: usize,
-    max_name_size: usize
+    max_name_size: usize,
 }
 
 impl HostConfig {
@@ -57,7 +57,7 @@ impl HostConfig {
             socket_num: 25_000,
             store_filename: "store".into(),
             max_buffer_size: 10_000,
-            max_name_size: 100
+            max_name_size: 100,
         }
     }
 
@@ -209,7 +209,11 @@ impl Host {
 /// Initiate a connection with a Node
 #[inline]
 #[tracing::instrument]
-async fn handshake(stream: TcpStream, max_buffer_size: usize, max_name_size: usize) -> (TcpStream, String) {
+async fn handshake(
+    stream: TcpStream,
+    max_buffer_size: usize,
+    max_name_size: usize,
+) -> (TcpStream, String) {
     // Handshake
     // let mut buf = [0u8; 4096];
     // TO_DO_PART_A: This seems fine, but PART_B errors out for some reason?
@@ -224,9 +228,9 @@ async fn handshake(stream: TcpStream, max_buffer_size: usize, max_name_size: usi
             Ok(n) => {
                 name = match std::str::from_utf8(&buf[..n]) {
                     Ok(name) => {
-                        info!("Received connection from {}",&name);
+                        info!("Received connection from {}", &name);
                         name.to_owned()
-                    },
+                    }
                     Err(e) => {
                         error!("Error occurred during handshake on host-side: {} on byte string: {:?}, which in hex is: {:x}", e,&buf[..n],&buf[..n].as_hex());
 
@@ -241,7 +245,7 @@ async fn handshake(stream: TcpStream, max_buffer_size: usize, max_name_size: usi
             }
             Err(e) => {
                 if e.kind() == std::io::ErrorKind::WouldBlock {
-                    count +=1;
+                    count += 1;
                     if count > 20 {
                         error!("Host Handshake not unblocking!");
                         panic!("Stream won't unblock");
@@ -253,17 +257,22 @@ async fn handshake(stream: TcpStream, max_buffer_size: usize, max_name_size: usi
             }
         }
     }
-    info!("Returning from handshake: ({:?}, {})",&stream, &name);
+    info!("Returning from handshake: ({:?}, {})", &stream, &name);
     (stream, name)
 }
 
 /// Host process for handling incoming connections from Nodes
 #[tracing::instrument]
 #[inline]
-async fn process(stream: TcpStream, db: sled::Db, count: Arc<Mutex<usize>>, max_buffer_size: usize) {
+async fn process(
+    stream: TcpStream,
+    db: sled::Db,
+    count: Arc<Mutex<usize>>,
+    max_buffer_size: usize,
+) {
     let mut buf = [0u8; 10_000];
     // TO_DO_PART_B: Tried to with try_read_buf(), but seems to panic?
-    // let mut buf = Vec::with_capacity(max_buffer_size); 
+    // let mut buf = Vec::with_capacity(max_buffer_size);
     loop {
         stream.readable().await.unwrap();
         // dbg!(&count);
