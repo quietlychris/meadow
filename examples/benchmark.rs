@@ -1,47 +1,62 @@
+#![allow(unused)]
 use bissel::*;
-use tracing::*;
 
 use std::error::Error;
-use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
-// $ cargo run --release --example benchmark 100000
+trait Benchmarkable: 'static + Clone + From<u8> + Message + PartialEq {}
+impl<T> Benchmarkable for T where T: 'static + Clone + From<u8> + Message + PartialEq {}
+
+
+#[derive(Debug)]
+struct BenchmarkStats {
+    iterations: usize,
+    invalid_operations: usize,
+    average_time_us: f64,
+    min_time_us: f64,
+    max_time_us: f64,
+}
+
+// USAGE: $ cargo run --release --example benchmark 100000
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = std::env::args().collect();
     dbg!(args.len());
     if args.len() != 2 {
-        let emsg = format!("Args: cargo run --example --release <num_iterations>");
-        panic!(emsg);
+        let emsg = format!("USAGE: cargo run --example --release <num_iterations>");
+        panic!("{}",emsg);
     }
     let iterations = args[1].parse::<usize>().unwrap();
 
     // Benchmark a single f32 value
-    let (avg_f32, invalid_ops_f32) = benchmark_f32(iterations)?;
-    dbg!(avg_f32, invalid_ops_f32);
+    let f32_stats = benchmark_numeric::<f32>(iterations)?;
+    println!("f32 stats: {:#?}", f32_stats);
 
-    // Benchmark a vector of f32 values
-    let (avg_vec_f32, invalid_ops_vec_f32) = benchmark_vec_f32(iterations)?;
-    dbg!(avg_vec_f32, invalid_ops_vec_f32);
+    let collection_size = 1024;
+    let vec_i16_stats = benchmark_numeric_collections::<i16>(iterations, collection_size)?;
+    println!("i16 collection stats, length: {:#?}", vec_i16_stats);
 
     Ok(())
 }
 
-fn benchmark_f32(iterations: usize) -> Result<(f64, usize), Box<dyn Error>> {
+
+fn benchmark_numeric<T: Benchmarkable>(
+    iterations: usize,
+) -> Result<BenchmarkStats, Box<dyn Error>> {
     let mut host: Host = HostConfig::new("lo").build()?;
     host.start()?;
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let mut node: Node<f32> = NodeConfig::new("BENCH_f32")
+    let mut node: Node<T> = NodeConfig::new("BENCH_f32")
         .topic("benchmark_f32")
         .build()
         .unwrap();
     node.connect()?;
 
-    let mut times = Vec::with_capacity(iterations);
-    let mut invalid_ops = Vec::with_capacity(iterations);
+    let mut times: Vec<u128> = Vec::with_capacity(iterations);
+    let mut invalid_ops: Vec<usize> = Vec::with_capacity(iterations);
     for i in 0..iterations {
-        let val = rand::random::<f32>();
+        let val: T = rand::random::<u8>().into();
         let clone = val.clone();
         let now = Instant::now();
 
@@ -49,7 +64,7 @@ fn benchmark_f32(iterations: usize) -> Result<(f64, usize), Box<dyn Error>> {
         node.publish(clone)?;
         let result = node.request()?;
 
-        let time = now.elapsed().as_micros() as f64;
+        let time = now.elapsed().as_micros();
 
         if result == val {
             times.push(time);
@@ -58,43 +73,49 @@ fn benchmark_f32(iterations: usize) -> Result<(f64, usize), Box<dyn Error>> {
         }
     }
 
-    let average: f64 = times.iter().sum::<f64>() / (times.len() as f64);
-    let total_invalid_ops = invalid_ops.len();
+    let stats = BenchmarkStats {
+        iterations,
+        invalid_operations: invalid_ops.len(),
+        average_time_us: times.iter().sum::<u128>() as f64 / (times.len() as f64),
+        min_time_us: *times.iter().min().unwrap() as f64,
+        max_time_us: *times.iter().max().unwrap() as f64,
+    };
 
     host.stop()?;
-    Ok((average, total_invalid_ops))
+    Ok(stats)
 }
 
-fn benchmark_vec_f32(iterations: usize) -> Result<(f64, usize), Box<dyn Error>> {
+fn benchmark_numeric_collections<T: Benchmarkable>(
+    iterations: usize,
+    collection_size: usize,
+) -> Result<BenchmarkStats, Box<dyn Error>> {
     let mut host: Host = HostConfig::new("lo").build()?;
     host.start()?;
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let mut node: Node<Vec<f32>> = NodeConfig::new("BENCH_vec_f32")
-        .topic("benchmark_vec_f32")
+    let mut node: Node<Vec<T>> = NodeConfig::new("BENCH_f32")
+        .topic("benchmark_f32")
         .build()
         .unwrap();
     node.connect()?;
 
-    let mut times = Vec::with_capacity(iterations);
-    let mut invalid_ops = Vec::with_capacity(iterations);
+    let mut times: Vec<u128> = Vec::with_capacity(iterations);
+    let mut invalid_ops: Vec<usize> = Vec::with_capacity(iterations);
     for i in 0..iterations {
-        // let val = rand::random::<f32>();
-        let length = 100;
-        let mut val = Vec::with_capacity(length);
-        for _ in 0..length {
-            val.push(rand::random::<f32>());
+        
+        let mut val: Vec<T> = Vec::with_capacity(collection_size);
+        for _ in 0..collection_size {
+            val.push(rand::random::<u8>().into());
         }
         let clone = val.to_owned().to_vec();
-
         let now = Instant::now();
 
         // Publish and request a value from the host
         node.publish(clone)?;
         let result = node.request()?;
 
-        let time = now.elapsed().as_micros() as f64;
+        let time = now.elapsed().as_micros();
 
         if result == val {
             times.push(time);
@@ -103,9 +124,14 @@ fn benchmark_vec_f32(iterations: usize) -> Result<(f64, usize), Box<dyn Error>> 
         }
     }
 
-    let average: f64 = times.iter().sum::<f64>() / (times.len() as f64);
-    let total_invalid_ops = invalid_ops.len();
+    let stats = BenchmarkStats {
+        iterations,
+        invalid_operations: invalid_ops.len(),
+        average_time_us: times.iter().sum::<u128>() as f64 / (times.len() as f64),
+        min_time_us: *times.iter().min().unwrap() as f64,
+        max_time_us: *times.iter().max().unwrap() as f64,
+    };
 
     host.stop()?;
-    Ok((average, total_invalid_ops))
+    Ok(stats)
 }
