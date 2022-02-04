@@ -18,8 +18,8 @@ fn integrate_host_and_single_node() {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let mut node: Node<Pose> = NodeConfig::new("TEST_NODE").topic("pose").build().unwrap();
-    node.connect().unwrap();
+    let node: Node<Idle, Pose> = NodeConfig::new("TEST_NODE").topic("pose").build().unwrap();
+    let mut node = node.connect().unwrap();
 
     for i in 0..5 {
         // Could get this by reading a GPS, for example
@@ -50,11 +50,11 @@ fn request_non_existent_topic() {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let mut node: Node<Pose> = NodeConfig::new("TEST_NODE")
+    let node: Node<Idle, Pose> = NodeConfig::new("TEST_NODE")
         .topic("doesnt_exist")
         .build()
         .unwrap();
-    node.connect().unwrap();
+    let mut node = node.connect().unwrap();
 
     // Requesting a topic that doesn't exist should return a recoverable error
     for i in 0..5 {
@@ -78,11 +78,11 @@ fn publish_boolean() {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let mut node: Node<bool> = NodeConfig::new("TEST_NODE")
+    let node: Node<Idle, bool> = NodeConfig::new("TEST_NODE")
         .topic("my_boolean")
         .build()
         .unwrap();
-    node.connect().unwrap();
+    let mut node = node.connect().unwrap();
 
     for _i in 0..5 {
         node.publish(true).unwrap();

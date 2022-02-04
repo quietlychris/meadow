@@ -31,15 +31,35 @@ pub struct NodeConfig<T: Message> {
     phantom: PhantomData<T>,
 }
 
+#[derive(Debug)]
+pub struct Idle;
+#[derive(Debug)]
+pub struct Active;
+
 /// A named, strongly-typed Node capable of publish/request on Host
 #[derive(Debug)]
-pub struct Node<T: Message> {
+pub struct Node<State, T: Message> {
+    __state: PhantomData<State>,
+    phantom: PhantomData<T>,
     runtime: Runtime,
     stream: Option<TcpStream>,
     name: String,
     topic: String,
     host_addr: SocketAddr,
-    phantom: PhantomData<T>,
+}
+
+impl<T: Message> From<Node<Idle, T>> for Node<Active, T> {
+    fn from(node: Node<Idle, T>) -> Self {
+        Self {
+            __state: PhantomData,
+            phantom: PhantomData,
+            runtime: node.runtime,
+            stream: node.stream,
+            name: node.name,
+            topic: node.topic,
+            host_addr: node.host_addr,
+        }
+    }
 }
 
 impl<T: Message> NodeConfig<T> {
@@ -66,7 +86,7 @@ impl<T: Message> NodeConfig<T> {
     }
 
     /// Construct a Node from the specified configuration
-    pub fn build(self) -> Result<Node<T>, Box<dyn Error>> {
+    pub fn build(self) -> Result<Node<Idle, T>, Box<dyn Error>> {
         let runtime = tokio::runtime::Runtime::new()?;
 
         let topic = match self.topic {
@@ -74,21 +94,22 @@ impl<T: Message> NodeConfig<T> {
             None => panic!("Nodes must have an assigned topic to be built"),
         };
 
-        Ok(Node::<T> {
+        Ok(Node::<Idle, T> {
+            __state: PhantomData,
+            phantom: PhantomData,
             runtime,
             stream: None,
             host_addr: self.host_addr,
             name: self.name,
             topic,
-            phantom: PhantomData,
         })
     }
 }
 
-impl<T: Message + 'static> Node<T> {
+impl<T: Message + 'static> Node<Idle, T> {
     /// Attempt connection from the Node to the Host located at the specified address
     #[tracing::instrument]
-    pub fn connect(&mut self) -> Result<(), Box<dyn Error>> {
+    pub fn connect(mut self) -> Result<Node<Active, T>, Box<dyn Error>> {
         // let ip = crate::get_ip(interface).unwrap();
         // dbg!(ip);
         //let mut socket_num = 25_001;
@@ -142,9 +163,28 @@ impl<T: Message + 'static> Node<T> {
             sleep(Duration::from_millis(20)).await;
         });
 
-        Ok(())
+        Ok(Node::<Active, T>::from(self))
     }
 
+    /// Re-construct a Node's initial configuration to make it easy to re-build similar Node's
+    pub fn rebuild_config(&self) -> NodeConfig<T> {
+        let topic = self.topic.clone();
+        let host_addr = match &self.stream {
+            Some(stream) => stream.peer_addr().unwrap(),
+            None => SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 25_000),
+        };
+        // dbg!(&host_addr);
+
+        NodeConfig {
+            host_addr,
+            topic: Some(topic),
+            name: self.name.clone(),
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<T: Message + 'static> Node<Active, T> {
     // TO_DO: The error handling in the async blocks need to be improved
     /// Send data to host on Node's assigned topic using Msg<T> packet
     #[tracing::instrument]
@@ -294,22 +334,5 @@ impl<T: Message + 'static> Node<T> {
                 }
             }
         })
-    }
-
-    /// Re-construct a Node's initial configuration to make it easy to re-build similar Node's
-    pub fn rebuild_config(&self) -> NodeConfig<T> {
-        let topic = self.topic.clone();
-        let host_addr = match &self.stream {
-            Some(stream) => stream.peer_addr().unwrap(),
-            None => SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 25_000),
-        };
-        // dbg!(&host_addr);
-
-        NodeConfig {
-            host_addr,
-            topic: Some(topic),
-            name: self.name.clone(),
-            phantom: PhantomData,
-        }
     }
 }

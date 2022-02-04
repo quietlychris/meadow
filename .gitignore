@@ -7,3 +7,4 @@ examples/get_ip.rs
 .gitignore
 examples/node_subscription.rs
 logs
+.vscode/
