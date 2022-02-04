@@ -7,7 +7,6 @@ use std::time::Instant;
 trait Benchmarkable: 'static + Clone + From<u8> + Message + PartialEq {}
 impl<T> Benchmarkable for T where T: 'static + Clone + From<u8> + Message + PartialEq {}
 
-
 #[derive(Debug)]
 struct BenchmarkStats {
     iterations: usize,
@@ -23,7 +22,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     dbg!(args.len());
     if args.len() != 2 {
         let emsg = format!("USAGE: cargo run --example --release <num_iterations>");
-        panic!("{}",emsg);
+        panic!("{}", emsg);
     }
     let iterations = args[1].parse::<usize>().unwrap();
 
@@ -38,7 +37,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-
 fn benchmark_numeric<T: Benchmarkable>(
     iterations: usize,
 ) -> Result<BenchmarkStats, Box<dyn Error>> {
@@ -47,11 +45,11 @@ fn benchmark_numeric<T: Benchmarkable>(
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let mut node: Node<T> = NodeConfig::new("BENCH_f32")
+    let node: Node<Idle, T> = NodeConfig::new("BENCH_f32")
         .topic("benchmark_f32")
         .build()
         .unwrap();
-    node.connect()?;
+    let mut node = node.connect()?;
 
     let mut times: Vec<u128> = Vec::with_capacity(iterations);
     let mut invalid_ops: Vec<usize> = Vec::with_capacity(iterations);
@@ -94,16 +92,15 @@ fn benchmark_numeric_collections<T: Benchmarkable>(
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let mut node: Node<Vec<T>> = NodeConfig::new("BENCH_f32")
+    let node: Node<Idle, Vec<T>> = NodeConfig::new("BENCH_f32")
         .topic("benchmark_f32")
         .build()
         .unwrap();
-    node.connect()?;
+    let mut node = node.connect()?;
 
     let mut times: Vec<u128> = Vec::with_capacity(iterations);
     let mut invalid_ops: Vec<usize> = Vec::with_capacity(iterations);
     for i in 0..iterations {
-        
         let mut val: Vec<T> = Vec::with_capacity(collection_size);
         for _ in 0..collection_size {
             val.push(rand::random::<u8>().into());

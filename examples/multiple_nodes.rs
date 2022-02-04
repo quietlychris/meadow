@@ -1,6 +1,4 @@
-use bissel::host::*;
-use bissel::node::{Node, NodeConfig};
-use bissel::Pose;
+use bissel::*;
 
 use std::error::Error;
 use std::thread;
@@ -28,15 +26,16 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             // Create a node
             let name = format!("NODE_{}", i);
-            let mut node: Node<Pose> = NodeConfig::new(name).topic("pose").build().unwrap();
-            match node.connect() {
-                Ok(()) => {
+            let node: Node<Idle, Pose> = NodeConfig::new(name).topic("pose").build().unwrap();
+            let mut node = match node.connect() {
+                Ok(node) => {
                     println!("NODE_{} connected successfully", i);
+                    node
                 }
                 Err(_e) => {
                     panic!("NODE_{} did NOT connect successfully", i);
                 }
-            }
+            };
 
             node.publish(pose).unwrap();
             thread::sleep(Duration::from_millis((100 / (i + 1)) as u64));

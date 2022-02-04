@@ -16,8 +16,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let mut node: Node<Pose> = NodeConfig::new("TEAPOT").topic("pose").build().unwrap();
-    node.connect()?;
+    let node: Node<Idle, Pose> = NodeConfig::new("TEAPOT").topic("pose").build().unwrap();
+    let mut node = node.connect()?;
     info!("Node should now be connected");
     println!(
         "The size of an active bissel Node is: {}",
