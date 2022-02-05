@@ -2,6 +2,8 @@ extern crate alloc;
 
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
+use tokio::sync::Mutex as TokioMutex;
+use tokio::task::JoinHandle;
 use tokio::time::{sleep, Duration};
 
 use tracing::*;
@@ -9,8 +11,10 @@ use tracing::*;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use std::error::Error;
-use std::marker::PhantomData;
+use std::marker::{PhantomData, Sync};
+use std::ops::Deref;
 use std::result::Result;
+use std::sync::Arc;
 
 use alloc::vec::Vec;
 use postcard::*;
@@ -19,8 +23,8 @@ use serde::{de::DeserializeOwned, Serialize};
 use crate::msg::*;
 
 use std::fmt::Debug;
-pub trait Message: Serialize + DeserializeOwned + Debug + Send {}
-impl<T> Message for T where T: Serialize + DeserializeOwned + Debug + Send {}
+pub trait Message: Serialize + DeserializeOwned + Debug + Sync + Send + Clone {}
+impl<T> Message for T where T: Serialize + DeserializeOwned + Debug + Sync + Send + Clone {}
 
 /// Configuration of strongly-typed Node
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -35,6 +39,8 @@ pub struct NodeConfig<T: Message> {
 pub struct Idle;
 #[derive(Debug)]
 pub struct Active;
+#[derive(Debug)]
+pub struct Subscription;
 
 /// A named, strongly-typed Node capable of publish/request on Host
 #[derive(Debug)]
@@ -46,6 +52,8 @@ pub struct Node<State, T: Message> {
     name: String,
     topic: String,
     host_addr: SocketAddr,
+    pub subscription_data: Arc<TokioMutex<Option<T>>>,
+    task_subscribe: Option<JoinHandle<()>>,
 }
 
 impl<T: Message> From<Node<Idle, T>> for Node<Active, T> {
@@ -58,6 +66,24 @@ impl<T: Message> From<Node<Idle, T>> for Node<Active, T> {
             name: node.name,
             topic: node.topic,
             host_addr: node.host_addr,
+            subscription_data: node.subscription_data,
+            task_subscribe: None,
+        }
+    }
+}
+
+impl<T: Message> From<Node<Idle, T>> for Node<Subscription, T> {
+    fn from(node: Node<Idle, T>) -> Self {
+        Self {
+            __state: PhantomData,
+            phantom: PhantomData,
+            runtime: node.runtime,
+            stream: node.stream,
+            name: node.name,
+            topic: node.topic,
+            host_addr: node.host_addr,
+            subscription_data: node.subscription_data,
+            task_subscribe: None,
         }
     }
 }
@@ -71,6 +97,12 @@ impl<T: Message> NodeConfig<T> {
             host_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 25_000),
             phantom: PhantomData,
         }
+    }
+
+    /// Convenience method for re-setting the name of the Node to be generated
+    pub fn name(mut self, name: impl Into<String>) -> Self {
+        self.name = name.into();
+        self
     }
 
     /// Set topic of the generated Node
@@ -102,6 +134,8 @@ impl<T: Message> NodeConfig<T> {
             host_addr: self.host_addr,
             name: self.name,
             topic,
+            subscription_data: Arc::new(TokioMutex::new(None)),
+            task_subscribe: None,
         })
     }
 }
@@ -112,75 +146,123 @@ impl<T: Message + 'static> Node<Idle, T> {
     pub fn connect(mut self) -> Result<Node<Active, T>, Box<dyn Error>> {
         // let ip = crate::get_ip(interface).unwrap();
         // dbg!(ip);
-        //let mut socket_num = 25_001;
-
-        // let stream: Arc<Mutex<Option<TcpStream>>> = Arc::new(Mutex::new(None));
-        let host_addr = self.host_addr;
+        let addr = self.host_addr;
         let topic = self.topic.clone();
-        let stream = &mut self.stream;
 
-        self.runtime.block_on(async {
-            // println!("hello!");
-            let mut connection_attempts = 0;
-            while connection_attempts < 5 {
-                match TcpStream::connect(host_addr).await {
-                    Ok(my_stream) => {
-                        *stream = Some(my_stream);
-                        break;
-                    }
-                    Err(e) => {
-                        connection_attempts += 1;
-                        sleep(Duration::from_millis(1_000)).await;
-                        warn!("{:?}", e);
-                        // println!("Error: {:?}", e)
-                    }
-                }
-            }
-
-            sleep(Duration::from_millis(2)).await;
-
-            let stream = stream.as_ref().unwrap();
-            loop {
-                stream.writable().await.unwrap();
-                match stream.try_write(topic.as_bytes()) {
-                    Ok(_n) => {
-                        // println!("Successfully wrote {} bytes to host", n);
-                        info!("{}: Wrote {} bytes to host", topic, _n);
-                        break;
-                    }
-                    Err(e) => {
-                        if e.kind() == std::io::ErrorKind::WouldBlock {
-                        } else {
-                            // println!("Handshake error: {:?}", e);
-                            error!("NODE handshake error: {:?}", e);
-                        }
-                    }
-                }
-            }
-            info!("{}: Successfully connected to host", topic);
-            // TO_DO: Is there a better way to do this?
-            // Pause after connection to avoid accidentally including published data in initial handshake
-            sleep(Duration::from_millis(20)).await;
+        let stream = self.runtime.block_on(async move {
+            let stream = attempt_connection(addr).await.unwrap();
+            let stream = handshake(stream, topic).await.unwrap();
+            stream
         });
+        self.stream = Some(stream);
 
         Ok(Node::<Active, T>::from(self))
     }
 
-    /// Re-construct a Node's initial configuration to make it easy to re-build similar Node's
-    pub fn rebuild_config(&self) -> NodeConfig<T> {
+    #[tracing::instrument]
+    pub fn subscribe(mut self, rate: Duration) -> Result<Node<Subscription, T>, Box<dyn Error>> {
+        let name = self.name.clone() + "_SUBSCRIPTION";
+        let addr = self.host_addr;
         let topic = self.topic.clone();
-        let host_addr = match &self.stream {
-            Some(stream) => stream.peer_addr().unwrap(),
-            None => SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 25_000),
-        };
-        // dbg!(&host_addr);
 
-        NodeConfig {
-            host_addr,
-            topic: Some(topic),
-            name: self.name.clone(),
-            phantom: PhantomData,
+        let subscription_data: Arc<TokioMutex<Option<T>>> = Arc::new(TokioMutex::new(None));
+        let data = Arc::clone(&subscription_data);
+
+        let task_subscribe = self.runtime.spawn(async move {
+            //let mut subscription_node = subscription_node.connect().unwrap();
+            let stream = attempt_connection(addr).await.unwrap();
+            let stream = handshake(stream, topic.clone()).await.unwrap();
+            let packet = GenericMsg {
+                msg_type: MsgType::GET,
+                name: name.clone(),
+                topic: topic.clone(),
+                data_type: std::any::type_name::<T>().to_string(),
+                data: Vec::new(),
+            };
+            // info!("{:?}",&packet);
+
+            loop {
+                let packet_as_bytes: Vec<u8> = to_allocvec(&packet).unwrap();
+                send_request(&mut &stream, packet_as_bytes).await.unwrap();
+                let reply = match await_response::<T>(&mut &stream, name.clone(), 4096).await {
+                    Ok(val) => val,
+                    Err(e) => {
+                        error!("subscription error: {}", e);
+                        continue;
+                    }
+                };
+                let mut data = data.lock().await;
+                *data = Some(reply);
+                sleep(rate).await;
+            }
+        });
+        self.task_subscribe = Some(task_subscribe);
+        println!("spawned subscription task");
+
+        let mut subscription_node = Node::<Subscription, T>::from(self);
+        subscription_node.subscription_data = subscription_data;
+
+        Ok(subscription_node)
+    }
+}
+
+async fn attempt_connection(host_addr: SocketAddr) -> Result<TcpStream, Box<dyn Error>> {
+    let mut connection_attempts = 0;
+    let mut stream: Option<TcpStream> = None;
+    while connection_attempts < 5 {
+        match TcpStream::connect(host_addr).await {
+            Ok(my_stream) => {
+                stream = Some(my_stream);
+                break;
+            }
+            Err(e) => {
+                connection_attempts += 1;
+                sleep(Duration::from_millis(1_000)).await;
+                warn!("{:?}", e);
+                // println!("Error: {:?}", e)
+            }
         }
+    }
+
+    let stream = stream.unwrap();
+    Ok(stream)
+}
+
+async fn handshake(stream: TcpStream, topic: String) -> Result<TcpStream, Box<dyn Error>> {
+    loop {
+        stream.writable().await.unwrap();
+        match stream.try_write(topic.as_bytes()) {
+            Ok(_n) => {
+                // println!("Successfully wrote {} bytes to host", n);
+                info!("{}: Wrote {} bytes to host", topic, _n);
+                break;
+            }
+            Err(e) => {
+                if e.kind() == std::io::ErrorKind::WouldBlock {
+                } else {
+                    // println!("Handshake error: {:?}", e);
+                    error!("NODE handshake error: {:?}", e);
+                }
+            }
+        }
+    }
+    info!("{}: Successfully connected to host", topic);
+    // TO_DO: Is there a better way to do this?
+    // Pause after connection to avoid accidentally including published data in initial handshake
+    sleep(Duration::from_millis(20)).await;
+
+    Ok(stream)
+}
+
+impl<T: Message + 'static> Node<Subscription, T> {
+    // Should actually return a <T>
+    pub fn get_subscribed_data(&self) -> Result<Option<T>, Box<dyn Error>> {
+        let data = self.subscription_data.clone();
+        let result = self.runtime.block_on(async {
+            let data = data.lock().await;
+            data.deref().clone()
+        });
+        Ok(result)
     }
 }
 
@@ -188,11 +270,7 @@ impl<T: Message + 'static> Node<Active, T> {
     // TO_DO: The error handling in the async blocks need to be improved
     /// Send data to host on Node's assigned topic using Msg<T> packet
     #[tracing::instrument]
-    pub fn publish(
-        &mut self,
-        // topic: impl Into<String> + Debug + Display,
-        val: T,
-    ) -> Result<(), Box<dyn Error>> {
+    pub fn publish(&self, val: T) -> Result<(), Box<dyn Error>> {
         // let val_vec: heapless::Vec<u8, 4096> = to_vec(&val).unwrap();
         let val_vec: Vec<u8> = to_allocvec(&val).unwrap();
 
@@ -265,11 +343,9 @@ impl<T: Message + 'static> Node<Active, T> {
     }
 
     /// Request data from host on Node's assigned topic
+    // TO_DO: Should this return a StdError or postcard::Error?
     #[tracing::instrument]
-    pub fn request(
-        &mut self,
-        // topic: impl Into<String> + Debug + Display,
-    ) -> Result<T, Box<postcard::Error>> {
+    pub fn request(&self) -> Result<T, Box<dyn Error>> {
         let packet = GenericMsg {
             msg_type: MsgType::GET,
             name: self.name.to_string(),
@@ -282,57 +358,94 @@ impl<T: Message + 'static> Node<Active, T> {
         let packet_as_bytes: Vec<u8> = to_allocvec(&packet).unwrap();
 
         let stream = &mut self.stream.as_ref().unwrap();
+        let name = self.name.to_string();
 
         self.runtime.block_on(async {
-            stream.writable().await.unwrap();
+            send_request(stream, packet_as_bytes).await.unwrap();
+            await_response::<T>(stream, name, 4096).await
+        })
+    }
 
-            // Write the request
-            loop {
-                match stream.try_write(&packet_as_bytes) {
-                    Ok(_n) => {
-                        // info!("Node successfully wrote {}-byte request to host",n);
-                        break;
-                    }
-                    Err(e) => {
-                        if e.kind() == std::io::ErrorKind::WouldBlock {}
-                        continue;
-                    }
-                }
+    /// Re-construct a Node's initial configuration to make it easy to re-build similar Node's
+    pub fn rebuild_config(&self) -> NodeConfig<T> {
+        let topic = self.topic.clone();
+        let host_addr = match &self.stream {
+            Some(stream) => stream.peer_addr().unwrap(),
+            None => SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 25_000),
+        };
+        // dbg!(&host_addr);
+
+        NodeConfig {
+            host_addr,
+            topic: Some(topic),
+            name: self.name.clone(),
+            phantom: PhantomData,
+        }
+    }
+}
+
+async fn send_request(
+    stream: &mut &TcpStream,
+    packet_as_bytes: Vec<u8>,
+) -> Result<(), Box<dyn Error>> {
+    stream.writable().await.unwrap();
+
+    // Write the request
+    // TO_DO: This should be a loop with a maximum number of attempts
+    loop {
+        match stream.try_write(&packet_as_bytes) {
+            Ok(_n) => {
+                // info!("Node successfully wrote {}-byte request to host",n);
+                break;
             }
+            Err(e) => {
+                if e.kind() == std::io::ErrorKind::WouldBlock {}
+                continue;
+            }
+        }
+    }
+    Ok(())
+}
 
-            let mut buf = [0u8; 4096];
-            loop {
-                stream.readable().await.unwrap();
-                match stream.try_read(&mut buf) {
-                    Ok(0) => continue,
-                    Ok(n) => {
-                        let bytes = &buf[..n];
-                        let _msg: Result<GenericMsg, Box<dyn Error>> = match from_bytes(bytes) {
-                            Ok(msg) => {
-                                let msg: GenericMsg = msg;
-                                // info!("Node has received msg data: {:?}",&msg.data);
+async fn await_response<T: Message>(
+    stream: &mut &TcpStream,
+    name: String,
+    _max_buffer_size: usize, // TO_DO: This should be configurable
+) -> Result<T, Box<dyn Error>> {
+    // Read the requested data into a buffer
+    let mut buf = [0u8; 4096];
+    // let mut buf = Vec::with_capacity(max_buffer_size);
 
-                                match from_bytes::<T>(&msg.data) {
-                                    Ok(data) => return Ok(data),
-                                    Err(e) => {
-                                        println!("Error: {:?}, &msg.data: {:?}", e, &msg.data);
-                                        println!("Expected type: {}", std::any::type_name::<T>());
-                                        return Err(Box::new(e));
-                                    }
-                                }
-                            }
+    loop {
+        stream.readable().await.unwrap();
+        match stream.try_read(&mut buf) {
+            Ok(0) => continue,
+            Ok(n) => {
+                let bytes = &buf[..n];
+                let _msg: Result<GenericMsg, Box<dyn Error>> = match from_bytes(bytes) {
+                    Ok(msg) => {
+                        let msg: GenericMsg = msg;
+                        // info!("Node has received msg data: {:?}",&msg.data);
+
+                        match from_bytes::<T>(&msg.data) {
+                            Ok(data) => return Ok(data),
                             Err(e) => {
-                                error!("{}: {:?}", self.name.to_string(), &e);
+                                println!("Error: {:?}, &msg.data: {:?}", e, &msg.data);
+                                println!("Expected type: {}", std::any::type_name::<T>());
                                 return Err(Box::new(e));
                             }
-                        };
+                        }
                     }
                     Err(e) => {
-                        if e.kind() == std::io::ErrorKind::WouldBlock {}
-                        continue;
+                        error!("{}: {:?}", name, &e);
+                        return Err(Box::new(e));
                     }
-                }
+                };
             }
-        })
+            Err(e) => {
+                if e.kind() == std::io::ErrorKind::WouldBlock {}
+                continue;
+            }
+        }
     }
 }

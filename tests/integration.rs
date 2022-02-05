@@ -92,3 +92,38 @@ fn publish_boolean() {
 
     host.stop().unwrap();
 }
+
+#[test]
+fn subscription_usize() {
+    let mut host: Host = HostConfig::new("lo").build().unwrap();
+    host.start().unwrap();
+    println!("Host should be running in the background");
+
+    // Get the host up and running
+    let writer = NodeConfig::new("WRITER")
+        .topic("subscription")
+        .build()
+        .unwrap()
+        .connect()
+        .unwrap();
+
+    // Create a subscription node with a query rate of 10 Hz
+    let mut reader = writer
+        .rebuild_config()
+        .name("READER")
+        .build()
+        .unwrap()
+        .subscribe(Duration::from_millis(20))
+        .unwrap();
+
+    for i in 0..5 {
+        let test_value = i as usize;
+        writer.publish(test_value).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(250));
+        let result = reader.get_subscribed_data().unwrap().unwrap();
+        dbg!(result);
+        assert_eq!(test_value, result);
+    }
+
+    // host.stop().unwrap();
+}

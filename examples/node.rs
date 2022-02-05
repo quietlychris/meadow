@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Coordinate {
     x: f32,
     y: f32,
@@ -18,7 +18,7 @@ fn main() {
         .host_addr(addr)
         .build()
         .unwrap();
-    let mut node = node.connect().unwrap();
+    let node = node.connect().unwrap();
 
     let c = Coordinate { x: 4.0, y: 4.0 };
     node.publish(c).unwrap();
