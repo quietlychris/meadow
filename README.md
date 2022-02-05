@@ -13,7 +13,8 @@ use bissel::*;
 use serde::{Deserialize, Serialize};
 
 // Any type implementing Debug and serde's De/Serialize traits are Bissel-compatible
-#[derive(Debug, Serialize, Deserialize)]
+// (the standard library Debug and Clone traits are also required)
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Coordinate {
     x: f32,
     y: f32,
@@ -40,6 +41,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // the compiler won't let you use the publish() or request() methods on an Idle Node
     let mut node: Node<Active, Coordinate> = node.connect()?;
 
+    // Nodes can also be subscribers, which will request topic updates from the Host
+    // at a given rate
+    let subscriber: Node<Subscription, Coordinate> = NodeConfig::new("GPS_SUBSCRIBER")
+        .topic("position")
+        .host_addr(addr)
+        .build()?
+        .subscribe(std::time::Duration::from_millis(100))?;
+
     let c = Coordinate { x: 4.0, y: 4.0 };
     node.publish(c).unwrap();
 
@@ -54,10 +63,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         node.publish(c)?;
         std::thread::sleep(std::time::Duration::from_millis(100));
         let result = node.request()?;
+        // or could use the value held by the subscribed node
+        let subscription = subscriber.get_subscribed_data().unwrap().unwrap();
         println!("Got position: {:?}", result);
     }
 
-    host.stop()?;
+    // host.stop()?;
     Ok(())
 }
 

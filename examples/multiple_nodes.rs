@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             // Create a node
             let name = format!("NODE_{}", i);
             let node: Node<Idle, Pose> = NodeConfig::new(name).topic("pose").build().unwrap();
-            let mut node = match node.connect() {
+            let node = match node.connect() {
                 Ok(node) => {
                     println!("NODE_{} connected successfully", i);
                     node

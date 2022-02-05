@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Get the host up and running
     let node: Node<Idle, Pose> = NodeConfig::new("TEAPOT").topic("pose").build().unwrap();
-    let mut node = node.connect()?;
+    let node = node.connect()?;
     info!("Node should now be connected");
     println!(
         "The size of an active bissel Node is: {}",
@@ -36,7 +36,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         };
 
         node.publish(pose.clone())?;
-        thread::sleep(Duration::from_millis(1_000));
+        thread::sleep(Duration::from_millis(250));
         let result = node.request()?;
         println!("Got position: {:?}", result);
 
