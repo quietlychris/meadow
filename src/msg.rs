@@ -23,6 +23,7 @@ pub struct Msg<T> {
 #[repr(C)]
 pub struct GenericMsg {
     pub msg_type: MsgType,
+    pub timestamp: String,
     pub name: String,
     pub topic: String,
     pub data_type: String,

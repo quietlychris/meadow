@@ -1,7 +1,7 @@
 [package]
 name = "bissel"
 version = "0.2.0"
-description = "Robotics-focused publish/request middleware for embedded Linux"
+description = "Robotics-focused publish-subscribe/request-reply middleware for embedded Linux"
 authors = ["Christopher Moran <christopher.and.moran@gmail.com>"]
 edition = "2018"
 license = "MPL-2.0"
@@ -19,6 +19,7 @@ name = "bissel"
 serde = {version = "1.0.136", default-features = false, features = ["derive"]}
 postcard = {version = "0.7.3", features = ["alloc"]}
 hex-slice = "0.1.4"
+chrono = {version = "0.4", features = ["serde"]}
 # key value store, networking, and async
 sled = "0.34.6"
 pnet = "0.29.0"

@@ -21,6 +21,7 @@ use postcard::*;
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::msg::*;
+use chrono::Utc;
 
 use std::fmt::Debug;
 pub trait Message: Serialize + DeserializeOwned + Debug + Sync + Send + Clone {}
@@ -174,6 +175,7 @@ impl<T: Message + 'static> Node<Idle, T> {
             let stream = handshake(stream, topic.clone()).await.unwrap();
             let packet = GenericMsg {
                 msg_type: MsgType::GET,
+                timestamp: Utc::now().to_string(),
                 name: name.clone(),
                 topic: topic.clone(),
                 data_type: std::any::type_name::<T>().to_string(),
@@ -277,6 +279,7 @@ impl<T: Message + 'static> Node<Active, T> {
         // println!("Number of bytes in data for {:?} is {}",std::any::type_name::<M>(),val_vec.len());
         let packet = GenericMsg {
             msg_type: MsgType::SET,
+            timestamp: Utc::now().to_string(),
             name: self.name.to_string(),
             topic: self.topic.to_string(),
             data_type: std::any::type_name::<T>().to_string(),
@@ -348,6 +351,7 @@ impl<T: Message + 'static> Node<Active, T> {
     pub fn request(&self) -> Result<T, Box<dyn Error>> {
         let packet = GenericMsg {
             msg_type: MsgType::GET,
+            timestamp: Utc::now().to_string(),
             name: self.name.to_string(),
             topic: self.topic.to_string(),
             data_type: std::any::type_name::<T>().to_string(),
@@ -425,6 +429,10 @@ async fn await_response<T: Message>(
                 let _msg: Result<GenericMsg, Box<dyn Error>> = match from_bytes(bytes) {
                     Ok(msg) => {
                         let msg: GenericMsg = msg;
+
+                        // TO_DO: Put logging info like this behind a feature flag
+                        // let delta = (Utc::now() - msg.timestamp.parse::<DateTime<Utc>>()?).to_std()?.as_micros();
+                        // println!("The time difference between msg tx/rx is: {} us",delta);
                         // info!("Node has received msg data: {:?}",&msg.data);
 
                         match from_bytes::<T>(&msg.data) {
