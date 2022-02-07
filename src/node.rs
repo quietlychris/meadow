@@ -21,7 +21,7 @@ use postcard::*;
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::msg::*;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 
 use std::fmt::Debug;
 pub trait Message: Serialize + DeserializeOwned + Debug + Sync + Send + Clone {}
@@ -43,6 +43,12 @@ pub struct Active;
 #[derive(Debug)]
 pub struct Subscription;
 
+#[derive(Debug, Clone)]
+pub struct SubscriptionData<T: Message> {
+    pub data: T,
+    pub timestamp: String,
+}
+
 /// A named, strongly-typed Node capable of publish/request on Host
 #[derive(Debug)]
 pub struct Node<State, T: Message> {
@@ -53,7 +59,7 @@ pub struct Node<State, T: Message> {
     name: String,
     topic: String,
     host_addr: SocketAddr,
-    pub subscription_data: Arc<TokioMutex<Option<T>>>,
+    pub subscription_data: Arc<TokioMutex<Option<SubscriptionData<T>>>>,
     task_subscribe: Option<JoinHandle<()>>,
 }
 
@@ -166,7 +172,8 @@ impl<T: Message + 'static> Node<Idle, T> {
         let addr = self.host_addr;
         let topic = self.topic.clone();
 
-        let subscription_data: Arc<TokioMutex<Option<T>>> = Arc::new(TokioMutex::new(None));
+        let subscription_data: Arc<TokioMutex<Option<SubscriptionData<T>>>> =
+            Arc::new(TokioMutex::new(None));
         let data = Arc::clone(&subscription_data);
 
         let task_subscribe = self.runtime.spawn(async move {
@@ -186,15 +193,34 @@ impl<T: Message + 'static> Node<Idle, T> {
             loop {
                 let packet_as_bytes: Vec<u8> = to_allocvec(&packet).unwrap();
                 send_request(&mut &stream, packet_as_bytes).await.unwrap();
-                let reply = match await_response::<T>(&mut &stream, name.clone(), 4096).await {
+                let reply = match await_response::<T>(&mut &stream, 4096).await {
                     Ok(val) => val,
                     Err(e) => {
                         error!("subscription error: {}", e);
                         continue;
                     }
                 };
+                let delta = Utc::now() - reply.timestamp.parse::<DateTime<Utc>>().unwrap();
+                // println!("The time difference between msg tx/rx is: {} us",delta);
+                if delta <= chrono::Duration::zero() {
+                    // println!("Data is not newer, skipping to next subscription iteration");
+                    continue;
+                }
+                // info!("Node has received msg data: {:?}",&msg.data);
+                let reply_data = match from_bytes::<T>(&reply.data) {
+                    Ok(data) => data,
+                    Err(e) => {
+                        error!("{:?}", e);
+                        continue;
+                    }
+                };
+                let reply_sub_data = SubscriptionData {
+                    data: reply_data,
+                    timestamp: reply.timestamp,
+                };
                 let mut data = data.lock().await;
-                *data = Some(reply);
+
+                *data = Some(reply_sub_data);
                 sleep(rate).await;
             }
         });
@@ -262,7 +288,10 @@ impl<T: Message + 'static> Node<Subscription, T> {
         let data = self.subscription_data.clone();
         let result = self.runtime.block_on(async {
             let data = data.lock().await;
-            data.deref().clone()
+            match data.clone() {
+                Some(value) => Some(value.data),
+                None => None,
+            }
         });
         Ok(result)
     }
@@ -346,9 +375,8 @@ impl<T: Message + 'static> Node<Active, T> {
     }
 
     /// Request data from host on Node's assigned topic
-    // TO_DO: Should this return a StdError or postcard::Error?
     #[tracing::instrument]
-    pub fn request(&self) -> Result<T, Box<dyn Error>> {
+    pub fn request(&self) -> Result<T, postcard::Error> {
         let packet = GenericMsg {
             msg_type: MsgType::GET,
             timestamp: Utc::now().to_string(),
@@ -362,11 +390,16 @@ impl<T: Message + 'static> Node<Active, T> {
         let packet_as_bytes: Vec<u8> = to_allocvec(&packet).unwrap();
 
         let stream = &mut self.stream.as_ref().unwrap();
-        let name = self.name.to_string();
 
         self.runtime.block_on(async {
             send_request(stream, packet_as_bytes).await.unwrap();
-            await_response::<T>(stream, name, 4096).await
+            match await_response::<T>(stream, 4096).await {
+                Ok(reply) => {
+                    let data = from_bytes::<T>(&reply.data).unwrap();
+                    Ok(data)
+                }
+                Err(e) => *Box::new(Err(e)),
+            }
         })
     }
 
@@ -413,12 +446,10 @@ async fn send_request(
 
 async fn await_response<T: Message>(
     stream: &mut &TcpStream,
-    name: String,
     _max_buffer_size: usize, // TO_DO: This should be configurable
-) -> Result<T, Box<dyn Error>> {
+) -> Result<GenericMsg, postcard::Error> {
     // Read the requested data into a buffer
     let mut buf = [0u8; 4096];
-    // let mut buf = Vec::with_capacity(max_buffer_size);
 
     loop {
         stream.readable().await.unwrap();
@@ -426,29 +457,9 @@ async fn await_response<T: Message>(
             Ok(0) => continue,
             Ok(n) => {
                 let bytes = &buf[..n];
-                let _msg: Result<GenericMsg, Box<dyn Error>> = match from_bytes(bytes) {
-                    Ok(msg) => {
-                        let msg: GenericMsg = msg;
 
-                        // TO_DO: Put logging info like this behind a feature flag
-                        // let delta = (Utc::now() - msg.timestamp.parse::<DateTime<Utc>>()?).to_std()?.as_micros();
-                        // println!("The time difference between msg tx/rx is: {} us",delta);
-                        // info!("Node has received msg data: {:?}",&msg.data);
-
-                        match from_bytes::<T>(&msg.data) {
-                            Ok(data) => return Ok(data),
-                            Err(e) => {
-                                println!("Error: {:?}, &msg.data: {:?}", e, &msg.data);
-                                println!("Expected type: {}", std::any::type_name::<T>());
-                                return Err(Box::new(e));
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        error!("{}: {:?}", name, &e);
-                        return Err(Box::new(e));
-                    }
-                };
+                let msg: Result<GenericMsg, postcard::Error> = from_bytes(bytes);
+                return msg;
             }
             Err(e) => {
                 if e.kind() == std::io::ErrorKind::WouldBlock {}
