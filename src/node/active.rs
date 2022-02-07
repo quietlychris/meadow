@@ -34,28 +34,10 @@ impl<T: Message + 'static> Node<Active, T> {
         let stream = &mut self.stream.as_ref().unwrap();
 
         let _result = self.runtime.block_on(async {
-            loop {
-                stream.writable().await.unwrap();
-                match stream.try_write(&packet_as_bytes) {
-                    Ok(_n) => {
-                        // println!("Successfully wrote {} bytes to host", n);
-                        info!(
-                            "{}: Successfully wrote {} bytes to host",
-                            topic.to_string(),
-                            _n
-                        );
-                        break;
-                    }
-                    Err(e) => {
-                        if e.kind() == std::io::ErrorKind::WouldBlock {}
-                        continue;
-                    }
-                }
-            }
+            send_msg(stream, packet_as_bytes).await.unwrap();
 
             // Wait for the publish acknowledgement
-            //stream.readable().await?;
-            let mut buf = [0u8; 4096];
+            let mut buf = [0u8; 1024];
             loop {
                 stream.readable().await.unwrap();
                 match stream.try_read(&mut buf) {
@@ -71,7 +53,6 @@ impl<T: Message + 'static> Node<Active, T> {
                                 return Err(Box::new(e));
                             }
                         };
-                        // return Ok(msg.data);
                     }
                     Err(e) => {
                         if e.kind() == std::io::ErrorKind::WouldBlock {}
@@ -103,7 +84,7 @@ impl<T: Message + 'static> Node<Active, T> {
         let stream = &mut self.stream.as_ref().unwrap();
 
         self.runtime.block_on(async {
-            send_request(stream, packet_as_bytes).await.unwrap();
+            send_msg(stream, packet_as_bytes).await.unwrap();
             match await_response::<T>(stream, 4096).await {
                 Ok(reply) => {
                     let data = from_bytes::<T>(&reply.data).unwrap();
@@ -121,7 +102,6 @@ impl<T: Message + 'static> Node<Active, T> {
             Some(stream) => stream.peer_addr().unwrap(),
             None => SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 25_000),
         };
-        // dbg!(&host_addr);
 
         NodeConfig {
             host_addr,

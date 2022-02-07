@@ -2,14 +2,13 @@ use crate::*;
 
 // Tokio for async
 use tokio::sync::Mutex; // as TokioMutex;
-// Multi-threading primitives
+                        // Multi-threading primitives
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 // Misc other imports
 use std::error::Error;
 use std::net::SocketAddr;
 use std::result::Result;
-
 
 /// Host configuration structure
 #[derive(Debug)]
