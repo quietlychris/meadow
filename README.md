@@ -64,7 +64,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::thread::sleep(std::time::Duration::from_millis(100));
         let result = node.request()?;
         // or could use the value held by the subscribed node
-        let subscription = subscriber.get_subscribed_data().unwrap().unwrap();
+        let subscription = subscriber.get_subscribed_data().unwrap();
         println!("Got position: {:?}", result);
     }
 

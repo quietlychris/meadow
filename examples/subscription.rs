@@ -28,10 +28,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = reader.get_subscribed_data()?;
     dbg!(result);
 
-    for i in 0..10 {
+    for i in 0..500 {
         println!("publishing {}", i);
         writer.publish(i as usize)?;
-        std::thread::sleep(std::time::Duration::from_millis(250));
+        std::thread::sleep(std::time::Duration::from_millis(500));
         let result = reader.get_subscribed_data()?;
         dbg!(result);
     }
