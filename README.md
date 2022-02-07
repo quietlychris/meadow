@@ -43,7 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Nodes can also be subscribers, which will request topic updates from the Host
     // at a given rate
-    let subscriber: Node<Subscription, Coordinate> = NodeConfig::new("GPS_SUBSCRIBER")
+    let subscriber = NodeConfig::<Coordinate>::new("GPS_SUBSCRIBER")
         .topic("position")
         .host_addr(addr)
         .build()?
