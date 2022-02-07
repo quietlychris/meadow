@@ -94,7 +94,7 @@ impl<T: Message + 'static> Node<Idle, T> {
 
             loop {
                 let packet_as_bytes: Vec<u8> = to_allocvec(&packet).unwrap();
-                send_request(&mut &stream, packet_as_bytes).await.unwrap();
+                send_msg(&mut &stream, packet_as_bytes).await.unwrap();
                 let reply = match await_response::<T>(&mut &stream, 4096).await {
                     Ok(val) => val,
                     Err(e) => {

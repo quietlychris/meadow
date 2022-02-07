@@ -118,7 +118,7 @@ pub async fn handshake(stream: TcpStream, topic: String) -> Result<TcpStream, Bo
 }
 
 /// Send a GenericMsg of MsgType from the Node to the Host
-pub async fn send_request(
+pub async fn send_msg(
     stream: &mut &TcpStream,
     packet_as_bytes: Vec<u8>,
 ) -> Result<(), Box<dyn Error>> {
@@ -148,7 +148,6 @@ pub async fn await_response<T: Message>(
 ) -> Result<GenericMsg, postcard::Error> {
     // Read the requested data into a buffer
     let mut buf = [0u8; 4096];
-
     loop {
         stream.readable().await.unwrap();
         match stream.try_read(&mut buf) {
