@@ -1,6 +1,6 @@
 // Tokio for async
-use tokio::net::TcpListener;
-use tokio::net::TcpStream;
+use tokio::net::{TcpListener, TcpStream};
+use tokio::net::UdpSocket;
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex; // as TokioMutex;
 use tokio::task::JoinHandle;
@@ -34,7 +34,8 @@ pub struct Host {
     pub cfg: HostConfig,
     pub runtime: Runtime,
     pub connections: Arc<StdMutex<Vec<Connection>>>,
-    pub task_listen: Option<JoinHandle<()>>,
+    pub task_listen_tcp: Option<JoinHandle<()>>,
+    pub task_listen_udp: Option<JoinHandle<()>>,
     pub store: Option<sled::Db>,
     pub reply_count: Arc<Mutex<usize>>,
 }
@@ -43,11 +44,6 @@ impl Host {
     /// Allow Host to begin accepting incoming connections
     #[tracing::instrument]
     pub fn start(&mut self) -> Result<(), Box<dyn Error>> {
-        let ip = crate::get_ip(&self.cfg.interface)?;
-        let raw_addr = ip + ":" + &self.cfg.socket_num.to_string();
-        let addr: SocketAddr = raw_addr.parse()?;
-
-        let (max_buffer_size, max_name_size) = (self.cfg.max_buffer_size, self.cfg.max_name_size);
 
         let connections_clone = self.connections.clone();
 
@@ -58,24 +54,50 @@ impl Host {
                 panic!("Must open a sled database to start the Host");
             }
         };
+        let db_udp = db.clone();
 
         let counter = self.reply_count.clone();
+        // let counter_udp = counter.clone();
 
-        let task_listen = self.runtime.spawn(async move {
+        let (max_buffer_size_udp, max_name_size_udp) = (self.cfg.udp_cfg.max_buffer_size, self.cfg.udp_cfg.max_name_size);
+        let task_listen_udp = self.runtime.spawn(async move {
+            let socket = UdpSocket::bind("127.0.0.1:25000").await.unwrap();
+            let mut buf = [0; 10_000];
+            loop {
+                let db = db_udp.clone();
+                println!("Hello!");
+                // let counter_udp = counter.clone();
+                let (n, addr) = socket.recv_from(&mut buf).await.unwrap();
+                println!("udp: {:?}", std::str::from_utf8(&buf[..n]));
+            }
+        });
+        self.task_listen_udp = Some(task_listen_udp);
+
+
+        // Start the TcpListener
+        let ip = crate::get_ip(&self.cfg.tcp_cfg.interface)?;
+        let raw_addr = ip + ":" + &self.cfg.tcp_cfg.socket_num.to_string();
+        let addr: SocketAddr = raw_addr.parse()?;
+
+        let db_tcp = db.clone();
+        let counter_tcp = counter.clone();
+
+        let (max_buffer_size_tcp, max_name_size_tcp) = (self.cfg.tcp_cfg.max_buffer_size, self.cfg.tcp_cfg.max_name_size);
+        let task_listen_tcp = self.runtime.spawn(async move {
             let listener = TcpListener::bind(addr).await.unwrap();
 
             loop {
                 let (stream, stream_addr) = listener.accept().await.unwrap();
                 // TO_DO: The handshake function is not always happy
-                let (stream, name) = handshake(stream, max_buffer_size, max_name_size).await;
+                let (stream, name) = handshake(stream, max_buffer_size_tcp, max_name_size_tcp).await;
                 info!("Host received connection from {:?}", &name);
 
-                let db = db.clone();
-                let counter = counter.clone();
+                let db = db_tcp.clone();
+                let counter = counter_tcp.clone();
                 let connections = Arc::clone(&connections_clone.clone());
 
                 let handle = tokio::spawn(async move {
-                    process(stream, db, counter, max_buffer_size).await;
+                    process(stream, db, counter, max_buffer_size_tcp).await;
                 });
                 let connection = Connection {
                     handle,
@@ -88,7 +110,7 @@ impl Host {
             }
         });
 
-        self.task_listen = Some(task_listen);
+        self.task_listen_tcp = Some(task_listen_tcp);
 
         Ok(())
     }

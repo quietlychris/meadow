@@ -19,6 +19,9 @@ pub mod networks;
 /// Named objects that publish and request strongly-typed data to named topics on the Host
 pub mod node;
 
+/// Re-export sled for building the key-value store configuration
+pub use sled::Config as SledConfig;
+
 // Require that the README examples are valid
 // Will fail `cargo test` if not
 #[doc = include_str!("../README.md")]

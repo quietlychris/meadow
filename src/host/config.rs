@@ -13,25 +13,41 @@ use std::result::Result;
 /// Host configuration structure
 #[derive(Debug)]
 pub struct HostConfig {
-    pub interface: String,
-    pub socket_num: usize,
-    pub store_filename: String,
-    pub max_buffer_size: usize,
-    pub max_name_size: usize,
+    pub sled_cfg: sled::Config,
+    pub tcp_cfg: TcpConfig,
+    pub udp_cfg: UdpConfig,
 }
 
 impl HostConfig {
     /// Create a new HostConfig with all default options
-    pub fn new(interface: impl Into<String>) -> HostConfig {
+    pub fn default() -> HostConfig {
+        // Default sled database configuration
+        let sled_cfg = sled::Config::default().path("store").temporary(true);
+
         HostConfig {
-            interface: interface.into(),
-            socket_num: 25_000,
-            store_filename: "store".into(),
-            max_buffer_size: 10_000,
-            max_name_size: 100,
+            sled_cfg,
+            tcp_cfg: TcpConfig::default("lo"),
+            udp_cfg: UdpConfig::default("lo"),
         }
     }
 
+    ///
+    pub fn with_sled_config(mut self, sled_cfg: sled::Config) -> HostConfig {
+        self.sled_cfg = sled_cfg;
+        self
+    }
+
+    pub fn with_tcp_config(mut self, tcp_cfg: TcpConfig) -> HostConfig {
+        self.tcp_cfg = tcp_cfg;
+        self
+    }
+
+    pub fn with_udp_config(mut self, udp_cfg: UdpConfig) -> HostConfig {
+        self.udp_cfg = udp_cfg;
+        self
+    }
+
+    /*
     /// Assign a particular socket number for the Host's TcpListener
     pub fn socket_num(mut self, socket_num: usize) -> HostConfig {
         self.socket_num = socket_num;
@@ -55,9 +71,11 @@ impl HostConfig {
         self.store_filename = store_filename.into();
         self
     }
+    */
 
     /// Construct a Host based on the HostConfig's parameters
     pub fn build(self) -> Result<Host, Box<dyn Error>> {
+        /*
         let ip = crate::get_ip(&self.interface)?;
         println!(
             "On interface {:?}, the device IP is: {:?}",
@@ -66,22 +84,15 @@ impl HostConfig {
 
         let raw_addr = ip + ":" + &self.socket_num.to_string();
         // If the address won't parse, this should panic
-        let _addr: SocketAddr = raw_addr.parse().unwrap_or_else(|_| {
-            panic!(
-                "The provided address st
-        ring, \"{}\" is invalid",
-                raw_addr
-            )
-        });
+        let _addr: SocketAddr = raw_addr
+            .parse()
+            .unwrap_or_else(|_| panic!("The provided address string, \"{}\" is invalid", raw_addr));
+        */
 
         let runtime = tokio::runtime::Runtime::new()?;
 
         let connections = Arc::new(StdMutex::new(Vec::new()));
-
-        let config = sled::Config::default()
-            .path(&self.store_filename)
-            .temporary(true);
-        let store: sled::Db = config.open()?;
+        let store: sled::Db = self.sled_cfg.open()?;
 
         let reply_count = Arc::new(Mutex::new(0));
 
@@ -89,7 +100,8 @@ impl HostConfig {
             cfg: self,
             runtime,
             connections,
-            task_listen: None,
+            task_listen_tcp: None,
+            task_listen_udp: None,
             store: Some(store),
             reply_count,
         })
