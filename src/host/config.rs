@@ -7,7 +7,6 @@ use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 // Misc other imports
 use std::error::Error;
-use std::net::SocketAddr;
 use std::result::Result;
 
 /// Host configuration structure
