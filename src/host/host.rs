@@ -1,6 +1,6 @@
 // Tokio for async
-use tokio::net::{TcpListener, TcpStream};
 use tokio::net::UdpSocket;
+use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex; // as TokioMutex;
 use tokio::task::JoinHandle;
@@ -44,7 +44,6 @@ impl Host {
     /// Allow Host to begin accepting incoming connections
     #[tracing::instrument]
     pub fn start(&mut self) -> Result<(), Box<dyn Error>> {
-
         let connections_clone = self.connections.clone();
 
         let db = match self.store.clone() {
@@ -54,63 +53,74 @@ impl Host {
                 panic!("Must open a sled database to start the Host");
             }
         };
-        let db_udp = db.clone();
-
         let counter = self.reply_count.clone();
-        // let counter_udp = counter.clone();
 
-        let (max_buffer_size_udp, max_name_size_udp) = (self.cfg.udp_cfg.max_buffer_size, self.cfg.udp_cfg.max_name_size);
-        let task_listen_udp = self.runtime.spawn(async move {
-            let socket = UdpSocket::bind("127.0.0.1:25000").await.unwrap();
-            let mut buf = [0; 10_000];
-            loop {
-                let db = db_udp.clone();
-                println!("Hello!");
-                // let counter_udp = counter.clone();
-                let (n, addr) = socket.recv_from(&mut buf).await.unwrap();
-                println!("udp: {:?}", std::str::from_utf8(&buf[..n]));
-            }
-        });
-        self.task_listen_udp = Some(task_listen_udp);
+        // Start up the UDP process
+        match &self.cfg.udp_cfg {
+            None => (),
+            Some(udp_cfg) => {
+                let ip = crate::get_ip(&udp_cfg.interface)?;
+                let raw_addr = ip + ":" + &udp_cfg.socket_num.to_string();
+                let addr: SocketAddr = raw_addr.parse()?;
 
+                let db_udp = db.clone();
+                let counter_udp = counter.clone();
 
-        // Start the TcpListener
-        let ip = crate::get_ip(&self.cfg.tcp_cfg.interface)?;
-        let raw_addr = ip + ":" + &self.cfg.tcp_cfg.socket_num.to_string();
-        let addr: SocketAddr = raw_addr.parse()?;
-
-        let db_tcp = db.clone();
-        let counter_tcp = counter.clone();
-
-        let (max_buffer_size_tcp, max_name_size_tcp) = (self.cfg.tcp_cfg.max_buffer_size, self.cfg.tcp_cfg.max_name_size);
-        let task_listen_tcp = self.runtime.spawn(async move {
-            let listener = TcpListener::bind(addr).await.unwrap();
-
-            loop {
-                let (stream, stream_addr) = listener.accept().await.unwrap();
-                // TO_DO: The handshake function is not always happy
-                let (stream, name) = handshake(stream, max_buffer_size_tcp, max_name_size_tcp).await;
-                info!("Host received connection from {:?}", &name);
-
-                let db = db_tcp.clone();
-                let counter = counter_tcp.clone();
-                let connections = Arc::clone(&connections_clone.clone());
-
-                let handle = tokio::spawn(async move {
-                    process(stream, db, counter, max_buffer_size_tcp).await;
+                // Start the UDP listening socket
+                let (max_buffer_size_udp, max_name_size_udp) =
+                    (udp_cfg.max_buffer_size, udp_cfg.max_name_size);
+                let task_listen_udp = self.runtime.spawn(async move {
+                    let socket = UdpSocket::bind(addr).await.unwrap();
+                    process_udp(socket, db_udp, counter_udp, max_buffer_size_udp).await;
                 });
-                let connection = Connection {
-                    handle,
-                    stream_addr,
-                    name,
-                };
-                // dbg!(&connection);
-
-                connections.lock().unwrap().push(connection);
+                self.task_listen_udp = Some(task_listen_udp);
             }
-        });
+        }
 
-        self.task_listen_tcp = Some(task_listen_tcp);
+        // Start the TCP process
+        match &self.cfg.tcp_cfg {
+            None => (),
+            Some(tcp_cfg) => {
+                let ip = crate::get_ip(&tcp_cfg.interface)?;
+                let raw_addr = ip + ":" + &tcp_cfg.socket_num.to_string();
+                let addr: SocketAddr = raw_addr.parse()?;
+
+                let db_tcp = db.clone();
+                let counter_tcp = counter.clone();
+
+                let (max_buffer_size_tcp, max_name_size_tcp) =
+                    (tcp_cfg.max_buffer_size, tcp_cfg.max_name_size);
+                let task_listen_tcp = self.runtime.spawn(async move {
+                    let listener = TcpListener::bind(addr).await.unwrap();
+
+                    loop {
+                        let (stream, stream_addr) = listener.accept().await.unwrap();
+                        // TO_DO: The handshake function is not always happy
+                        let (stream, name) =
+                            handshake(stream, max_buffer_size_tcp, max_name_size_tcp).await;
+                        info!("Host received connection from {:?}", &name);
+
+                        let db = db_tcp.clone();
+                        let counter = counter_tcp.clone();
+                        let connections = Arc::clone(&connections_clone.clone());
+
+                        let handle = tokio::spawn(async move {
+                            process_tcp(stream, db, counter, max_buffer_size_tcp).await;
+                        });
+                        let connection = Connection {
+                            handle,
+                            stream_addr,
+                            name,
+                        };
+                        // dbg!(&connection);
+
+                        connections.lock().unwrap().push(connection);
+                    }
+                });
+
+                self.task_listen_tcp = Some(task_listen_tcp);
+            }
+        }
 
         Ok(())
     }
@@ -200,7 +210,7 @@ async fn handshake(
 /// Host process for handling incoming connections from Nodes
 #[tracing::instrument]
 #[inline]
-async fn process(
+async fn process_tcp(
     stream: TcpStream,
     db: sled::Db,
     count: Arc<Mutex<usize>>,
@@ -279,6 +289,62 @@ async fn process(
                                 continue;
                             }
                         }
+                    },
+                }
+            }
+            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                // println!("Error::WouldBlock: {:?}", e);
+                continue;
+            }
+            Err(e) => {
+                // println!("Error: {:?}", e);
+                error!("Error: {:?}", e);
+            }
+        }
+    }
+}
+
+/// Host process for handling incoming connections from Nodes
+#[tracing::instrument]
+#[inline]
+async fn process_udp(
+    socket: UdpSocket,
+    db: sled::Db,
+    count: Arc<Mutex<usize>>,
+    max_buffer_size: usize,
+) {
+    let mut buf = [0u8; 10_000];
+    // TO_DO_PART_B: Tried to with try_read_buf(), but seems to panic?
+    // let mut buf = Vec::with_capacity(max_buffer_size);
+    loop {
+        // dbg!(&count);
+        match socket.recv_from(&mut buf).await {
+            Ok((0, _)) => break, // TO_DO: break or continue?
+            Ok((n, _)) => {
+                let bytes = &buf[..n];
+                let msg: GenericMsg = match from_bytes(bytes) {
+                    Ok(msg) => msg,
+                    Err(e) => {
+                        error!("Had received Msg of {} bytes: {:?}, Error: {}", n, bytes, e);
+                        panic!("{}", e);
+                    }
+                };
+                // dbg!(&msg);
+
+                match msg.msg_type {
+                    MsgType::SET => {
+                        // println!("received {} bytes, to be assigned to: {}", n, &msg.name);
+                        let _db_result = match db.insert(msg.topic.as_bytes(), bytes) {
+                            Ok(_prev_msg) => {
+                                let mut count = count.lock().await; //.unwrap();
+                                *count += 1;
+                                "SUCCESS".to_string()
+                            }
+                            Err(e) => e.to_string(),
+                        };
+                    }
+                    MsgType::GET => loop {
+                        println!("Hey, we're not doing UDP responses rn");
                     },
                 }
             }

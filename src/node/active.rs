@@ -3,6 +3,8 @@ use chrono::Utc;
 use core::marker::PhantomData;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
+use tokio::net::UdpSocket;
+
 use postcard::*;
 use std::error::Error;
 use std::result::Result;
@@ -61,6 +63,43 @@ impl<T: Message + 'static> Node<Active, T> {
                 }
             }
             Ok(())
+        });
+
+        Ok(())
+    }
+
+    #[tracing::instrument]
+    pub fn publish_udp(&self, val: T) -> Result<(), Box<dyn Error>> {
+        // let val_vec: heapless::Vec<u8, 4096> = to_vec(&val).unwrap();
+        let val_vec: Vec<u8> = to_allocvec(&val).unwrap();
+
+        // println!("Number of bytes in data for {:?} is {}",std::any::type_name::<M>(),val_vec.len());
+        let packet = GenericMsg {
+            msg_type: MsgType::SET,
+            timestamp: Utc::now().to_string(),
+            name: self.name.to_string(),
+            topic: self.topic.to_string(),
+            data_type: std::any::type_name::<T>().to_string(),
+            data: val_vec.to_vec(),
+        };
+        // info!("The Node's packet to send looks like: {:?}",&packet);
+
+        let packet_as_bytes: Vec<u8> = to_allocvec(&packet).unwrap();
+        // info!("Node is publishing: {:?}",&packet_as_bytes);
+
+        let topic = &self.topic;
+        let stream = &mut self.stream.as_ref().unwrap();
+        // This socket should actually be owned by the Node itself
+        // let socket = UdpSocket::bind("127.0.0.1:25001");
+
+        let _result = self.runtime.block_on(async {
+            // TO_DO: Both Node and Host sockets needs to be part of the NodeConfig
+            // This socket should actually be owned by the Node itself
+            let socket = UdpSocket::bind("127.0.0.1:25001").await.unwrap();
+            let len = socket
+                .send_to(&packet_as_bytes, "127.0.0.1:25000")
+                .await
+                .unwrap();
         });
 
         Ok(())

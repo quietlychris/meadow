@@ -14,8 +14,8 @@ use std::result::Result;
 #[derive(Debug)]
 pub struct HostConfig {
     pub sled_cfg: sled::Config,
-    pub tcp_cfg: TcpConfig,
-    pub udp_cfg: UdpConfig,
+    pub tcp_cfg: Option<TcpConfig>,
+    pub udp_cfg: Option<UdpConfig>,
 }
 
 impl HostConfig {
@@ -26,52 +26,27 @@ impl HostConfig {
 
         HostConfig {
             sled_cfg,
-            tcp_cfg: TcpConfig::default("lo"),
-            udp_cfg: UdpConfig::default("lo"),
+            tcp_cfg: Some(TcpConfig::default("lo")),
+            udp_cfg: Some(UdpConfig::default("lo")),
         }
     }
 
-    ///
+    /// Add the Sled database configuration to the Host configuration
     pub fn with_sled_config(mut self, sled_cfg: sled::Config) -> HostConfig {
         self.sled_cfg = sled_cfg;
         self
     }
 
-    pub fn with_tcp_config(mut self, tcp_cfg: TcpConfig) -> HostConfig {
+    ///
+    pub fn with_tcp_config(mut self, tcp_cfg: Option<TcpConfig>) -> HostConfig {
         self.tcp_cfg = tcp_cfg;
         self
     }
 
-    pub fn with_udp_config(mut self, udp_cfg: UdpConfig) -> HostConfig {
+    pub fn with_udp_config(mut self, udp_cfg: Option<UdpConfig>) -> HostConfig {
         self.udp_cfg = udp_cfg;
         self
     }
-
-    /*
-    /// Assign a particular socket number for the Host's TcpListener
-    pub fn socket_num(mut self, socket_num: usize) -> HostConfig {
-        self.socket_num = socket_num;
-        self
-    }
-
-    /// Change the maximum size of the buffer space allocated for received messages
-    pub fn max_buffer_size(mut self, max_buffer_size: impl Into<usize>) -> HostConfig {
-        self.max_buffer_size = max_buffer_size.into();
-        self
-    }
-
-    /// Change the maximum size of the buffer space allocated for Node names
-    pub fn max_name_size(mut self, max_name_size: impl Into<usize>) -> HostConfig {
-        self.max_buffer_size = max_name_size.into();
-        self
-    }
-
-    /// Change the filename of the Host's sled key-value store
-    pub fn store_filename(mut self, store_filename: impl Into<String>) -> HostConfig {
-        self.store_filename = store_filename.into();
-        self
-    }
-    */
 
     /// Construct a Host based on the HostConfig's parameters
     pub fn build(self) -> Result<Host, Box<dyn Error>> {
