@@ -1,4 +1,5 @@
 use crate::*;
+
 use chrono::Utc;
 use core::marker::PhantomData;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -87,17 +88,17 @@ impl<T: Message + 'static> Node<Active, T> {
         let packet_as_bytes: Vec<u8> = to_allocvec(&packet).unwrap();
         // info!("Node is publishing: {:?}",&packet_as_bytes);
 
-        let topic = &self.topic;
-        let stream = &mut self.stream.as_ref().unwrap();
+        // let _topic = &self.topic;
+        // let _stream = &mut self.stream.as_ref().unwrap();
         // This socket should actually be owned by the Node itself
         // let socket = UdpSocket::bind("127.0.0.1:25001");
 
         let _result = self.runtime.block_on(async {
             // TO_DO: Both Node and Host sockets needs to be part of the NodeConfig
             // This socket should actually be owned by the Node itself
-            let socket = UdpSocket::bind("127.0.0.1:25001").await.unwrap();
+            let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
             let len = socket
-                .send_to(&packet_as_bytes, "127.0.0.1:25000")
+                .send_to(&packet_as_bytes, self.host_addr_udp)
                 .await
                 .unwrap();
         });
@@ -143,9 +144,15 @@ impl<T: Message + 'static> Node<Active, T> {
         };
 
         NodeConfig {
-            host_addr,
             topic: Some(topic),
             name: self.name.clone(),
+            tcp_cfg: node::tcp_config::TcpConfig {
+                host_addr
+            },
+            // TO_DO: {udp_cfg: host_addr} and {tcp_cfg: host_addr} shouldn't necessarily be the same
+            udp_cfg: node::udp_config::UdpConfig {
+                host_addr
+            },
             phantom: PhantomData,
         }
     }

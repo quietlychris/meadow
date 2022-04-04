@@ -26,7 +26,9 @@ impl<T: Message> From<Node<Idle, T>> for Node<Active, T> {
             stream: node.stream,
             name: node.name,
             topic: node.topic,
-            host_addr: node.host_addr,
+            host_addr_tcp: node.host_addr_tcp,
+            host_addr_udp: node.host_addr_udp,
+            socket: node.socket,
             subscription_data: node.subscription_data,
             task_subscribe: None,
         }
@@ -42,7 +44,9 @@ impl<T: Message> From<Node<Idle, T>> for Node<Subscription, T> {
             stream: node.stream,
             name: node.name,
             topic: node.topic,
-            host_addr: node.host_addr,
+            host_addr_tcp: node.host_addr_tcp,
+            host_addr_udp: node.host_addr_udp,
+            socket: node.socket,
             subscription_data: node.subscription_data,
             task_subscribe: None,
         }
@@ -52,10 +56,10 @@ impl<T: Message> From<Node<Idle, T>> for Node<Subscription, T> {
 impl<T: Message + 'static> Node<Idle, T> {
     /// Attempt connection from the Node to the Host located at the specified address
     #[tracing::instrument]
-    pub fn connect(mut self) -> Result<Node<Active, T>, Box<dyn Error>> {
+    pub fn activate(mut self) -> Result<Node<Active, T>, Box<dyn Error>> {
         // let ip = crate::get_ip(interface).unwrap();
         // dbg!(ip);
-        let addr = self.host_addr;
+        let addr = self.host_addr_tcp;
         let topic = self.topic.clone();
 
         let stream = self.runtime.block_on(async move {
@@ -71,7 +75,7 @@ impl<T: Message + 'static> Node<Idle, T> {
     #[tracing::instrument]
     pub fn subscribe(mut self, rate: Duration) -> Result<Node<Subscription, T>, Box<dyn Error>> {
         let name = self.name.clone() + "_SUBSCRIPTION";
-        let addr = self.host_addr;
+        let addr = self.host_addr_tcp;
         let topic = self.topic.clone();
 
         let subscription_data: Arc<TokioMutex<Option<SubscriptionData<T>>>> =

@@ -9,17 +9,13 @@ use std::time::Duration;
 
 #[test]
 fn integrate_host_and_single_node() {
-    let mut host: Host = HostConfig::new("lo")
-        .socket_num(25_000)
-        .store_filename("store")
-        .build()
-        .unwrap();
+    let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
 
     // Get the host up and running
     let node: Node<Idle, Pose> = NodeConfig::new("TEST_NODE").topic("pose").build().unwrap();
-    let node = node.connect().unwrap();
+    let node = node.activate().unwrap();
 
     for i in 0..5 {
         // Could get this by reading a GPS, for example
@@ -41,11 +37,7 @@ fn integrate_host_and_single_node() {
 
 #[test]
 fn request_non_existent_topic() {
-    let mut host: Host = HostConfig::new("lo")
-        .socket_num(25_000)
-        .store_filename("store")
-        .build()
-        .unwrap();
+    let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
 
@@ -54,7 +46,7 @@ fn request_non_existent_topic() {
         .topic("doesnt_exist")
         .build()
         .unwrap();
-    let node = node.connect().unwrap();
+    let node = node.activate().unwrap();
 
     // Requesting a topic that doesn't exist should return a recoverable error
     for i in 0..5 {
@@ -69,11 +61,7 @@ fn request_non_existent_topic() {
 
 #[test]
 fn publish_boolean() {
-    let mut host: Host = HostConfig::new("lo")
-        .socket_num(25_000)
-        .store_filename("store")
-        .build()
-        .unwrap();
+    let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
 
@@ -82,7 +70,7 @@ fn publish_boolean() {
         .topic("my_boolean")
         .build()
         .unwrap();
-    let node = node.connect().unwrap();
+    let node = node.activate().unwrap();
 
     for _i in 0..5 {
         node.publish(true).unwrap();
@@ -95,7 +83,7 @@ fn publish_boolean() {
 
 #[test]
 fn subscription_usize() {
-    let mut host: Host = HostConfig::new("lo").build().unwrap();
+    let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
 
@@ -104,7 +92,7 @@ fn subscription_usize() {
         .topic("subscription")
         .build()
         .unwrap()
-        .connect()
+        .activate()
         .unwrap();
 
     // Create a subscription node with a query rate of 10 Hz

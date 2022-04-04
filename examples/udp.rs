@@ -1,27 +1,26 @@
 use bissel::*;
-use std::error::Error;
-
 use std::thread;
 use std::time::Duration;
 
-fn main() -> Result<(), Box<dyn Error>> {
-    //let sled_cfg = SledConfig::default().path("store").temporary(true);
-    //let tcp_cfg = TcpConfig::default("lo");
-    //let udp_cfg = UdpConfig::default("lo");
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut host = HostConfig::default()
         .with_sled_config(SledConfig::default().path("store").temporary(true))
         // .with_tcp_config(Some(TcpConfig::default("wlp3s0")))
-        // .with_udp_config(None)
+        .with_udp_config(Some(host::UdpConfig::default("wlp3s0")))
         .build()?;
     host.start()?;
-    println!("Started host");
 
     let node_thread = thread::spawn(|| {
-        let node = NodeConfig::new("TEAPOT")
+        let udp_socket = "192.168.8.105:25000"
+            .parse::<std::net::SocketAddr>()
+            .unwrap();
+        let udp_cfg: node::UdpConfig = node::UdpConfig::new(udp_socket).unwrap();
+        let node = NodeConfig::new("SENDER")
+            .with_udp_config(udp_cfg)
             .topic("num")
             .build()
             .unwrap()
-            .connect()
+            .activate()
             .unwrap();
         println!("Built first node");
         for i in 0..10 {
@@ -33,18 +32,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         std::process::exit(0);
     });
-    println!("And now we're here");
-    let node = NodeConfig::<f32>::new("bloop")
+
+    let node = NodeConfig::<f32>::new("RECEIVER")
         .topic("num")
         .build()
         .unwrap()
-        .connect()
-        .unwrap();
-    println!("Built second node");
+        .activate()?;
+
     thread::sleep(Duration::from_millis(1000));
     for i in 0..30 {
-        thread::sleep(Duration::from_millis(200));
-        let result = node.request().unwrap();
+        thread::sleep(Duration::from_millis(500));
+        let result = node.request()?;
         dbg!(result);
     }
 

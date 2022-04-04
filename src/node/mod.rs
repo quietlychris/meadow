@@ -2,15 +2,19 @@ mod active;
 mod config;
 mod idle;
 mod subscription;
+mod tcp_config;
+mod udp_config;
 
 pub use crate::node::active::*;
 pub use crate::node::config::*;
 pub use crate::node::idle::*;
 pub use crate::node::subscription::*;
+pub use crate::node::tcp_config::TcpConfig;
+pub use crate::node::udp_config::UdpConfig;
 
 extern crate alloc;
 
-use tokio::net::TcpStream;
+use tokio::net::{TcpStream, UdpSocket};
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex as TokioMutex;
 use tokio::task::JoinHandle;
@@ -59,10 +63,12 @@ pub struct Node<State, T: Message> {
     pub __state: PhantomData<State>,
     pub phantom: PhantomData<T>,
     pub runtime: Runtime,
-    pub stream: Option<TcpStream>,
     pub name: String,
     pub topic: String,
-    pub host_addr: SocketAddr,
+    pub stream: Option<TcpStream>,
+    pub host_addr_tcp: SocketAddr,
+    pub socket: Option<UdpSocket>,
+    pub host_addr_udp: SocketAddr,
     pub subscription_data: Arc<TokioMutex<Option<SubscriptionData<T>>>>,
     pub task_subscribe: Option<JoinHandle<()>>,
 }

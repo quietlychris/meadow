@@ -1,6 +1,6 @@
 // Tokio for async
-use tokio::net::UdpSocket;
 use tokio::net::TcpListener;
+use tokio::net::UdpSocket;
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex; // as TokioMutex;
 use tokio::task::JoinHandle;
@@ -15,9 +15,9 @@ use std::error::Error;
 use std::net::SocketAddr;
 use std::result::Result;
 
-use crate::*;
-use crate::host::udp::*;
 use crate::host::tcp::*;
+use crate::host::udp::*;
+use crate::*;
 
 /// Named task handle for each Hosted connection
 #[derive(Debug)]
@@ -95,8 +95,12 @@ impl Host {
                     loop {
                         let (stream, stream_addr) = listener.accept().await.unwrap();
                         // TO_DO: The handshake function is not always happy
-                        let (stream, name) =
-                            crate::host::tcp::handshake(stream, max_buffer_size_tcp, max_name_size_tcp).await;
+                        let (stream, name) = crate::host::tcp::handshake(
+                            stream,
+                            max_buffer_size_tcp,
+                            max_name_size_tcp,
+                        )
+                        .await;
                         info!("Host received connection from {:?}", &name);
 
                         let db = db_tcp.clone();
@@ -150,4 +154,3 @@ impl Host {
         Ok(())
     }
 }
-

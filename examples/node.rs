@@ -18,7 +18,7 @@ fn main() {
         .host_addr(addr)
         .build()
         .unwrap();
-    let node = node.connect().unwrap();
+    let node = node.activate().unwrap();
 
     let c = Coordinate { x: 4.0, y: 4.0 };
     node.publish(c).unwrap();

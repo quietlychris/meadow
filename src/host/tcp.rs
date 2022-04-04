@@ -1,7 +1,7 @@
 // Tokio for async
 use tokio::net::TcpStream;
 use tokio::sync::Mutex; // as TokioMutex;
-// Tracing for logging
+                        // Tracing for logging
 use hex_slice::*;
 use tracing::*;
 // Postcard is the default de/serializer
@@ -163,4 +163,3 @@ pub async fn process_tcp(
         }
     }
 }
-

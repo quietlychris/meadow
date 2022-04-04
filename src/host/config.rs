@@ -13,8 +13,8 @@ use std::result::Result;
 #[derive(Debug)]
 pub struct HostConfig {
     pub sled_cfg: sled::Config,
-    pub tcp_cfg: Option<TcpConfig>,
-    pub udp_cfg: Option<UdpConfig>,
+    pub tcp_cfg: Option<host::TcpConfig>,
+    pub udp_cfg: Option<host::UdpConfig>,
 }
 
 impl HostConfig {
@@ -25,8 +25,8 @@ impl HostConfig {
 
         HostConfig {
             sled_cfg,
-            tcp_cfg: Some(TcpConfig::default("lo")),
-            udp_cfg: Some(UdpConfig::default("lo")),
+            tcp_cfg: Some(host::TcpConfig::default("lo")),
+            udp_cfg: Some(host::UdpConfig::default("lo")),
         }
     }
 
@@ -37,12 +37,12 @@ impl HostConfig {
     }
 
     ///
-    pub fn with_tcp_config(mut self, tcp_cfg: Option<TcpConfig>) -> HostConfig {
+    pub fn with_tcp_config(mut self, tcp_cfg: Option<host::TcpConfig>) -> HostConfig {
         self.tcp_cfg = tcp_cfg;
         self
     }
 
-    pub fn with_udp_config(mut self, udp_cfg: Option<UdpConfig>) -> HostConfig {
+    pub fn with_udp_config(mut self, udp_cfg: Option<host::UdpConfig>) -> HostConfig {
         self.udp_cfg = udp_cfg;
         self
     }

@@ -19,7 +19,8 @@ pub mod networks;
 /// Named objects that publish and request strongly-typed data to named topics on the Host
 pub mod node;
 
-/// Re-export sled for building the key-value store configuration
+// /// Re-export sled for building the key-value store configuration
+#[doc(hidden)]
 pub use sled::Config as SledConfig;
 
 // Require that the README examples are valid
@@ -29,6 +30,7 @@ pub use sled::Config as SledConfig;
 pub struct ReadMeDocTests;
 
 pub use crate::host::*;
+pub use crate::node::*;
+
 pub use crate::msg::*;
 pub use crate::networks::*;
-pub use crate::node::*;
