@@ -17,7 +17,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create a subscription node with a query rate of 10 Hz
     let reader = writer
-        .rebuild_config()
+        .cfg
+        .clone()
         .name("READER")
         .build()?
         .subscribe(Duration::from_millis(100))?;

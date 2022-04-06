@@ -1,6 +1,7 @@
 extern crate alloc;
 use crate::*;
 
+use tokio::net::UdpSocket;
 use tokio::sync::Mutex as TokioMutex;
 use tokio::time::{sleep, Duration};
 
@@ -22,12 +23,11 @@ impl<T: Message> From<Node<Idle, T>> for Node<Active, T> {
         Self {
             __state: PhantomData,
             phantom: PhantomData,
+            cfg: node.cfg,
             runtime: node.runtime,
             stream: node.stream,
             name: node.name,
             topic: node.topic,
-            host_addr_tcp: node.host_addr_tcp,
-            host_addr_udp: node.host_addr_udp,
             socket: node.socket,
             subscription_data: node.subscription_data,
             task_subscribe: None,
@@ -40,12 +40,11 @@ impl<T: Message> From<Node<Idle, T>> for Node<Subscription, T> {
         Self {
             __state: PhantomData,
             phantom: PhantomData,
+            cfg: node.cfg,
             runtime: node.runtime,
             stream: node.stream,
             name: node.name,
             topic: node.topic,
-            host_addr_tcp: node.host_addr_tcp,
-            host_addr_udp: node.host_addr_udp,
             socket: node.socket,
             subscription_data: node.subscription_data,
             task_subscribe: None,
@@ -57,9 +56,7 @@ impl<T: Message + 'static> Node<Idle, T> {
     /// Attempt connection from the Node to the Host located at the specified address
     #[tracing::instrument]
     pub fn activate(mut self) -> Result<Node<Active, T>, Box<dyn Error>> {
-        // let ip = crate::get_ip(interface).unwrap();
-        // dbg!(ip);
-        let addr = self.host_addr_tcp;
+        let addr = self.cfg.tcp.host_addr;
         let topic = self.topic.clone();
 
         let stream = self.runtime.block_on(async move {
@@ -69,13 +66,19 @@ impl<T: Message + 'static> Node<Idle, T> {
         });
         self.stream = Some(stream);
 
+        let socket = self.runtime.block_on(async move {
+            let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+            socket
+        });
+        self.socket = Some(socket);
+
         Ok(Node::<Active, T>::from(self))
     }
 
     #[tracing::instrument]
     pub fn subscribe(mut self, rate: Duration) -> Result<Node<Subscription, T>, Box<dyn Error>> {
         let name = self.name.clone() + "_SUBSCRIPTION";
-        let addr = self.host_addr_tcp;
+        let addr = self.cfg.tcp.host_addr;
         let topic = self.topic.clone();
 
         let subscription_data: Arc<TokioMutex<Option<SubscriptionData<T>>>> =
@@ -131,7 +134,6 @@ impl<T: Message + 'static> Node<Idle, T> {
             }
         });
         self.task_subscribe = Some(task_subscribe);
-        println!("spawned subscription task");
 
         let mut subscription_node = Node::<Subscription, T>::from(self);
         subscription_node.subscription_data = subscription_data;

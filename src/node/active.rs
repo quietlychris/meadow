@@ -1,10 +1,6 @@
 use crate::*;
 
 use chrono::Utc;
-use core::marker::PhantomData;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-
-use tokio::net::UdpSocket;
 
 use postcard::*;
 use std::error::Error;
@@ -40,7 +36,7 @@ impl<T: Message + 'static> Node<Active, T> {
             send_msg(stream, packet_as_bytes).await.unwrap();
 
             // Wait for the publish acknowledgement
-            let mut buf = [0u8; 1024];
+            let mut buf = vec![0u8; 1024];
             loop {
                 stream.readable().await.unwrap();
                 match stream.try_read(&mut buf) {
@@ -83,22 +79,14 @@ impl<T: Message + 'static> Node<Active, T> {
             data_type: std::any::type_name::<T>().to_string(),
             data: val_vec.to_vec(),
         };
-        // info!("The Node's packet to send looks like: {:?}",&packet);
 
         let packet_as_bytes: Vec<u8> = to_allocvec(&packet).unwrap();
-        // info!("Node is publishing: {:?}",&packet_as_bytes);
 
-        // let _topic = &self.topic;
-        // let _stream = &mut self.stream.as_ref().unwrap();
-        // This socket should actually be owned by the Node itself
-        // let socket = UdpSocket::bind("127.0.0.1:25001");
+        let socket = &mut self.socket.as_ref().unwrap();
 
         let _result = self.runtime.block_on(async {
-            // TO_DO: Both Node and Host sockets needs to be part of the NodeConfig
-            // This socket should actually be owned by the Node itself
-            let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
-            let len = socket
-                .send_to(&packet_as_bytes, self.host_addr_udp)
+            socket
+                .send_to(&packet_as_bytes, self.cfg.udp.host_addr)
                 .await
                 .unwrap();
         });
@@ -133,27 +121,5 @@ impl<T: Message + 'static> Node<Active, T> {
                 Err(e) => *Box::new(Err(e)),
             }
         })
-    }
-
-    /// Re-construct a Node's initial configuration to make it easy to re-build similar Node's
-    pub fn rebuild_config(&self) -> NodeConfig<T> {
-        let topic = self.topic.clone();
-        let host_addr = match &self.stream {
-            Some(stream) => stream.peer_addr().unwrap(),
-            None => SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 25_000),
-        };
-
-        NodeConfig {
-            topic: Some(topic),
-            name: self.name.clone(),
-            tcp_cfg: node::tcp_config::TcpConfig {
-                host_addr
-            },
-            // TO_DO: {udp_cfg: host_addr} and {tcp_cfg: host_addr} shouldn't necessarily be the same
-            udp_cfg: node::udp_config::UdpConfig {
-                host_addr
-            },
-            phantom: PhantomData,
-        }
     }
 }

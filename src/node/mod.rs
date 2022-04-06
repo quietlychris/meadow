@@ -62,13 +62,12 @@ pub struct SubscriptionData<T: Message> {
 pub struct Node<State, T: Message> {
     pub __state: PhantomData<State>,
     pub phantom: PhantomData<T>,
+    pub cfg: NodeConfig<T>,
     pub runtime: Runtime,
     pub name: String,
     pub topic: String,
     pub stream: Option<TcpStream>,
-    pub host_addr_tcp: SocketAddr,
     pub socket: Option<UdpSocket>,
-    pub host_addr_udp: SocketAddr,
     pub subscription_data: Arc<TokioMutex<Option<SubscriptionData<T>>>>,
     pub task_subscribe: Option<JoinHandle<()>>,
 }
@@ -87,7 +86,6 @@ pub async fn try_connection(host_addr: SocketAddr) -> Result<TcpStream, Box<dyn 
                 connection_attempts += 1;
                 sleep(Duration::from_millis(1_000)).await;
                 warn!("{:?}", e);
-                // println!("Error: {:?}", e)
             }
         }
     }
@@ -102,14 +100,12 @@ pub async fn handshake(stream: TcpStream, topic: String) -> Result<TcpStream, Bo
         stream.writable().await.unwrap();
         match stream.try_write(topic.as_bytes()) {
             Ok(_n) => {
-                // println!("Successfully wrote {} bytes to host", n);
                 info!("{}: Wrote {} bytes to host", topic, _n);
                 break;
             }
             Err(e) => {
                 if e.kind() == std::io::ErrorKind::WouldBlock {
                 } else {
-                    // println!("Handshake error: {:?}", e);
                     error!("NODE handshake error: {:?}", e);
                 }
             }
@@ -150,10 +146,12 @@ pub async fn send_msg(
 /// Set Node to wait for GenericMsg response from Host, with data to be deserialized into Node's <T>-type
 pub async fn await_response<T: Message>(
     stream: &mut &TcpStream,
-    _max_buffer_size: usize, // TO_DO: This should be configurable
+    max_buffer_size: usize, // TO_DO: This should be configurable
 ) -> Result<GenericMsg, postcard::Error> {
     // Read the requested data into a buffer
-    let mut buf = [0u8; 4096];
+    // let mut buf = [0u8; 4096];
+    // let mut buf = Vec::with_capacity(10_000);
+    let mut buf = vec![0u8; max_buffer_size];
     loop {
         stream.readable().await.unwrap();
         match stream.try_read(&mut buf) {

@@ -1,7 +1,5 @@
 use tokio::sync::Mutex as TokioMutex;
 
-use std::net::SocketAddr;
-
 use std::error::Error;
 use std::marker::PhantomData;
 use std::result::Result;
@@ -16,8 +14,8 @@ use crate::*;
 pub struct NodeConfig<T: Message> {
     pub name: String,
     pub topic: Option<String>,
-    pub tcp_cfg: node::tcp_config::TcpConfig,
-    pub udp_cfg: node::udp_config::UdpConfig,
+    pub tcp: node::tcp_config::TcpConfig,
+    pub udp: node::udp_config::UdpConfig,
     pub phantom: PhantomData<T>,
 }
 
@@ -27,8 +25,8 @@ impl<T: Message> NodeConfig<T> {
         NodeConfig {
             name: name.into(),
             topic: None,
-            tcp_cfg: node::tcp_config::TcpConfig::default(),
-            udp_cfg: node::udp_config::UdpConfig::default(),
+            tcp: node::tcp_config::TcpConfig::default(),
+            udp: node::udp_config::UdpConfig::default(),
             phantom: PhantomData,
         }
     }
@@ -39,9 +37,15 @@ impl<T: Message> NodeConfig<T> {
         self
     }
 
-    ///
+    /// Configure the UDP connection parameteres
     pub fn with_udp_config(mut self, udp_cfg: node::udp_config::UdpConfig) -> Self {
-        self.udp_cfg = udp_cfg;
+        self.udp = udp_cfg;
+        self
+    }
+
+    /// Configure the TCP connection parameteres
+    pub fn with_tcp_config(mut self, tcp_cfg: node::tcp_config::TcpConfig) -> Self {
+        self.tcp = tcp_cfg;
         self
     }
 
@@ -51,28 +55,21 @@ impl<T: Message> NodeConfig<T> {
         self
     }
 
-    /// Assign an address for the Host the Node will attempt to connect with
-    pub fn host_addr(mut self, host_addr: impl Into<SocketAddr>) -> Self {
-        self.tcp_cfg.host_addr = host_addr.into();
-        self
-    }
-
     /// Construct a Node from the specified configuration
     pub fn build(self) -> Result<Node<Idle, T>, Box<dyn Error>> {
         let runtime = tokio::runtime::Runtime::new()?;
 
-        let topic = match self.topic {
-            Some(topic) => topic,
+        let topic = match &self.topic {
+            Some(topic) => topic.to_owned(),
             None => panic!("Nodes must have an assigned topic to be built"),
         };
 
         Ok(Node::<Idle, T> {
             __state: PhantomData,
             phantom: PhantomData,
+            cfg: self.clone(),
             runtime,
             stream: None,
-            host_addr_tcp: self.tcp_cfg.host_addr,
-            host_addr_udp: self.udp_cfg.host_addr,
             socket: None,
             name: self.name,
             topic,

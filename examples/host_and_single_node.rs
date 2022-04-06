@@ -36,8 +36,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         };
 
         node.publish(pose.clone())?;
+        println!("published {}", i);
         thread::sleep(Duration::from_millis(250));
-        let result = node.request()?;
+        let result = node.request().unwrap();
         println!("Got position: {:?}", result);
 
         assert_eq!(pose, result);

@@ -84,7 +84,7 @@ impl Host {
                 let raw_addr = ip + ":" + &tcp_cfg.socket_num.to_string();
                 let addr: SocketAddr = raw_addr.parse()?;
 
-                let db_tcp = db.clone();
+                // let db_tcp = db.clone();
                 let counter_tcp = counter.clone();
 
                 let (max_buffer_size_tcp, max_name_size_tcp) =
@@ -103,7 +103,7 @@ impl Host {
                         .await;
                         info!("Host received connection from {:?}", &name);
 
-                        let db = db_tcp.clone();
+                        let db = db.clone();
                         let counter = counter_tcp.clone();
                         let connections = Arc::clone(&connections_clone.clone());
 
@@ -115,7 +115,6 @@ impl Host {
                             stream_addr,
                             name,
                         };
-                        // dbg!(&connection);
 
                         connections.lock().unwrap().push(connection);
                     }
@@ -134,7 +133,6 @@ impl Host {
     #[tracing::instrument]
     pub fn stop(mut self) -> Result<(), Box<dyn Error>> {
         for conn in self.connections.lock().unwrap().deref_mut() {
-            // println!("Aborting connection: {}", conn.name);
             info!("Aborting connection: {}", conn.name);
             conn.handle.abort();
         }

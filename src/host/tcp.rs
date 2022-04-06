@@ -21,18 +21,16 @@ pub async fn handshake(
     max_name_size: usize,
 ) -> (TcpStream, String) {
     // Handshake
-    // let mut buf = [0u8; 4096];
-    // TO_DO_PART_A: This seems fine, but PART_B errors out for some reason?
-    let mut buf = Vec::with_capacity(max_buffer_size);
+    let mut buf = vec![0u8; max_buffer_size];
     info!("Starting handshake");
-    let mut name: String = String::with_capacity(max_name_size);
+    let mut _name: String = String::with_capacity(max_name_size);
     let mut count = 0;
     stream.readable().await.unwrap();
     loop {
         info!("In handshake loop");
         match stream.try_read_buf(&mut buf) {
             Ok(n) => {
-                name = match std::str::from_utf8(&buf[..n]) {
+                _name = match std::str::from_utf8(&buf[..n]) {
                     Ok(name) => {
                         info!("Received connection from {}", &name);
                         name.to_owned()
@@ -63,8 +61,8 @@ pub async fn handshake(
             }
         }
     }
-    info!("Returning from handshake: ({:?}, {})", &stream, &name);
-    (stream, name)
+    info!("Returning from handshake: ({:?}, {})", &stream, &_name);
+    (stream, _name)
 }
 
 /// Host process for handling incoming connections from Nodes
@@ -76,9 +74,7 @@ pub async fn process_tcp(
     count: Arc<Mutex<usize>>,
     max_buffer_size: usize,
 ) {
-    let mut buf = [0u8; 10_000];
-    // TO_DO_PART_B: Tried to with try_read_buf(), but seems to panic?
-    // let mut buf = Vec::with_capacity(max_buffer_size);
+    let mut buf = vec![0u8; max_buffer_size];
     loop {
         stream.readable().await.unwrap();
         // dbg!(&count);
