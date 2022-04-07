@@ -6,7 +6,7 @@ use tokio::sync::Mutex; // as TokioMutex;
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 // Misc other imports
-use std::error::Error;
+use crate::Error;
 use std::result::Result;
 
 /// Host configuration structure
@@ -36,37 +36,30 @@ impl HostConfig {
         self
     }
 
-    ///
+    /// Assign a configuration to the Host TcpListener
     pub fn with_tcp_config(mut self, tcp_cfg: Option<host::TcpConfig>) -> HostConfig {
         self.tcp_cfg = tcp_cfg;
         self
     }
 
+    /// Assign a configuration to the Host UdpSocket
     pub fn with_udp_config(mut self, udp_cfg: Option<host::UdpConfig>) -> HostConfig {
         self.udp_cfg = udp_cfg;
         self
     }
 
     /// Construct a Host based on the HostConfig's parameters
-    pub fn build(self) -> Result<Host, Box<dyn Error>> {
-        /*
-        let ip = crate::get_ip(&self.interface)?;
-        println!(
-            "On interface {:?}, the device IP is: {:?}",
-            &self.interface, &ip
-        );
-
-        let raw_addr = ip + ":" + &self.socket_num.to_string();
-        // If the address won't parse, this should panic
-        let _addr: SocketAddr = raw_addr
-            .parse()
-            .unwrap_or_else(|_| panic!("The provided address string, \"{}\" is invalid", raw_addr));
-        */
-
-        let runtime = tokio::runtime::Runtime::new()?;
+    pub fn build(self) -> Result<Host, Error> {
+        let runtime = match tokio::runtime::Runtime::new() {
+            Ok(runtime) => runtime,
+            Err(_e) => return Err(Error::RuntimeCreation),
+        };
 
         let connections = Arc::new(StdMutex::new(Vec::new()));
-        let store: sled::Db = self.sled_cfg.open()?;
+        let store: sled::Db = match self.sled_cfg.open() {
+            Ok(store) => store,
+            Err(_e) => return Err(Error::OpeningSled),
+        };
 
         let reply_count = Arc::new(Mutex::new(0));
 

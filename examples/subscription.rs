@@ -24,7 +24,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .subscribe(Duration::from_millis(100))?;
 
     // Since subscribed topics are not guaranteed to exist, subscribed nodes always return Option<T>
-    let result = reader.get_subscribed_data()?;
+    let result = match reader.get_subscribed_data() {
+        Ok(val) => val,
+        Err(e) => {
+            println!("Error: {:?}, returning 0", e);
+            0
+        }
+    };
     dbg!(result);
 
     for i in 0..5 {

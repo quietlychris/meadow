@@ -1,4 +1,5 @@
 extern crate alloc;
+use crate::Error;
 use crate::*;
 
 use tokio::net::UdpSocket;
@@ -7,7 +8,6 @@ use tokio::time::{sleep, Duration};
 
 use tracing::*;
 
-use std::error::Error;
 use std::result::Result;
 use std::sync::Arc;
 
@@ -55,7 +55,7 @@ impl<T: Message> From<Node<Idle, T>> for Node<Subscription, T> {
 impl<T: Message + 'static> Node<Idle, T> {
     /// Attempt connection from the Node to the Host located at the specified address
     #[tracing::instrument]
-    pub fn activate(mut self) -> Result<Node<Active, T>, Box<dyn Error>> {
+    pub fn activate(mut self) -> Result<Node<Active, T>, Error> {
         let addr = self.cfg.tcp.host_addr;
         let topic = self.topic.clone();
 
@@ -66,17 +66,21 @@ impl<T: Message + 'static> Node<Idle, T> {
         });
         self.stream = Some(stream);
 
-        let socket = self.runtime.block_on(async move {
-            let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
-            socket
-        });
-        self.socket = Some(socket);
+        match self.runtime.block_on(async move {
+            match UdpSocket::bind("127.0.0.1:0").await {
+                Ok(socket) => Ok(socket),
+                Err(_e) => Err(Error::AccessSocket),
+            }
+        }) {
+            Ok(socket) => self.socket = Some(socket),
+            Err(e) => return Err(e),
+        };
 
         Ok(Node::<Active, T>::from(self))
     }
 
     #[tracing::instrument]
-    pub fn subscribe(mut self, rate: Duration) -> Result<Node<Subscription, T>, Box<dyn Error>> {
+    pub fn subscribe(mut self, rate: Duration) -> Result<Node<Subscription, T>, Error> {
         let name = self.name.clone() + "_SUBSCRIPTION";
         let addr = self.cfg.tcp.host_addr;
         let topic = self.topic.clone();

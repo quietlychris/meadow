@@ -1,12 +1,12 @@
 use tokio::sync::Mutex as TokioMutex;
 
-use std::error::Error;
 use std::marker::PhantomData;
 use std::result::Result;
 use std::sync::Arc;
 
 use std::fmt::Debug;
 
+use crate::Error;
 use crate::*;
 
 /// Configuration of strongly-typed Node
@@ -56,8 +56,11 @@ impl<T: Message> NodeConfig<T> {
     }
 
     /// Construct a Node from the specified configuration
-    pub fn build(self) -> Result<Node<Idle, T>, Box<dyn Error>> {
-        let runtime = tokio::runtime::Runtime::new()?;
+    pub fn build(self) -> Result<Node<Idle, T>, Error> {
+        let runtime = match tokio::runtime::Runtime::new() {
+            Ok(runtime) => runtime,
+            Err(_e) => return Err(Error::RuntimeCreation),
+        };
 
         let topic = match &self.topic {
             Some(topic) => topic.to_owned(),

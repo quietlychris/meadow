@@ -95,7 +95,7 @@ fn subscription_usize() {
         .activate()
         .unwrap();
 
-    // Create a subscription node with a query rate of 10 Hz
+    // Create a subscription node with a query rate of 100 Hz
     let reader = writer
         .cfg
         .clone()
@@ -109,13 +109,30 @@ fn subscription_usize() {
         let test_value = i as usize;
         writer.publish(test_value).unwrap();
         std::thread::sleep(std::time::Duration::from_millis(100));
-        let result = reader.get_subscribed_data().unwrap();
-        match result {
-            Some(result) => assert_eq!(test_value, result),
-            None => println!("No value for the subscribed topic exists"),
+        // let result = reader.get_subscribed_data();
+        match reader.get_subscribed_data() {
+            Ok(result) => assert_eq!(test_value, result),
+            Err(e) => println!("{:?}", e),
         }
-        dbg!(result);
+        // dbg!(result);
     }
 
     // host.stop().unwrap();
+}
+
+#[test]
+#[should_panic]
+fn no_subscribed_value() {
+    let mut host: Host = HostConfig::default().build().unwrap();
+    host.start().unwrap();
+
+    // Create a subscription node with a query rate of 10 Hz
+    let reader = NodeConfig::<usize>::new("READER")
+        .topic("subscription")
+        .build()
+        .unwrap()
+        .subscribe(Duration::from_millis(100))
+        .unwrap();
+
+    let result: usize = reader.get_subscribed_data().unwrap();
 }

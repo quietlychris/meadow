@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let udp_socket = "192.168.8.105:25000"
             .parse::<std::net::SocketAddr>()
             .unwrap();
-        let udp_cfg: node::UdpConfig = node::UdpConfig::new(udp_socket).unwrap();
+        let udp_cfg: node::UdpConfig = node::UdpConfig::new(udp_socket);
         let node = NodeConfig::new("SENDER")
             .with_udp_config(udp_cfg)
             .topic("num")

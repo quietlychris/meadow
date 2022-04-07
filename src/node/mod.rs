@@ -24,7 +24,6 @@ use tracing::*;
 
 use std::net::SocketAddr;
 
-use std::error::Error;
 use std::marker::{PhantomData, Sync};
 use std::result::Result;
 use std::sync::Arc;
@@ -34,6 +33,7 @@ use postcard::*;
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::msg::*;
+use crate::Error;
 
 use std::fmt::Debug;
 /// Trait for Bissel-compatible data, requiring serde De\Serialize, Debug, and Clone
@@ -73,7 +73,7 @@ pub struct Node<State, T: Message> {
 }
 
 /// Attempts to create an async TcpStream connection with a Host at the specified socket address
-pub async fn try_connection(host_addr: SocketAddr) -> Result<TcpStream, Box<dyn Error>> {
+pub async fn try_connection(host_addr: SocketAddr) -> Result<TcpStream, Error> {
     let mut connection_attempts = 0;
     let mut stream: Option<TcpStream> = None;
     while connection_attempts < 5 {
@@ -95,7 +95,7 @@ pub async fn try_connection(host_addr: SocketAddr) -> Result<TcpStream, Box<dyn 
 }
 
 /// Run the initial Node <=> Host connection handshake
-pub async fn handshake(stream: TcpStream, topic: String) -> Result<TcpStream, Box<dyn Error>> {
+pub async fn handshake(stream: TcpStream, topic: String) -> Result<TcpStream, Error> {
     loop {
         stream.writable().await.unwrap();
         match stream.try_write(topic.as_bytes()) {
@@ -120,11 +120,11 @@ pub async fn handshake(stream: TcpStream, topic: String) -> Result<TcpStream, Bo
 }
 
 /// Send a GenericMsg of MsgType from the Node to the Host
-pub async fn send_msg(
-    stream: &mut &TcpStream,
-    packet_as_bytes: Vec<u8>,
-) -> Result<(), Box<dyn Error>> {
-    stream.writable().await.unwrap();
+pub async fn send_msg(stream: &mut &TcpStream, packet_as_bytes: Vec<u8>) -> Result<(), Error> {
+    match stream.writable().await {
+        Ok(_) => (),
+        Err(_e) => return Err(Error::AccessStream),
+    };
 
     // Write the request
     // TO_DO: This should be a loop with a maximum number of attempts

@@ -22,10 +22,12 @@ hex-slice = "0.1.4"
 chrono = {version = "0.4", features = ["serde"]}
 # key value store, networking, and async
 sled = "0.34.6"
-pnet = "0.29.0"
+pnet_datalink = "0.29.0"
 tokio = { version = "1.16.1", features = ["net", "rt-multi-thread", "io-util", "sync", "time"] }
 # logging
 tracing = "0.1.29"
+# error definitions
+thiserror = "1.0"
 
 [dev-dependencies]
 # command-line utilties

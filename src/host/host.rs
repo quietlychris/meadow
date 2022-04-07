@@ -7,11 +7,10 @@ use tokio::task::JoinHandle;
 // Tracing for logging
 use tracing::*;
 // Multi-threading primitives
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 // Misc other imports
-use std::error::Error;
 use std::net::SocketAddr;
 use std::result::Result;
 
@@ -42,14 +41,14 @@ pub struct Host {
 impl Host {
     /// Allow Host to begin accepting incoming connections
     #[tracing::instrument]
-    pub fn start(&mut self) -> Result<(), Box<dyn Error>> {
+    pub fn start(&mut self) -> Result<(), crate::Error> {
         let connections_clone = self.connections.clone();
 
         let db = match self.store.clone() {
             Some(db) => db,
             None => {
                 error!("Must open a sled database to start the Host");
-                panic!("Must open a sled database to start the Host");
+                return Err(crate::Error::NoSled);
             }
         };
         let counter = self.reply_count.clone();
@@ -58,9 +57,18 @@ impl Host {
         match &self.cfg.udp_cfg {
             None => (),
             Some(udp_cfg) => {
-                let ip = crate::get_ip(&udp_cfg.interface)?;
+                // let ip = crate::get_ip(&udp_cfg.interface)?;
+
+                let ip = match crate::get_ip(&udp_cfg.interface) {
+                    Ok(ip) => ip,
+                    Err(_e) => return Err(Error::InvalidInterface),
+                };
+
                 let raw_addr = ip + ":" + &udp_cfg.socket_num.to_string();
-                let addr: SocketAddr = raw_addr.parse()?;
+                let addr: SocketAddr = match raw_addr.parse() {
+                    Ok(addr) => addr,
+                    Err(_e) => return Err(Error::IpParsing),
+                };
 
                 let db_udp = db.clone();
                 let counter_udp = counter.clone();
@@ -80,12 +88,15 @@ impl Host {
         match &self.cfg.tcp_cfg {
             None => (),
             Some(tcp_cfg) => {
-                let ip = crate::get_ip(&tcp_cfg.interface)?;
+                let ip = match crate::get_ip(&tcp_cfg.interface) {
+                    Ok(ip) => ip,
+                    Err(_e) => return Err(Error::InvalidInterface),
+                };
                 let raw_addr = ip + ":" + &tcp_cfg.socket_num.to_string();
-                let addr: SocketAddr = raw_addr.parse()?;
-
-                // let db_tcp = db.clone();
-                let counter_tcp = counter.clone();
+                let addr: SocketAddr = match raw_addr.parse() {
+                    Ok(addr) => addr,
+                    Err(_e) => return Err(Error::IpParsing),
+                };
 
                 let (max_buffer_size_tcp, max_name_size_tcp) =
                     (tcp_cfg.max_buffer_size, tcp_cfg.max_name_size);
@@ -104,7 +115,7 @@ impl Host {
                         info!("Host received connection from {:?}", &name);
 
                         let db = db.clone();
-                        let counter = counter_tcp.clone();
+                        let counter = counter.clone();
                         let connections = Arc::clone(&connections_clone.clone());
 
                         let handle = tokio::spawn(async move {
@@ -131,24 +142,33 @@ impl Host {
     /// This also makes sure that temporary sled::Db's built are also dropped
     /// following the shutdown of a Host
     #[tracing::instrument]
-    pub fn stop(mut self) -> Result<(), Box<dyn Error>> {
-        for conn in self.connections.lock().unwrap().deref_mut() {
-            info!("Aborting connection: {}", conn.name);
-            conn.handle.abort();
+    pub fn stop(mut self) -> Result<(), crate::Error> {
+        match self.connections.lock() {
+            Ok(connections) => {
+                for conn in connections.deref() {
+                    info!("Aborting connection: {}", conn.name);
+                    conn.handle.abort();
+                }
+                self.store = None;
+                Ok(())
+            }
+            Err(_) => return Err(crate::Error::LockFailure),
         }
-        self.store = None;
-
-        Ok(())
     }
 
     /// Print information about all Host connections
     #[no_mangle]
-    pub fn print_connections(&mut self) -> Result<(), Box<dyn Error + '_>> {
+    pub fn print_connections(&mut self) -> Result<(), crate::Error> {
         println!("Connections:");
-        for conn in self.connections.lock()?.deref() {
-            let name = conn.name.clone();
-            println!("\t- {}:{}", name, &conn.stream_addr);
+        match self.connections.lock() {
+            Ok(connections) => {
+                for conn in connections.deref() {
+                    let name = conn.name.clone();
+                    println!("\t- {}:{}", name, &conn.stream_addr);
+                }
+                Ok(())
+            }
+            Err(_) => Err(crate::Error::LockFailure),
         }
-        Ok(())
     }
 }

@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -14,10 +13,10 @@ impl UdpConfig {
         }
     }
 
-    pub fn new(host_addr: impl Into<SocketAddr>) -> Result<Self, Box<dyn Error>> {
-        let cfg = UdpConfig {
+    /// Create a configuration for a UdpSocket based on a socket address
+    pub fn new(host_addr: impl Into<SocketAddr>) -> Self {
+        UdpConfig {
             host_addr: host_addr.into(),
-        };
-        Ok(cfg)
+        }
     }
 }

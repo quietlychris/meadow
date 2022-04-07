@@ -1,9 +1,9 @@
+use crate::Error;
 use crate::*;
 
 use chrono::Utc;
 
 use postcard::*;
-use std::error::Error;
 use std::result::Result;
 use tracing::*;
 
@@ -11,9 +11,11 @@ impl<T: Message + 'static> Node<Active, T> {
     // TO_DO: The error handling in the async blocks need to be improved
     /// Send data to host on Node's assigned topic using Msg<T> packet
     #[tracing::instrument]
-    pub fn publish(&self, val: T) -> Result<(), Box<dyn Error>> {
-        // let val_vec: heapless::Vec<u8, 4096> = to_vec(&val).unwrap();
-        let val_vec: Vec<u8> = to_allocvec(&val).unwrap();
+    pub fn publish(&self, val: T) -> Result<(), Error> {
+        let val_vec: Vec<u8> = match to_allocvec(&val) {
+            Ok(val_vec) => val_vec,
+            Err(_e) => return Err(Error::Serialization),
+        };
 
         // println!("Number of bytes in data for {:?} is {}",std::any::type_name::<M>(),val_vec.len());
         let packet = GenericMsg {
@@ -26,14 +28,19 @@ impl<T: Message + 'static> Node<Active, T> {
         };
         // info!("The Node's packet to send looks like: {:?}",&packet);
 
-        let packet_as_bytes: Vec<u8> = to_allocvec(&packet).unwrap();
+        let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
+            Ok(packet) => packet,
+            Err(_e) => return Err(Error::Serialization),
+        };
         // info!("Node is publishing: {:?}",&packet_as_bytes);
 
-        let topic = &self.topic;
-        let stream = &mut self.stream.as_ref().unwrap();
+        let mut stream = match self.stream.as_ref() {
+            Some(stream) => stream,
+            None => return Err(Error::AccessStream),
+        };
 
-        let _result = self.runtime.block_on(async {
-            send_msg(stream, packet_as_bytes).await.unwrap();
+        self.runtime.block_on(async {
+            send_msg(&mut stream, packet_as_bytes).await.unwrap();
 
             // Wait for the publish acknowledgement
             let mut buf = vec![0u8; 1024];
@@ -43,15 +50,19 @@ impl<T: Message + 'static> Node<Active, T> {
                     Ok(0) => continue,
                     Ok(n) => {
                         let bytes = &buf[..n];
-                        let _msg: Result<String, Box<dyn Error>> = match from_bytes(bytes) {
-                            Ok(ack) => {
-                                return Ok(ack);
+                        // TO_DO: This error handling is not great
+                        // There should be some kind of check on the Host-sent KV-storage ack message
+                        // This ack message should be a Result/Option for success/failure, not the
+                        // String that is currently used
+                        let _msg = match std::str::from_utf8(bytes) {
+                            Ok(_msg) => {
+                                // dbg!(msg.to_string());
+                                ()
                             }
-                            Err(e) => {
-                                error!("{}: {:?}", topic, &e);
-                                return Err(Box::new(e));
-                            }
+                            Err(_) => (),
                         };
+
+                        break;
                     }
                     Err(e) => {
                         if e.kind() == std::io::ErrorKind::WouldBlock {}
@@ -59,18 +70,18 @@ impl<T: Message + 'static> Node<Active, T> {
                     }
                 }
             }
-            Ok(())
         });
 
         Ok(())
     }
 
     #[tracing::instrument]
-    pub fn publish_udp(&self, val: T) -> Result<(), Box<dyn Error>> {
-        // let val_vec: heapless::Vec<u8, 4096> = to_vec(&val).unwrap();
-        let val_vec: Vec<u8> = to_allocvec(&val).unwrap();
+    pub fn publish_udp(&self, val: T) -> Result<(), Error> {
+        let val_vec: Vec<u8> = match to_allocvec(&val) {
+            Ok(val_vec) => val_vec,
+            Err(_e) => return Err(Error::Serialization),
+        };
 
-        // println!("Number of bytes in data for {:?} is {}",std::any::type_name::<M>(),val_vec.len());
         let packet = GenericMsg {
             msg_type: MsgType::SET,
             timestamp: Utc::now().to_string(),
@@ -80,23 +91,30 @@ impl<T: Message + 'static> Node<Active, T> {
             data: val_vec.to_vec(),
         };
 
-        let packet_as_bytes: Vec<u8> = to_allocvec(&packet).unwrap();
+        let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
+            Ok(packet) => packet,
+            Err(_e) => return Err(Error::Serialization),
+        };
 
-        let socket = &mut self.socket.as_ref().unwrap();
+        let socket = match self.socket.as_ref() {
+            Some(socket) => socket,
+            None => return Err(Error::AccessSocket),
+        };
 
-        let _result = self.runtime.block_on(async {
-            socket
+        self.runtime.block_on(async {
+            match socket
                 .send_to(&packet_as_bytes, self.cfg.udp.host_addr)
                 .await
-                .unwrap();
-        });
-
-        Ok(())
+            {
+                Ok(_len) => Ok(()),
+                Err(_e) => return Err(Error::UdpSend),
+            }
+        })
     }
 
     /// Request data from host on Node's assigned topic
     #[tracing::instrument]
-    pub fn request(&self) -> Result<T, postcard::Error> {
+    pub fn request(&self) -> Result<T, Error> {
         let packet = GenericMsg {
             msg_type: MsgType::GET,
             timestamp: Utc::now().to_string(),
@@ -107,18 +125,27 @@ impl<T: Message + 'static> Node<Active, T> {
         };
         // info!("{:?}",&packet);
 
-        let packet_as_bytes: Vec<u8> = to_allocvec(&packet).unwrap();
+        let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
+            Ok(packet) => packet,
+            Err(_e) => return Err(Error::Serialization),
+        };
 
-        let stream = &mut self.stream.as_ref().unwrap();
+        let mut stream = match self.stream.as_ref() {
+            Some(stream) => stream,
+            None => return Err(Error::AccessStream),
+        };
 
         self.runtime.block_on(async {
-            send_msg(stream, packet_as_bytes).await.unwrap();
-            match await_response::<T>(stream, 4096).await {
+            send_msg(&mut stream, packet_as_bytes).await.unwrap();
+            match await_response::<T>(&mut stream, self.cfg.tcp.max_buffer_size).await {
                 Ok(reply) => {
-                    let data = from_bytes::<T>(&reply.data).unwrap();
-                    Ok(data)
+                    match from_bytes::<T>(&reply.data) {
+                        Ok(data) => Ok(data),
+                        Err(_e) => Err(Error::Deserialization),
+                    }
+                    // data_result
                 }
-                Err(e) => *Box::new(Err(e)),
+                Err(_e) => Err(Error::BadResponse),
             }
         })
     }
