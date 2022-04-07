@@ -1,15 +1,13 @@
-use bissel::host::{Host, HostConfig};
+use bissel::*;
 
 use clap::{App, Arg};
 
 #[tokio::main]
 async fn main() {
-    let file_appender = tracing_appender::rolling::hourly("logs/", "start_host");
-    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-    tracing_subscriber::fmt().with_writer(non_blocking).init();
+    start_logging();
 
     let matches = App::new("Bissel Host")
-        .version("0.1")
+        .version("0.3")
         .author("Christopher Moran <christopher.and.moran@gmail.com>")
         .about("Start a bissel host")
         .arg(
@@ -39,9 +37,10 @@ async fn main() {
     let store_filename: String = matches.value_of("store_filename").unwrap().to_string();
     let socket: usize = matches.value_of("socket").unwrap().parse().unwrap();
 
-    let mut host: Host = HostConfig::new(interface)
-        .socket_num(socket)
-        .store_filename(store_filename)
+    let mut host: Host = HostConfig::default()
+        .with_udp_config(Some(host::UdpConfig::default(&interface)))
+        .with_tcp_config(Some(host::TcpConfig::default(&interface)))
+        .with_sled_config(SledConfig::default().path(store_filename))
         .build()
         .unwrap();
     host.start().unwrap();
@@ -52,4 +51,10 @@ async fn main() {
         .expect("failed to listen for event");
     // Other tasks can operate while the host is running on it's own thread
     host.stop().unwrap();
+}
+
+fn start_logging() {
+    let file_appender = tracing_appender::rolling::hourly("logs/", "start_host");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    tracing_subscriber::fmt().with_writer(non_blocking).init();
 }

@@ -2,15 +2,19 @@ mod active;
 mod config;
 mod idle;
 mod subscription;
+mod tcp_config;
+mod udp_config;
 
 pub use crate::node::active::*;
 pub use crate::node::config::*;
 pub use crate::node::idle::*;
 pub use crate::node::subscription::*;
+pub use crate::node::tcp_config::TcpConfig;
+pub use crate::node::udp_config::UdpConfig;
 
 extern crate alloc;
 
-use tokio::net::TcpStream;
+use tokio::net::{TcpStream, UdpSocket};
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex as TokioMutex;
 use tokio::task::JoinHandle;
@@ -20,7 +24,6 @@ use tracing::*;
 
 use std::net::SocketAddr;
 
-use std::error::Error;
 use std::marker::{PhantomData, Sync};
 use std::result::Result;
 use std::sync::Arc;
@@ -30,6 +33,7 @@ use postcard::*;
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::msg::*;
+use crate::Error;
 
 use std::fmt::Debug;
 /// Trait for Bissel-compatible data, requiring serde De\Serialize, Debug, and Clone
@@ -58,17 +62,18 @@ pub struct SubscriptionData<T: Message> {
 pub struct Node<State, T: Message> {
     pub __state: PhantomData<State>,
     pub phantom: PhantomData<T>,
+    pub cfg: NodeConfig<T>,
     pub runtime: Runtime,
-    pub stream: Option<TcpStream>,
     pub name: String,
     pub topic: String,
-    pub host_addr: SocketAddr,
+    pub stream: Option<TcpStream>,
+    pub socket: Option<UdpSocket>,
     pub subscription_data: Arc<TokioMutex<Option<SubscriptionData<T>>>>,
     pub task_subscribe: Option<JoinHandle<()>>,
 }
 
 /// Attempts to create an async TcpStream connection with a Host at the specified socket address
-pub async fn try_connection(host_addr: SocketAddr) -> Result<TcpStream, Box<dyn Error>> {
+pub async fn try_connection(host_addr: SocketAddr) -> Result<TcpStream, Error> {
     let mut connection_attempts = 0;
     let mut stream: Option<TcpStream> = None;
     while connection_attempts < 5 {
@@ -81,7 +86,6 @@ pub async fn try_connection(host_addr: SocketAddr) -> Result<TcpStream, Box<dyn 
                 connection_attempts += 1;
                 sleep(Duration::from_millis(1_000)).await;
                 warn!("{:?}", e);
-                // println!("Error: {:?}", e)
             }
         }
     }
@@ -91,19 +95,17 @@ pub async fn try_connection(host_addr: SocketAddr) -> Result<TcpStream, Box<dyn 
 }
 
 /// Run the initial Node <=> Host connection handshake
-pub async fn handshake(stream: TcpStream, topic: String) -> Result<TcpStream, Box<dyn Error>> {
+pub async fn handshake(stream: TcpStream, topic: String) -> Result<TcpStream, Error> {
     loop {
         stream.writable().await.unwrap();
         match stream.try_write(topic.as_bytes()) {
             Ok(_n) => {
-                // println!("Successfully wrote {} bytes to host", n);
                 info!("{}: Wrote {} bytes to host", topic, _n);
                 break;
             }
             Err(e) => {
                 if e.kind() == std::io::ErrorKind::WouldBlock {
                 } else {
-                    // println!("Handshake error: {:?}", e);
                     error!("NODE handshake error: {:?}", e);
                 }
             }
@@ -118,11 +120,11 @@ pub async fn handshake(stream: TcpStream, topic: String) -> Result<TcpStream, Bo
 }
 
 /// Send a GenericMsg of MsgType from the Node to the Host
-pub async fn send_msg(
-    stream: &mut &TcpStream,
-    packet_as_bytes: Vec<u8>,
-) -> Result<(), Box<dyn Error>> {
-    stream.writable().await.unwrap();
+pub async fn send_msg(stream: &mut &TcpStream, packet_as_bytes: Vec<u8>) -> Result<(), Error> {
+    match stream.writable().await {
+        Ok(_) => (),
+        Err(_e) => return Err(Error::AccessStream),
+    };
 
     // Write the request
     // TO_DO: This should be a loop with a maximum number of attempts
@@ -144,10 +146,12 @@ pub async fn send_msg(
 /// Set Node to wait for GenericMsg response from Host, with data to be deserialized into Node's <T>-type
 pub async fn await_response<T: Message>(
     stream: &mut &TcpStream,
-    _max_buffer_size: usize, // TO_DO: This should be configurable
+    max_buffer_size: usize, // TO_DO: This should be configurable
 ) -> Result<GenericMsg, postcard::Error> {
     // Read the requested data into a buffer
-    let mut buf = [0u8; 4096];
+    // let mut buf = [0u8; 4096];
+    // let mut buf = Vec::with_capacity(10_000);
+    let mut buf = vec![0u8; max_buffer_size];
     loop {
         stream.readable().await.unwrap();
         match stream.try_read(&mut buf) {

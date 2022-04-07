@@ -7,11 +7,9 @@ use std::time::Duration;
 const LABELS: usize = 36;
 fn main() -> Result<(), Box<dyn Error>> {
     // Set up logging
-    let file_appender = tracing_appender::rolling::hourly("logs/", "multiple_nodes");
-    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-    tracing_subscriber::fmt().with_writer(non_blocking).init();
+    start_logging();
 
-    let mut host: Host = HostConfig::new("lo").build()?;
+    let mut host: Host = HostConfig::default().build()?;
     host.start()?;
 
     // Run n publish-subscribe loops in different processes
@@ -27,7 +25,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             // Create a node
             let name = format!("NODE_{}", i);
             let node: Node<Idle, Pose> = NodeConfig::new(name).topic("pose").build().unwrap();
-            let node = match node.connect() {
+            let node = match node.activate() {
                 Ok(node) => {
                     println!("NODE_{} connected successfully", i);
                     node
@@ -58,4 +56,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("All threads have joined!");
     host.stop()?;
     Ok(())
+}
+
+fn start_logging() {
+    let file_appender = tracing_appender::rolling::hourly("logs/", "multiple_nodes");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    tracing_subscriber::fmt().with_writer(non_blocking).init();
 }

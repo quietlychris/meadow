@@ -23,34 +23,30 @@ struct Coordinate {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // The Host is running on localhost, but any network interface such as WiFi
     // or Ethernet are available as well
-    let mut host: Host = HostConfig::new("lo")
-        .socket_num(25_000)
-        .store_filename("store")
-        .build()
-        .unwrap();
-    host.start().unwrap();
+    let mut host: Host = HostConfig::default().build()?;
+    host.start()?;
     // Other tasks can operate while the host is running in the background
     
     // Build a Node
-    let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
+    let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>()?;
     let node: Node<Idle, Coordinate> = NodeConfig::new("GPS_NODE")
         .topic("position")
-        .host_addr(addr)
+        .with_tcp_config(node::TcpConfig::default().set_host_addr(addr))
         .build()?;
     // Bissel Nodes use strict typestates; without using the connect() method first,
     // the compiler won't let you use the publish() or request() methods on an Idle Node
-    let mut node: Node<Active, Coordinate> = node.connect()?;
+    let mut node: Node<Active, Coordinate> = node.activate()?;
 
     // Nodes can also be subscribers, which will request topic updates from the Host
     // at a given rate
     let subscriber = NodeConfig::<Coordinate>::new("GPS_SUBSCRIBER")
         .topic("position")
-        .host_addr(addr)
+        .with_tcp_config(node::TcpConfig::default().set_host_addr(addr))
         .build()?
         .subscribe(std::time::Duration::from_millis(100))?;
 
     let c = Coordinate { x: 4.0, y: 4.0 };
-    node.publish(c).unwrap();
+    node.publish(c)?;
 
     // Since Nodes are statically-typed, the following lines would fail at 
     // compile-time due to type errors!
@@ -64,7 +60,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::thread::sleep(std::time::Duration::from_millis(100));
         let result = node.request()?;
         // or could use the value held by the subscribed node
-        let subscription = subscriber.get_subscribed_data().unwrap();
+        let subscription = subscriber.get_subscribed_data()?;
         println!("Got position: {:?}", result);
     }
 

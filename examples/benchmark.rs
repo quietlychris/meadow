@@ -41,7 +41,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 fn benchmark_numeric<T: Benchmarkable>(
     iterations: usize,
 ) -> Result<BenchmarkStats, Box<dyn Error>> {
-    let mut host: Host = HostConfig::new("lo").build()?;
+    let mut host: Host = HostConfig::default().build()?;
     host.start()?;
     println!("Host should be running in the background");
 
@@ -50,7 +50,7 @@ fn benchmark_numeric<T: Benchmarkable>(
         .topic("benchmark_f32")
         .build()
         .unwrap();
-    let mut node = node.connect()?;
+    let mut node = node.activate()?;
 
     let mut payload_size: usize = 0;
     let mut times: Vec<u128> = Vec::with_capacity(iterations);
@@ -91,7 +91,7 @@ fn benchmark_numeric_collections<T: Benchmarkable>(
     iterations: usize,
     collection_size: usize,
 ) -> Result<BenchmarkStats, Box<dyn Error>> {
-    let mut host: Host = HostConfig::new("lo").build()?;
+    let mut host: Host = HostConfig::default().build()?;
     host.start()?;
     println!("Host should be running in the background");
 
@@ -100,7 +100,7 @@ fn benchmark_numeric_collections<T: Benchmarkable>(
         .topic("benchmark_f32")
         .build()
         .unwrap();
-    let mut node = node.connect()?;
+    let mut node = node.activate()?;
     let mut payload_size: usize = 0;
 
     let mut times: Vec<u128> = Vec::with_capacity(iterations);

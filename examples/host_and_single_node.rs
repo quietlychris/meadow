@@ -11,13 +11,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
     tracing_subscriber::fmt().with_writer(non_blocking).init();
 
-    let mut host: Host = HostConfig::new("lo").build()?;
+    let mut host: Host = HostConfig::default().build()?;
     host.start()?;
     println!("Host should be running in the background");
 
     // Get the host up and running
     let node: Node<Idle, Pose> = NodeConfig::new("TEAPOT").topic("pose").build().unwrap();
-    let node = node.connect()?;
+    let node = node.activate()?;
     info!("Node should now be connected");
     println!(
         "The size of an active bissel Node is: {}",
@@ -36,8 +36,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         };
 
         node.publish(pose.clone())?;
+        println!("published {}", i);
         thread::sleep(Duration::from_millis(250));
-        let result = node.request()?;
+        let result = node.request().unwrap();
         println!("Got position: {:?}", result);
 
         assert_eq!(pose, result);
