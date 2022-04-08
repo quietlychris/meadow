@@ -24,15 +24,13 @@ postcard = {version = "0.7.3", features = ["alloc"]}
 hex-slice = "0.1.4"
 chrono = {version = "0.4", features = ["serde"]}
 # key value store, networking, and async
-sled = "0.34.6"
+sled = "0.34.7"
 pnet_datalink = "0.29.0"
 tokio = { version = "1.16.1", features = ["net", "rt-multi-thread", "io-util", "sync", "time"] }
 # logging
 tracing = "0.1.29"
 
 [dev-dependencies]
-# command-line utilties
-clap = "3.0.13"
 # logging to file
 tracing-subscriber = "0.3.7"
 tracing-appender = "0.2.0"
