@@ -8,8 +8,8 @@ async fn main() {
 
     let matches = App::new("Bissel Host")
         .version("0.3")
-        .author("Christopher Moran <christopher.and.moran@gmail.com>")
-        .about("Start a bissel host")
+        .author("Christopher Moran <cmoran@cmoran.xyz>")
+        .about("Start a Bissel host")
         .arg(
             Arg::new("interface")
                 .short('i')
@@ -35,7 +35,7 @@ async fn main() {
 
     let interface: String = matches.value_of("interface").unwrap().to_string();
     let store_filename: String = matches.value_of("store_filename").unwrap().to_string();
-    let socket: usize = matches.value_of("socket").unwrap().parse().unwrap();
+    let _socket: usize = matches.value_of("socket").unwrap().parse().unwrap();
 
     let mut host: Host = HostConfig::default()
         .with_udp_config(Some(host::UdpConfig::default(&interface)))

@@ -18,7 +18,7 @@ pub struct HostConfig {
 }
 
 impl HostConfig {
-    /// Create a new HostConfig with all default options
+    /// Create a new `HostConfig` with all default options
     pub fn default() -> HostConfig {
         // Default sled database configuration
         let sled_cfg = sled::Config::default().path("store").temporary(true);
@@ -36,19 +36,19 @@ impl HostConfig {
         self
     }
 
-    /// Assign a configuration to the Host TcpListener
+    /// Assign a configuration to the Host `TcpListener`
     pub fn with_tcp_config(mut self, tcp_cfg: Option<host::TcpConfig>) -> HostConfig {
         self.tcp_cfg = tcp_cfg;
         self
     }
 
-    /// Assign a configuration to the Host UdpSocket
+    /// Assign a configuration to the Host `UdpSocket`
     pub fn with_udp_config(mut self, udp_cfg: Option<host::UdpConfig>) -> HostConfig {
         self.udp_cfg = udp_cfg;
         self
     }
 
-    /// Construct a Host based on the HostConfig's parameters
+    /// Construct a Host based on the `HostConfig`'s parameters
     pub fn build(self) -> Result<Host, Error> {
         let runtime = match tokio::runtime::Runtime::new() {
             Ok(runtime) => runtime,

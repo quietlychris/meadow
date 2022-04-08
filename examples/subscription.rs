@@ -1,7 +1,7 @@
 use bissel::*;
 use std::time::Duration;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), bissel::Error> {
     // Set up logging
     start_logging();
 
@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .clone()
         .name("READER")
         .build()?
-        .subscribe(Duration::from_millis(100))?;
+        .subscribe(Duration::from_micros(1))?;
 
     // Since subscribed topics are not guaranteed to exist, subscribed nodes always return Option<T>
     let result = match reader.get_subscribed_data() {
@@ -33,15 +33,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     dbg!(result);
 
-    for i in 0..5 {
+    for i in 0..100 {
         println!("publishing {}", i);
         writer.publish(i as usize)?;
-        std::thread::sleep(std::time::Duration::from_millis(250));
-        let result = reader.get_subscribed_data()?;
-        dbg!(result);
+        std::thread::sleep(std::time::Duration::from_micros(200));
+        match reader.get_subscribed_data() {
+            Ok(result) => {
+                dbg!(result);
+            }
+            Err(e) => {
+                dbg!(e);
+            }
+        };
     }
 
-    host.stop()?;
+    // host.stop()?;
     Ok(())
 }
 

@@ -72,7 +72,7 @@ pub struct Node<State, T: Message> {
     pub task_subscribe: Option<JoinHandle<()>>,
 }
 
-/// Attempts to create an async TcpStream connection with a Host at the specified socket address
+/// Attempts to create an async `TcpStream` connection with a Host at the specified socket address
 pub async fn try_connection(host_addr: SocketAddr) -> Result<TcpStream, Error> {
     let mut connection_attempts = 0;
     let mut stream: Option<TcpStream> = None;
@@ -119,7 +119,7 @@ pub async fn handshake(stream: TcpStream, topic: String) -> Result<TcpStream, Er
     Ok(stream)
 }
 
-/// Send a GenericMsg of MsgType from the Node to the Host
+/// Send a `GenericMsg` of `MsgType` from the Node to the Host
 pub async fn send_msg(stream: &mut &TcpStream, packet_as_bytes: Vec<u8>) -> Result<(), Error> {
     match stream.writable().await {
         Ok(_) => (),
@@ -143,7 +143,7 @@ pub async fn send_msg(stream: &mut &TcpStream, packet_as_bytes: Vec<u8>) -> Resu
     Ok(())
 }
 
-/// Set Node to wait for GenericMsg response from Host, with data to be deserialized into Node's <T>-type
+/// Set Node to wait for `GenericMsg` response from Host, with data to be deserialized into Node's <T>-type
 pub async fn await_response<T: Message>(
     stream: &mut &TcpStream,
     max_buffer_size: usize, // TO_DO: This should be configurable

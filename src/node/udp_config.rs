@@ -13,7 +13,7 @@ impl UdpConfig {
         }
     }
 
-    /// Create a configuration for a UdpSocket based on a socket address
+    /// Create a configuration for a `UdpSocket` based on a socket address
     pub fn new(host_addr: impl Into<SocketAddr>) -> Self {
         UdpConfig {
             host_addr: host_addr.into(),

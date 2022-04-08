@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = std::env::args().collect();
     dbg!(args.len());
     if args.len() != 2 {
-        let emsg = format!("USAGE: cargo run --example --release <num_iterations>");
+        let emsg = "USAGE: cargo run --example --release <num_iterations>".to_string();
         panic!("{}", emsg);
     }
     let iterations = args[1].parse::<usize>().unwrap();
