@@ -1,11 +1,10 @@
 use bissel::*;
 use tracing::*;
 
-use std::error::Error;
 use std::thread;
 use std::time::Duration;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), bissel::Error> {
     // Set up logging
     let file_appender = tracing_appender::rolling::hourly("logs/", "example");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);

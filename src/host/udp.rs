@@ -21,7 +21,7 @@ pub async fn process_udp(
     max_buffer_size: usize,
 ) {
     // let mut buf = [0u8; 10_000];
-    let mut buf = vec![0u8; 10_000];
+    let mut buf = vec![0u8; max_buffer_size];
     // TO_DO_PART_B: Tried to with try_read_buf(), but seems to panic?
     // let mut buf = Vec::with_capacity(max_buffer_size);
     loop {

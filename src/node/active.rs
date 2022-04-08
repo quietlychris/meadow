@@ -54,12 +54,8 @@ impl<T: Message + 'static> Node<Active, T> {
                         // There should be some kind of check on the Host-sent KV-storage ack message
                         // This ack message should be a Result/Option for success/failure, not the
                         // String that is currently used
-                        let _msg = match std::str::from_utf8(bytes) {
-                            Ok(_msg) => {
-                                // dbg!(msg.to_string());
-                                ()
-                            }
-                            Err(_) => (),
+                        let _msg = if let Ok(_msg) = std::str::from_utf8(bytes) {
+                            // dbg!(msg.to_string());
                         };
 
                         break;
@@ -107,7 +103,7 @@ impl<T: Message + 'static> Node<Active, T> {
                 .await
             {
                 Ok(_len) => Ok(()),
-                Err(_e) => return Err(Error::UdpSend),
+                Err(_e) => Err(Error::UdpSend),
             }
         })
     }

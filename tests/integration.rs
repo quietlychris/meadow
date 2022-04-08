@@ -75,7 +75,7 @@ fn publish_boolean() {
     for _i in 0..5 {
         node.publish(true).unwrap();
         thread::sleep(Duration::from_millis(50));
-        assert_eq!(true, node.request().unwrap());
+        assert!(node.request().unwrap());
     }
 
     host.stop().unwrap();
@@ -134,5 +134,5 @@ fn no_subscribed_value() {
         .subscribe(Duration::from_millis(100))
         .unwrap();
 
-    let result: usize = reader.get_subscribed_data().unwrap();
+    let _result: usize = reader.get_subscribed_data().unwrap();
 }

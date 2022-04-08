@@ -1,9 +1,3 @@
-[![crates.io](https://img.shields.io/crates/v/bissel.svg)](https://crates.io/crates/bissel) [![Documentation](https://docs.rs/bissel/badge.svg)](https://docs.rs/bissel) ![CI](https://github.com/quietlychris/bissel/actions/workflows/rust.yml/badge.svg)
-# bissel
-
-`bissel` is an experimental robotics-focused middleware for embedded Linux. It is built with a high preference for catching errors at compile-time over runtime and a focus on developer ergonomics. 
-
-```rust
 use bissel::*;
 use serde::{Deserialize, Serialize};
 
@@ -63,32 +57,3 @@ fn main() -> Result<(), bissel::Error> {
     host.stop()?;
     Ok(())
 }
-```
-
-## Messaging Patterns 
-
-Bissel is more similar to [ZeroMQ](https://zguide.zeromq.org/docs/chapter1/) than to higher-level frameworks like [ROS/2](https://design.ros2.org/articles/discovery_and_negotiation.html), but uses central coordination process similar to [MOOS-IvP](https://oceanai.mit.edu/ivpman/pmwiki/pmwiki.php?n=Helm.HelmDesignIntro#section2.4), resulting in a star-shaped network topology. 
-
-Bissel currently supports the following messaging patterns:
-
-| Protocol | Publish   | Request    | Subscribe |
-|----------|-----------|------------|-----------|
-| TCP      | **X**     | **X**      | **X**     |
-| UDP      | **X**     |            |           |
-
-
-## Key Dependencies
-Under the hood, `bissel` relies on:
-* [`sled`](https://github.com/spacejam/sled): High-performance embedded, thread-safe database 
-* [`tokio`](https://tokio.rs): Asynchronous runtime, enabling a large number of simultaneous connections
-* [`postcard`](https://github.com/jamesmunns/postcard): Efficient `#![no_std]`-compatible, [serde](https://serde.rs/)-based de/serializer designed for embedded or constrained environments 
-
-## Benchmarks
-Preliminary benchmark data is showing round-trip message times (publish-request-reply) on `locahost` using the `--release`
-compilation profile, on the README's `Coordinate` data (strongly-typed, 8 bytes) to be ~100 microseconds.
-
-Additional benchmarking information can be found using `cargo run --release --example benchmark`. 
-
-## License
-
-This library is licensed under the Mozilla Public License, version 2.0 (MPL-2.0)

@@ -152,7 +152,7 @@ impl Host {
                 self.store = None;
                 Ok(())
             }
-            Err(_) => return Err(crate::Error::LockFailure),
+            Err(_) => Err(crate::Error::LockFailure),
         }
     }
 
