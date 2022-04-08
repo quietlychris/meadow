@@ -15,6 +15,7 @@ name = "bissel"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
+exclude = ["benchmarks"]
 members = ["tools/ci"]
 
 [dependencies]

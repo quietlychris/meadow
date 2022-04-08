@@ -90,8 +90,10 @@ pub async fn try_connection(host_addr: SocketAddr) -> Result<TcpStream, Error> {
         }
     }
 
-    let stream = stream.unwrap();
-    Ok(stream)
+    match stream {
+        Some(stream) => Ok(stream),
+        None => Err(Error::StreamConnection),
+    }
 }
 
 /// Run the initial Node <=> Host connection handshake
