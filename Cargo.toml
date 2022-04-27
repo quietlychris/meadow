@@ -1,7 +1,7 @@
 [package]
 name = "bissel"
 version = "0.2.0"
-description = "Robotics-focused publish-subscribe/request-reply middleware for embedded Linux"
+description = "Robotics-focused middleware for embedded Linux"
 authors = ["Christopher Moran <christopher.and.moran@gmail.com>"]
 edition = "2018"
 license = "MPL-2.0"
@@ -39,4 +39,3 @@ tracing-appender = "0.2.0"
 rand = "0.8"
 # Make tokio macro available
 tokio = { version = "1.16.1", features = ["macros", "signal"] }
-
