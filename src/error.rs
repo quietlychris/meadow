@@ -34,6 +34,8 @@ pub enum Error {
     UdpSend,
     // `TcpStream` connection attempt failure
     StreamConnection,
+    // Error during Host <=> Node handshake
+    Handshake,
 }
 
 impl std::error::Error for Error {
@@ -54,6 +56,7 @@ impl std::error::Error for Error {
             BadResponse => None,
             UdpSend => None,
             StreamConnection => None,
+            Handshake => None,
         }
     }
 }
@@ -79,6 +82,7 @@ impl Display for Error {
                 BadResponse => "Node received bad response from Host",
                 UdpSend => "Error sending packet from UdpSocket",
                 StreamConnection => "Error creating TcpStream",
+                Handshake => "Error during Host <=> Node handshake",
             }
         )
     }

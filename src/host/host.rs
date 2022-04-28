@@ -106,12 +106,16 @@ impl Host {
                     loop {
                         let (stream, stream_addr) = listener.accept().await.unwrap();
                         // TO_DO: The handshake function is not always happy
-                        let (stream, name) = crate::host::tcp::handshake(
+                        let (stream, name) = match crate::host::tcp::handshake(
                             stream,
                             max_buffer_size_tcp,
                             max_name_size_tcp,
                         )
-                        .await;
+                        .await
+                        {
+                            Ok((stream, name)) => (stream, name),
+                            Err(_e) => continue,
+                        };
                         info!("Host received connection from {:?}", &name);
 
                         let db = db.clone();

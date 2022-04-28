@@ -11,6 +11,7 @@ use std::sync::Arc;
 // Misc other imports
 
 use crate::*;
+use std::result::Result;
 
 /// Initiate a TCP connection with a Node
 #[inline]
@@ -19,7 +20,7 @@ pub async fn handshake(
     stream: TcpStream,
     max_buffer_size: usize,
     max_name_size: usize,
-) -> (TcpStream, String) {
+) -> Result<(TcpStream, String), crate::Error> {
     // Handshake
     let mut buf = vec![0u8; max_buffer_size];
     info!("Starting handshake");
@@ -42,7 +43,8 @@ pub async fn handshake(
                         //panic!("{}",emsg);
 
                         // println!("Error during handshake (Host-side): {:?}", e);
-                        "HOST_CONNECTION_ERROR".to_owned()
+                        // "HOST_CONNECTION_ERROR".to_owned()
+                        return Err(crate::Error::Handshake);
                     }
                 };
                 break;
@@ -52,7 +54,9 @@ pub async fn handshake(
                     count += 1;
                     if count > 20 {
                         error!("Host Handshake not unblocking!");
-                        panic!("Stream won't unblock");
+                        // TO_DO: The Host should never panic
+                        // panic!("Stream won't unblock");
+                        return Err(crate::Error::Handshake);
                     }
                 } else {
                     error!("{:?}", e);
@@ -62,7 +66,7 @@ pub async fn handshake(
         }
     }
     info!("Returning from handshake: ({:?}, {})", &stream, &_name);
-    (stream, _name)
+    Ok((stream, _name))
 }
 
 /// Host process for handling incoming connections from Nodes
@@ -97,12 +101,12 @@ pub async fn process_tcp(
                     MsgType::SET => {
                         // println!("received {} bytes, to be assigned to: {}", n, &msg.name);
                         let db_result = match db.insert(msg.topic.as_bytes(), bytes) {
-                            Ok(_prev_msg) => "SUCCESS".to_string(),
-                            Err(e) => e.to_string(),
+                            Ok(_prev_msg) => HostOperation::Success, //"SUCCESS".to_string(),
+                            Err(_e) => HostOperation::SetFailure,
                         };
 
                         loop {
-                            match stream.try_write(db_result.as_bytes()) {
+                            match stream.try_write(&db_result.as_bytes()) {
                                 Ok(_n) => {
                                     // println!("Successfully replied with {} bytes", n);
                                     let mut count = count.lock().await; //.unwrap();
@@ -157,5 +161,20 @@ pub async fn process_tcp(
                 error!("Error: {:?}", e);
             }
         }
+    }
+}
+
+use serde::*;
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum HostOperation {
+    Success,
+    SetFailure,
+    GetFailure,
+    ConnectionError,
+}
+
+impl HostOperation {
+    fn as_bytes(&self) -> Vec<u8> {
+        postcard::to_allocvec(&self).unwrap()
     }
 }
