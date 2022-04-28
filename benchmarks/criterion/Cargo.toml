@@ -14,4 +14,5 @@ harness = false
 
 [dependencies]
 criterion = "0.3.0"
+rand = "0.8"
 bissel = { path = "../.." }
