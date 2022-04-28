@@ -38,12 +38,6 @@ pub async fn handshake(
                     }
                     Err(e) => {
                         error!("Error occurred during handshake on host-side: {} on byte string: {:?}, which in hex is: {:x}", e,&buf[..n],&buf[..n].as_hex());
-
-                        //let emsg = format!("Error parsing the following bytes: {:?}",&buf[..n]);
-                        //panic!("{}",emsg);
-
-                        // println!("Error during handshake (Host-side): {:?}", e);
-                        // "HOST_CONNECTION_ERROR".to_owned()
                         return Err(crate::Error::Handshake);
                     }
                 };
@@ -54,13 +48,10 @@ pub async fn handshake(
                     count += 1;
                     if count > 20 {
                         error!("Host Handshake not unblocking!");
-                        // TO_DO: The Host should never panic
-                        // panic!("Stream won't unblock");
                         return Err(crate::Error::Handshake);
                     }
                 } else {
                     error!("{:?}", e);
-                    // println!("Error: {:?}", e);
                 }
             }
         }
@@ -95,7 +86,6 @@ pub async fn process_tcp(
                         panic!("{}", e);
                     }
                 };
-                // dbg!(&msg);
 
                 match msg.msg_type {
                     MsgType::SET => {
@@ -108,7 +98,6 @@ pub async fn process_tcp(
                         loop {
                             match stream.try_write(&db_result.as_bytes()) {
                                 Ok(_n) => {
-                                    // println!("Successfully replied with {} bytes", n);
                                     let mut count = count.lock().await; //.unwrap();
                                     *count += 1;
                                     break;
@@ -139,7 +128,6 @@ pub async fn process_tcp(
 
                         match stream.try_write(&return_bytes) {
                             Ok(_n) => {
-                                // println!("Successfully replied with {} bytes", n);
                                 let mut count = count.lock().await; //.unwrap();
                                 *count += 1;
                                 break;
@@ -157,7 +145,6 @@ pub async fn process_tcp(
                 continue;
             }
             Err(e) => {
-                // println!("Error: {:?}", e);
                 error!("Error: {:?}", e);
             }
         }
