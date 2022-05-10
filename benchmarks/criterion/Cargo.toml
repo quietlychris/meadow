@@ -7,7 +7,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [[bench]]
-name = "bissel"
+name = "meadow"
 harness = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -15,4 +15,4 @@ harness = false
 [dependencies]
 criterion = "0.3.0"
 rand = "0.8"
-bissel = { path = "../.." }
+meadow = { path = "../.." }

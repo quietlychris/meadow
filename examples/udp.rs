@@ -1,8 +1,8 @@
-use bissel::*;
+use meadow::*;
 use std::thread;
 use std::time::Duration;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), meadow::Error> {
     let mut host = HostConfig::default()
         .with_sled_config(SledConfig::default().path("store").temporary(true))
         // .with_tcp_config(Some(TcpConfig::default("wlp3s0")))

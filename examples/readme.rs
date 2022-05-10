@@ -1,7 +1,7 @@
-use bissel::*;
+use meadow::*;
 use serde::{Deserialize, Serialize};
 
-// Any type implementing Debug and serde's De/Serialize traits are Bissel-compatible
+// Any type implementing Debug and serde's De/Serialize traits are meadow-compatible
 // (the standard library Debug and Clone traits are also required)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Coordinate {
@@ -9,7 +9,7 @@ struct Coordinate {
     y: f32,
 }
 
-fn main() -> Result<(), bissel::Error> {
+fn main() -> Result<(), meadow::Error> {
     // The Host is running on localhost, but any network interface such as WiFi
     // or Ethernet are available as well
     let mut host: Host = HostConfig::default().build()?;
@@ -22,7 +22,7 @@ fn main() -> Result<(), bissel::Error> {
         .topic("position")
         .with_tcp_config(node::TcpConfig::default().set_host_addr(addr))
         .build()?;
-    // Bissel Nodes use strict typestates; without using the activate() method first,
+    // meadow Nodes use strict typestates; without using the activate() method first,
     // the compiler won't let allow publish() or request() methods on an Idle Node
     let node: Node<Active, Coordinate> = node.activate()?;
 

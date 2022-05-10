@@ -1,10 +1,10 @@
-use bissel::*;
+use meadow::*;
 use tracing::*;
 
 use std::thread;
 use std::time::Duration;
 
-fn main() -> Result<(), bissel::Error> {
+fn main() -> Result<(), meadow::Error> {
     // Set up logging
     let file_appender = tracing_appender::rolling::hourly("logs/", "example");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
@@ -19,7 +19,7 @@ fn main() -> Result<(), bissel::Error> {
     let node = node.activate()?;
     info!("Node should now be connected");
     println!(
-        "The size of an active bissel Node is: {}",
+        "The size of an active meadow Node is: {}",
         std::mem::size_of_val(&node)
     );
 
@@ -44,7 +44,7 @@ fn main() -> Result<(), bissel::Error> {
     }
 
     println!(
-        "The size of an a bissel Host before shutdown is: {}",
+        "The size of an a meadow Host before shutdown is: {}",
         std::mem::size_of_val(&host)
     );
     host.stop()?;

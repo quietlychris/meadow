@@ -1,8 +1,8 @@
-use bissel::*;
+use meadow::*;
 use criterion::{criterion_group, criterion_main};
 use rand::prelude::*;
 
-fn bissel_instantiation(c: &mut criterion::Criterion) {
+fn meadow_instantiation(c: &mut criterion::Criterion) {
     c.bench_function("create_host", |b| {
         b.iter(|| {
             let mut host = HostConfig::default().build().unwrap();
@@ -62,7 +62,7 @@ fn message_sending(c: &mut criterion::Criterion) {
     c.bench_function("tcp_publish_request_f32", |b| {
         // Open a Host
 
-        let (host, tx, rx) = create_bissel_triple();
+        let (host, tx, rx) = create_meadow_triple();
         let val = 1.0;
         b.iter(|| {
             tx.publish_udp(val).unwrap();
@@ -111,11 +111,11 @@ fn message_sending(c: &mut criterion::Criterion) {
     }
 }
 
-criterion_group!(benches, bissel_instantiation, message_sending);
+criterion_group!(benches, meadow_instantiation, message_sending);
 criterion_main!(benches);
 
 /// Helper function for creating a simple network
-fn create_bissel_triple() -> (Host, Node<Active, f32>, Node<Active, f32>) {
+fn create_meadow_triple() -> (Host, Node<Active, f32>, Node<Active, f32>) {
     let mut host = HostConfig::default().build().unwrap();
     host.start().unwrap();
     // Create and activate a Node

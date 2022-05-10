@@ -1,7 +1,7 @@
-use bissel::*;
+use meadow::*;
 use std::time::Duration;
 
-fn main() -> Result<(), bissel::Error> {
+fn main() -> Result<(), meadow::Error> {
     // Set up logging
     start_logging();
 

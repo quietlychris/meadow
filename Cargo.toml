@@ -1,16 +1,16 @@
 [package]
-name = "bissel"
+name = "meadow"
 version = "0.2.0"
 description = "Robotics-focused middleware for embedded Linux"
 authors = ["Christopher Moran <christopher.and.moran@gmail.com>"]
 edition = "2018"
 license = "MPL-2.0"
-repository = "https://github.com/quietlychris/bissel"
+repository = "https://github.com/quietlychris/meadow"
 keywords = ["robotics", "middleware", "autonomy"]
 categories = ["science::robotics", "network-programming"]
 
 [lib]
-name = "bissel"
+name = "meadow"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

@@ -1,11 +1,10 @@
-use bissel::*;
+use meadow::*;
 
-use std::error::Error;
 use std::thread;
 use std::time::Duration;
 
 const LABELS: usize = 36;
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), meadow::Error> {
     // Set up logging
     start_logging();
 
