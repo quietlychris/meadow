@@ -2,7 +2,7 @@
 
 use core::fmt::{Display, Formatter};
 
-/// This is the error type used by Bissel
+/// This is the error type used by meadow
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "use-defmt", derive(defmt::Format))]
 pub enum Error {
@@ -88,5 +88,5 @@ impl Display for Error {
     }
 }
 
-/// This is the Result type used by Bissel.
+/// This is the Result type used by meadow.
 pub type Result<T> = ::core::result::Result<T, Error>;

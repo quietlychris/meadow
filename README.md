@@ -1,13 +1,13 @@
-[![crates.io](https://img.shields.io/crates/v/bissel.svg)](https://crates.io/crates/bissel) [![Documentation](https://docs.rs/bissel/badge.svg)](https://docs.rs/bissel) ![CI](https://github.com/quietlychris/bissel/actions/workflows/rust.yml/badge.svg)
-# bissel
+[![crates.io](https://img.shields.io/crates/v/meadow.svg)](https://crates.io/crates/meadow) [![Documentation](https://docs.rs/meadow/badge.svg)](https://docs.rs/meadow) ![CI](https://github.com/quietlychris/meadow/actions/workflows/rust.yml/badge.svg)
+# Meadow
 
-`bissel` is an experimental robotics-focused middleware for embedded Linux. It is built with a high preference for catching errors at compile-time over runtime and a focus on developer ergonomics. 
+`meadow` is an experimental robotics-focused middleware for embedded Linux. It is built with a high preference for catching errors at compile-time over runtime and a focus on developer ergonomics. 
 
 ```rust
-use bissel::*;
+use meadow::*;
 use serde::{Deserialize, Serialize};
 
-// Any type implementing Debug and serde's De/Serialize traits are Bissel-compatible
+// Any type implementing Debug and serde's De/Serialize traits are meadow-compatible
 // (the standard library Debug and Clone traits are also required)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Coordinate {
@@ -15,7 +15,7 @@ struct Coordinate {
     y: f32,
 }
 
-fn main() -> Result<(), bissel::Error> {
+fn main() -> Result<(), meadow::Error> {
     // The Host is running on localhost, but any network interface such as WiFi
     // or Ethernet are available as well
     let mut host: Host = HostConfig::default().build()?;
@@ -28,7 +28,7 @@ fn main() -> Result<(), bissel::Error> {
         .topic("position")
         .with_tcp_config(node::TcpConfig::default().set_host_addr(addr))
         .build()?;
-    // Bissel Nodes use strict typestates; without using the activate() method first,
+    // Meadow Nodes use strict typestates; without using the activate() method first,
     // the compiler won't let allow publish() or request() methods on an Idle Node
     let node: Node<Active, Coordinate> = node.activate()?;
 
@@ -67,9 +67,9 @@ fn main() -> Result<(), bissel::Error> {
 
 ## Messaging Patterns 
 
-Bissel is more similar to [ZeroMQ](https://zguide.zeromq.org/docs/chapter1/) than to higher-level frameworks like [ROS/2](https://design.ros2.org/articles/discovery_and_negotiation.html), but uses central coordination process similar to [MOOS-IvP](https://oceanai.mit.edu/ivpman/pmwiki/pmwiki.php?n=Helm.HelmDesignIntro#section2.4), resulting in a star-shaped network topology. 
+Meadow is more similar to [ZeroMQ](https://zguide.zeromq.org/docs/chapter1/) than to higher-level frameworks like [ROS/2](https://design.ros2.org/articles/discovery_and_negotiation.html), but uses central coordination process similar to [MOOS-IvP](https://oceanai.mit.edu/ivpman/pmwiki/pmwiki.php?n=Helm.HelmDesignIntro#section2.4), resulting in a star-shaped network topology. 
 
-Bissel currently supports the following messaging patterns:
+meadow currently supports the following messaging patterns:
 
 | Protocol | Publish   | Request    | Subscribe |
 |----------|-----------|------------|-----------|
@@ -78,7 +78,7 @@ Bissel currently supports the following messaging patterns:
 
 
 ## Key Dependencies
-Under the hood, `bissel` relies on:
+Under the hood, `meadow` relies on:
 * [`sled`](https://github.com/spacejam/sled): High-performance embedded, thread-safe database 
 * [`tokio`](https://tokio.rs): Asynchronous runtime, enabling a large number of simultaneous connections
 * [`postcard`](https://github.com/jamesmunns/postcard): Efficient `#![no_std]`-compatible, [serde](https://serde.rs/)-based de/serializer designed for embedded or constrained environments 
@@ -88,6 +88,11 @@ Preliminary benchmark data is showing round-trip message times (publish-request-
 compilation profile, on the README's `Coordinate` data (strongly-typed, 8 bytes) to be ~100 microseconds.
 
 Additional benchmarking information can be found using `cargo run --release --example benchmark`. 
+
+## Additional Resources
+The following projects are built with Meadow:
+- [Tutlesim](https://github.com/quietlychris/turtlesim): Simple 2D autonomy simulator
+- [Orientation](https://github.com/quietlychris/orientation): Real-time 3D orientation visualization of a BNO055 IMU using Meadow and Bevy
 
 ## License
 

@@ -36,7 +36,7 @@ use crate::msg::*;
 use crate::Error;
 
 use std::fmt::Debug;
-/// Trait for Bissel-compatible data, requiring serde De\Serialize, Debug, and Clone
+/// Trait for Meadow-compatible data, requiring serde De\Serialize, Debug, and Clone
 pub trait Message: Serialize + DeserializeOwned + Debug + Sync + Send + Clone {}
 impl<T> Message for T where T: Serialize + DeserializeOwned + Debug + Sync + Send + Clone {}
 
@@ -50,7 +50,7 @@ pub struct Active;
 #[derive(Debug)]
 pub struct Subscription;
 
-/// Composite data comprised of Bissel-compatible data and a String timestamp
+/// Composite data comprised of Meadow-compatible data and a String timestamp
 #[derive(Debug, Clone)]
 pub struct SubscriptionData<T: Message> {
     pub data: T,
