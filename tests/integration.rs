@@ -60,6 +60,41 @@ fn request_non_existent_topic() {
 }
 
 #[test]
+fn node_send_options() {
+    let mut host: Host = HostConfig::default().build().unwrap();
+    host.start().unwrap();
+    println!("Host should be running in the background");
+
+    // Get the host up and running
+    let node_a = NodeConfig::<Option<f32>>::new("OptionTx")
+        .topic("pose")
+        .build()
+        .unwrap()
+        .activate()
+        .unwrap();
+    let node_b = NodeConfig::<Option<f32>>::new("OptionTx")
+        .topic("pose")
+        .build()
+        .unwrap()
+        .activate()
+        .unwrap();
+
+    // Send Option with `Some(value)`
+    node_a.publish(Some(1.0)).unwrap();
+    let result = node_b.request().unwrap();
+    dbg!(&result);
+    assert_eq!(result.unwrap(), 1.0);
+
+    // Send option with `None`
+    node_a.publish(None).unwrap();
+    let result = node_b.request();
+    dbg!(&result);
+    assert_eq!(result.unwrap(), None);
+
+    host.stop().unwrap();
+}
+
+#[test]
 fn publish_boolean() {
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
