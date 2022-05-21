@@ -81,11 +81,15 @@ fn node_send_options() {
 
     // Send Option with `Some(value)`
     node_a.publish(Some(1.0)).unwrap();
-    assert_eq!(node_b.request().unwrap().unwrap(), 1.0);
+    let result = node_b.request().unwrap();
+    dbg!(&result);
+    assert_eq!(result.unwrap(), 1.0);
 
     // Send option with `None`
     node_a.publish(None).unwrap();
-    assert_eq!(node_b.request().unwrap(), None);
+    let result = node_b.request();
+    dbg!(&result);
+    assert_eq!(result.unwrap(), None);
 
     host.stop().unwrap();
 }
