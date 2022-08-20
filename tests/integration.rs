@@ -169,5 +169,6 @@ fn no_subscribed_value() {
         .subscribe(Duration::from_millis(100))
         .unwrap();
 
+    // Unwrapping on an error should lead to panic
     let _result: usize = reader.get_subscribed_data().unwrap();
 }

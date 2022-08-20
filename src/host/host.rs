@@ -57,8 +57,6 @@ impl Host {
         match &self.cfg.udp_cfg {
             None => (),
             Some(udp_cfg) => {
-                // let ip = crate::get_ip(&udp_cfg.interface)?;
-
                 let ip = match crate::get_ip(&udp_cfg.interface) {
                     Ok(ip) => ip,
                     Err(_e) => return Err(Error::InvalidInterface),
@@ -92,6 +90,7 @@ impl Host {
                     Ok(ip) => ip,
                     Err(_e) => return Err(Error::InvalidInterface),
                 };
+                // TO_DO: This should probably be several parsing steps for IP, socket_num, and SocketAddr
                 let raw_addr = ip + ":" + &tcp_cfg.socket_num.to_string();
                 let addr: SocketAddr = match raw_addr.parse() {
                     Ok(addr) => addr,

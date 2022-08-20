@@ -5,8 +5,8 @@ use std::time::Duration;
 fn main() -> Result<(), meadow::Error> {
     let mut host = HostConfig::default()
         .with_sled_config(SledConfig::default().path("store").temporary(true))
-        // .with_tcp_config(Some(TcpConfig::default("wlp3s0")))
-        .with_udp_config(Some(host::UdpConfig::default("lo")))
+        .with_tcp_config(None)
+        .with_udp_config(Some(host::NetworkConfig::default("lo")))
         .build()?;
     host.start()?;
 
