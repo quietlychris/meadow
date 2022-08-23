@@ -12,7 +12,7 @@ fn main() -> Result<(), meadow::Error> {
 
     let node_thread = thread::spawn(|| {
         let udp_socket = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-        let udp_cfg: node::UdpConfig = node::UdpConfig::new(udp_socket);
+        let udp_cfg: node::UdpConfig = node::UdpConfig::default().set_host_addr(udp_socket);
         let node = NodeConfig::new("SENDER")
             .with_udp_config(udp_cfg)
             .topic("num")

@@ -1,5 +1,5 @@
 /// Configuration for network interfaces
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct NetworkConfig {
     pub interface: String,
     pub socket_num: u16,
@@ -8,7 +8,7 @@ pub struct NetworkConfig {
 }
 
 impl NetworkConfig {
-    // Create a default config for specified network interface on port 25_000 
+    // Create a default config for specified network interface on port `25_000`
     pub fn default(interface: impl Into<String>) -> Self {
         NetworkConfig {
             interface: interface.into(),
@@ -37,7 +37,7 @@ impl NetworkConfig {
     }
 }
 
-/// Strongly-typed alias of NetworkConfig for TCP configuration
+/// Strongly-typed alias of `NetworkConfig` for TCP configuration
 pub use NetworkConfig as TcpConfig;
-/// Strongly-typed alias of NetworkConfig for UDP configuration
+/// Strongly-typed alias of `NetworkConfig` for UDP configuration
 pub use NetworkConfig as UdpConfig;
