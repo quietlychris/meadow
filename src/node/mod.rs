@@ -1,16 +1,14 @@
 mod active;
 mod config;
 mod idle;
+mod network_config;
 mod subscription;
-mod tcp_config;
-mod udp_config;
 
 pub use crate::node::active::*;
 pub use crate::node::config::*;
 pub use crate::node::idle::*;
+pub use crate::node::network_config::*;
 pub use crate::node::subscription::*;
-pub use crate::node::tcp_config::TcpConfig;
-pub use crate::node::udp_config::UdpConfig;
 
 extern crate alloc;
 
@@ -34,6 +32,7 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use crate::msg::*;
 use crate::Error;
+use chrono::{DateTime, Utc};
 
 use std::fmt::Debug;
 /// Trait for Meadow-compatible data, requiring serde De\Serialize, Debug, and Clone
@@ -54,7 +53,7 @@ pub struct Subscription;
 #[derive(Debug, Clone)]
 pub struct SubscriptionData<T: Message> {
     pub data: T,
-    pub timestamp: String,
+    pub timestamp: DateTime<Utc>,
 }
 
 /// A named, strongly-typed Node capable of publish/request on Host
@@ -148,11 +147,9 @@ pub async fn send_msg(stream: &mut &TcpStream, packet_as_bytes: Vec<u8>) -> Resu
 /// Set Node to wait for `GenericMsg` response from Host, with data to be deserialized into Node's <T>-type
 pub async fn await_response<T: Message>(
     stream: &mut &TcpStream,
-    max_buffer_size: usize, // TO_DO: This should be configurable
+    max_buffer_size: usize,
 ) -> Result<GenericMsg, postcard::Error> {
     // Read the requested data into a buffer
-    // let mut buf = [0u8; 4096];
-    // let mut buf = Vec::with_capacity(10_000);
     let mut buf = vec![0u8; max_buffer_size];
     loop {
         stream.readable().await.unwrap();

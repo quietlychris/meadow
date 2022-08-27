@@ -37,13 +37,13 @@ impl HostConfig {
     }
 
     /// Assign a configuration to the Host `TcpListener`
-    pub fn with_tcp_config(mut self, tcp_cfg: Option<host::TcpConfig>) -> HostConfig {
+    pub fn with_tcp_config(mut self, tcp_cfg: Option<host::NetworkConfig>) -> HostConfig {
         self.tcp_cfg = tcp_cfg;
         self
     }
 
     /// Assign a configuration to the Host `UdpSocket`
-    pub fn with_udp_config(mut self, udp_cfg: Option<host::UdpConfig>) -> HostConfig {
+    pub fn with_udp_config(mut self, udp_cfg: Option<host::NetworkConfig>) -> HostConfig {
         self.udp_cfg = udp_cfg;
         self
     }

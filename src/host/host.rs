@@ -7,7 +7,6 @@ use tokio::task::JoinHandle;
 // Tracing for logging
 use tracing::*;
 // Multi-threading primitives
-use std::ops::Deref;
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 // Misc other imports
@@ -57,8 +56,6 @@ impl Host {
         match &self.cfg.udp_cfg {
             None => (),
             Some(udp_cfg) => {
-                // let ip = crate::get_ip(&udp_cfg.interface)?;
-
                 let ip = match crate::get_ip(&udp_cfg.interface) {
                     Ok(ip) => ip,
                     Err(_e) => return Err(Error::InvalidInterface),
@@ -92,6 +89,7 @@ impl Host {
                     Ok(ip) => ip,
                     Err(_e) => return Err(Error::InvalidInterface),
                 };
+                // TO_DO: This should probably be several parsing steps for IP, socket_num, and SocketAddr
                 let raw_addr = ip + ":" + &tcp_cfg.socket_num.to_string();
                 let addr: SocketAddr = match raw_addr.parse() {
                     Ok(addr) => addr,
@@ -149,7 +147,7 @@ impl Host {
     pub fn stop(mut self) -> Result<(), crate::Error> {
         match self.connections.lock() {
             Ok(connections) => {
-                for conn in connections.deref() {
+                for conn in &*connections {
                     info!("Aborting connection: {}", conn.name);
                     conn.handle.abort();
                 }
@@ -166,7 +164,7 @@ impl Host {
         println!("Connections:");
         match self.connections.lock() {
             Ok(connections) => {
-                for conn in connections.deref() {
+                for conn in &*connections {
                     let name = conn.name.clone();
                     println!("\t- {}:{}", name, &conn.stream_addr);
                 }

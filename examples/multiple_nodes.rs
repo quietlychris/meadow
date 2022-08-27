@@ -1,7 +1,15 @@
 use meadow::*;
+use serde::*;
 
 use std::thread;
 use std::time::Duration;
+
+/// Example test struct for docs and tests
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+struct Pose {
+    pub x: f32,
+    pub y: f32,
+}
 
 const LABELS: usize = 36;
 fn main() -> Result<(), meadow::Error> {
