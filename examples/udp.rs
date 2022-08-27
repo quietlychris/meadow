@@ -5,12 +5,14 @@ use std::time::Duration;
 fn main() -> Result<(), meadow::Error> {
     let mut host = HostConfig::default()
         .with_sled_config(SledConfig::default().path("store").temporary(true))
-        .with_tcp_config(None)
+        // .with_tcp_config(None)
         .with_udp_config(Some(host::NetworkConfig::default("lo")))
         .build()?;
     host.start()?;
+    println!("Started host");
 
     let node_thread = thread::spawn(|| {
+        println!("Hello!");
         let udp_socket = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
         let udp_cfg: node::UdpConfig = node::UdpConfig::default().set_host_addr(udp_socket);
         let node = NodeConfig::new("SENDER")

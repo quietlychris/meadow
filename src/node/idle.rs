@@ -60,11 +60,24 @@ impl<T: Message + 'static> Node<Idle, T> {
         let topic = self.topic.clone();
 
         let stream = self.runtime.block_on(async move {
-            let stream = try_connection(addr).await.unwrap();
-            let stream = handshake(stream, topic).await.unwrap();
-            stream
+            match try_connection(addr).await {
+                Ok(stream) => match handshake(stream, topic).await {
+                    Ok(stream) => Ok(stream),
+                    Err(e) => {
+                        error!("{:?}", e);
+                        Err(Error::Handshake)
+                    }
+                },
+                Err(e) => {
+                    error!("{:?}", e);
+                    Err(Error::StreamConnection)
+                }
+            }
         });
-        self.stream = Some(stream);
+        match stream {
+            Ok(stream) => self.stream = Some(stream),
+            Err(e) => return Err(e),
+        };
 
         match self.runtime.block_on(async move {
             match UdpSocket::bind("127.0.0.1:0").await {
