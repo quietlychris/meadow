@@ -1,9 +1,31 @@
 #![allow(unused_variables)]
 
 use core::fmt::{Display, Formatter};
+use serde::*;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Boop {
+    Snoot,
+    Groot,
+    Foot,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum HostOperation {
+    Success,
+    SetFailure,
+    GetFailure,
+    ConnectionError,
+}
+
+impl HostOperation {
+    pub fn as_bytes(&self) -> Vec<u8> {
+        postcard::to_allocvec(&self).unwrap()
+    }
+}
 
 /// This is the error type used by meadow
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "use-defmt", derive(defmt::Format))]
 pub enum Error {
     // No subscription value exists
@@ -36,6 +58,8 @@ pub enum Error {
     StreamConnection,
     // Error during Host <=> Node handshake
     Handshake,
+    // Result of Host-side message operation
+    HostOperation(crate::error::HostOperation),
 }
 
 impl std::error::Error for Error {
@@ -57,6 +81,10 @@ impl std::error::Error for Error {
             UdpSend => None,
             StreamConnection => None,
             Handshake => None,
+            HostOperation(crate::error::HostOperation::Success) => None,
+            HostOperation(crate::error::HostOperation::SetFailure) => None,
+            HostOperation(crate::error::HostOperation::GetFailure) => None,
+            HostOperation(crate::error::HostOperation::ConnectionError) => None,
         }
     }
 }
@@ -83,8 +111,22 @@ impl Display for Error {
                 UdpSend => "Error sending packet from UdpSocket",
                 StreamConnection => "Error creating TcpStream",
                 Handshake => "Error during Host <=> Node handshake",
+                HostOperation(crate::error::HostOperation::Success) =>
+                    "Success Host-side operation",
+                HostOperation(crate::error::HostOperation::SetFailure) =>
+                    "Unsuccessful Host-side SET operation",
+                HostOperation(crate::error::HostOperation::GetFailure) =>
+                    "Unsuccessful Host-side SET operation",
+                HostOperation(crate::error::HostOperation::ConnectionError) =>
+                    "Unsuccessful Host connection",
             }
         )
+    }
+}
+
+impl Error {
+    pub fn as_bytes(&self) -> Vec<u8> {
+        postcard::to_allocvec(&self).unwrap()
     }
 }
 

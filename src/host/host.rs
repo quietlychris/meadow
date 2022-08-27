@@ -7,7 +7,6 @@ use tokio::task::JoinHandle;
 // Tracing for logging
 use tracing::*;
 // Multi-threading primitives
-use std::ops::Deref;
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 // Misc other imports
@@ -148,7 +147,7 @@ impl Host {
     pub fn stop(mut self) -> Result<(), crate::Error> {
         match self.connections.lock() {
             Ok(connections) => {
-                for conn in connections.deref() {
+                for conn in &*connections {
                     info!("Aborting connection: {}", conn.name);
                     conn.handle.abort();
                 }
@@ -165,7 +164,7 @@ impl Host {
         println!("Connections:");
         match self.connections.lock() {
             Ok(connections) => {
-                for conn in connections.deref() {
+                for conn in &*connections {
                     let name = conn.name.clone();
                     println!("\t- {}:{}", name, &conn.stream_addr);
                 }

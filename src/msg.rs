@@ -40,17 +40,3 @@ pub struct Request {
     pub ip: String,
     pub type_info: String,
 }
-
-/// Example test struct for docs and tests
-#[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
-#[repr(C)]
-pub struct Pose {
-    pub x: f32,
-    pub y: f32,
-}
-
-/// Example test struct for docs and tests, incompatible with Pose
-#[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq)]
-pub struct NotPose {
-    a: isize,
-}

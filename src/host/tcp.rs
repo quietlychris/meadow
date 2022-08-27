@@ -10,6 +10,7 @@ use postcard::*;
 use std::sync::Arc;
 // Misc other imports
 
+use crate::error::{Error, HostOperation};
 use crate::*;
 use std::result::Result;
 
@@ -91,8 +92,8 @@ pub async fn process_tcp(
                     MsgType::SET => {
                         // println!("received {} bytes, to be assigned to: {}", n, &msg.name);
                         let db_result = match db.insert(msg.topic.as_bytes(), bytes) {
-                            Ok(_prev_msg) => HostOperation::Success, //"SUCCESS".to_string(),
-                            Err(_e) => HostOperation::SetFailure,
+                            Ok(_prev_msg) => Error::HostOperation(HostOperation::Success), //"SUCCESS".to_string(),
+                            Err(_e) => Error::HostOperation(HostOperation::SetFailure),
                         };
 
                         loop {
@@ -148,20 +149,5 @@ pub async fn process_tcp(
                 error!("Error: {:?}", e);
             }
         }
-    }
-}
-
-use serde::*;
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub enum HostOperation {
-    Success,
-    SetFailure,
-    GetFailure,
-    ConnectionError,
-}
-
-impl HostOperation {
-    fn as_bytes(&self) -> Vec<u8> {
-        postcard::to_allocvec(&self).unwrap()
     }
 }

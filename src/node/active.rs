@@ -51,11 +51,16 @@ impl<T: Message + 'static> Node<Active, T> {
                     Ok(n) => {
                         let bytes = &buf[..n];
                         // TO_DO: This error handling is not great
-                        // There should be some kind of check on the Host-sent KV-storage ack message
-                        // This ack message should be a Result/Option for success/failure, not the
-                        // String that is currently used
-                        let _msg = if let Ok(_msg) = std::str::from_utf8(bytes) {
-                            // dbg!(msg.to_string());
+                        match from_bytes::<Error>(bytes) {
+                            Err(e) => {
+                                error!("{:?}", e);
+                            }
+                            Ok(e) => match e {
+                                Error::HostOperation(error::HostOperation::Success) => (),
+                                _ => {
+                                    error!("{:?}", e);
+                                }
+                            },
                         };
 
                         break;
