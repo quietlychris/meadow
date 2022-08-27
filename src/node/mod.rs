@@ -32,6 +32,7 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use crate::msg::*;
 use crate::Error;
+use chrono::{DateTime, Utc};
 
 use std::fmt::Debug;
 /// Trait for Meadow-compatible data, requiring serde De\Serialize, Debug, and Clone
@@ -52,7 +53,7 @@ pub struct Subscription;
 #[derive(Debug, Clone)]
 pub struct SubscriptionData<T: Message> {
     pub data: T,
-    pub timestamp: String,
+    pub timestamp: DateTime<Utc>,
 }
 
 /// A named, strongly-typed Node capable of publish/request on Host

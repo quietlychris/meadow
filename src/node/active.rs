@@ -20,7 +20,7 @@ impl<T: Message + 'static> Node<Active, T> {
         // println!("Number of bytes in data for {:?} is {}",std::any::type_name::<M>(),val_vec.len());
         let packet = GenericMsg {
             msg_type: MsgType::SET,
-            timestamp: Utc::now().to_string(),
+            timestamp: Utc::now(),
             name: self.name.to_string(),
             topic: self.topic.to_string(),
             data_type: std::any::type_name::<T>().to_string(),
@@ -80,7 +80,7 @@ impl<T: Message + 'static> Node<Active, T> {
 
         let packet = GenericMsg {
             msg_type: MsgType::SET,
-            timestamp: Utc::now().to_string(),
+            timestamp: Utc::now(),
             name: self.name.to_string(),
             topic: self.topic.to_string(),
             data_type: std::any::type_name::<T>().to_string(),
@@ -103,7 +103,10 @@ impl<T: Message + 'static> Node<Active, T> {
                 .await
             {
                 Ok(_len) => Ok(()),
-                Err(_e) => Err(Error::UdpSend),
+                Err(e) => {
+                    error!("{:?}", e);
+                    Err(Error::UdpSend)
+                }
             }
         })
     }
@@ -113,7 +116,7 @@ impl<T: Message + 'static> Node<Active, T> {
     pub fn request(&self) -> Result<T, Error> {
         let packet = GenericMsg {
             msg_type: MsgType::GET,
-            timestamp: Utc::now().to_string(),
+            timestamp: Utc::now(),
             name: self.name.to_string(),
             topic: self.topic.to_string(),
             data_type: std::any::type_name::<T>().to_string(),

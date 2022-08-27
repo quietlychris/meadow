@@ -16,7 +16,7 @@ use postcard::*;
 use std::marker::PhantomData;
 
 use crate::msg::*;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 
 impl<T: Message> From<Node<Idle, T>> for Node<Active, T> {
     fn from(node: Node<Idle, T>) -> Self {
@@ -74,13 +74,15 @@ impl<T: Message + 'static> Node<Idle, T> {
                 }
             }
         });
+        info!("Established Node<=>Host TCP stream: {:?}", &stream);
         match stream {
             Ok(stream) => self.stream = Some(stream),
             Err(e) => return Err(e),
         };
 
         match self.runtime.block_on(async move {
-            match UdpSocket::bind("127.0.0.1:0").await {
+            // get_ip(self.cfg.udp.)
+            match UdpSocket::bind("0.0.0.0:0").await {
                 Ok(socket) => Ok(socket),
                 Err(_e) => Err(Error::AccessSocket),
             }
@@ -102,13 +104,27 @@ impl<T: Message + 'static> Node<Idle, T> {
             Arc::new(TokioMutex::new(None));
         let data = Arc::clone(&subscription_data);
 
+        let max_buffer_size = self.cfg.tcp.max_buffer_size.clone();
         let task_subscribe = self.runtime.spawn(async move {
-            //let mut subscription_node = subscription_node.connect().unwrap();
-            let stream = try_connection(addr).await.unwrap();
-            let stream = handshake(stream, topic.clone()).await.unwrap();
+            let stream = match try_connection(addr).await {
+                Ok(stream) => match handshake(stream, topic.clone()).await {
+                    Ok(stream) => Ok(stream),
+                    Err(e) => {
+                        error!("{:?}", e);
+                        Err(Error::Handshake)
+                    }
+                },
+                Err(e) => {
+                    error!("{:?}", e);
+                    Err(Error::StreamConnection)
+                }
+            }
+            .unwrap();
+            info!("Successfully subscribed to Host");
+
             let packet = GenericMsg {
                 msg_type: MsgType::GET,
-                timestamp: Utc::now().to_string(),
+                timestamp: Utc::now(),
                 name: name.clone(),
                 topic: topic.clone(),
                 data_type: std::any::type_name::<T>().to_string(),
@@ -119,14 +135,14 @@ impl<T: Message + 'static> Node<Idle, T> {
             loop {
                 let packet_as_bytes: Vec<u8> = to_allocvec(&packet).unwrap();
                 send_msg(&mut &stream, packet_as_bytes).await.unwrap();
-                let reply = match await_response::<T>(&mut &stream, 4096).await {
+                let reply = match await_response::<T>(&mut &stream, max_buffer_size).await {
                     Ok(val) => val,
                     Err(e) => {
-                        error!("subscription error: {}", e);
+                        error!("Subscription Error: {}", e);
                         continue;
                     }
                 };
-                let delta = Utc::now() - reply.timestamp.parse::<DateTime<Utc>>().unwrap();
+                let delta = Utc::now() - reply.timestamp;
                 // println!("The time difference between msg tx/rx is: {} us",delta);
                 if delta <= chrono::Duration::zero() {
                     // println!("Data is not newer, skipping to next subscription iteration");

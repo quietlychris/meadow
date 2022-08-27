@@ -21,7 +21,7 @@ members = ["tools/ci"]
 [dependencies]
 # de/serialization and message sending
 serde = {version = "1.0.136", default-features = false, features = ["derive"]}
-postcard = {version = "0.7.3", features = ["alloc"]}
+postcard = {version = "1.0.2", features = ["alloc"]}
 hex-slice = "0.1.4"
 chrono = {version = "0.4", features = ["serde"]}
 # key value store, networking, and async
