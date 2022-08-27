@@ -104,7 +104,7 @@ impl<T: Message + 'static> Node<Idle, T> {
             Arc::new(TokioMutex::new(None));
         let data = Arc::clone(&subscription_data);
 
-        let max_buffer_size = self.cfg.tcp.max_buffer_size.clone();
+        let max_buffer_size = self.cfg.tcp.max_buffer_size;
         let task_subscribe = self.runtime.spawn(async move {
             let stream = match try_connection(addr).await {
                 Ok(stream) => match handshake(stream, topic.clone()).await {
