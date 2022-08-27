@@ -3,13 +3,6 @@
 use core::fmt::{Display, Formatter};
 use serde::*;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Boop {
-    Snoot,
-    Groot,
-    Foot,
-}
-
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum HostOperation {
     Success,

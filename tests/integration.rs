@@ -230,7 +230,7 @@ fn simple_udp() {
                     dbg!(e);
                 }
             };
-            // thread::sleep(Duration::from_micros(1));
+            thread::sleep(Duration::from_millis(1));
             let result = rx.request().unwrap();
             assert_eq!(x, result);
         }
