@@ -5,10 +5,10 @@
 
 ```rust
 use meadow::*;
-use serde::{Deserialize, Serialize};
 
-// Any type implementing Debug and serde's De/Serialize traits are meadow-compatible
-// (the standard library Debug and Clone traits are also required)
+// Any type implementing Debug and the serde's re-exported De/Serialize traits 
+// are meadow-compatible. The standard library Debug and Clone traits 
+// are also required
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Coordinate {
     x: f32,

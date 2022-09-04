@@ -1,5 +1,4 @@
 use meadow::*;
-use serde::*;
 
 use std::thread;
 use std::time::Duration;

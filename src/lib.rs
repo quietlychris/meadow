@@ -28,6 +28,7 @@ pub mod node;
 pub mod error;
 
 // /// Re-export sled for building the key-value store configuration
+pub use serde::{Deserialize, Serialize};
 #[doc(hidden)]
 pub use sled::Config as SledConfig;
 
