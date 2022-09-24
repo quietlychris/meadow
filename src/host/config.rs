@@ -15,6 +15,7 @@ pub struct HostConfig {
     pub sled_cfg: sled::Config,
     pub tcp_cfg: Option<host::TcpConfig>,
     pub udp_cfg: Option<host::UdpConfig>,
+    pub quic_cfg: Option<host::QuicConfig>,
 }
 
 impl HostConfig {
@@ -27,6 +28,7 @@ impl HostConfig {
             sled_cfg,
             tcp_cfg: Some(host::TcpConfig::default("lo")),
             udp_cfg: Some(host::UdpConfig::default("lo")),
+            quic_cfg: Some(host::QuicConfig::default("lo")),
         }
     }
 
@@ -37,14 +39,20 @@ impl HostConfig {
     }
 
     /// Assign a configuration to the Host `TcpListener`
-    pub fn with_tcp_config(mut self, tcp_cfg: Option<host::NetworkConfig>) -> HostConfig {
+    pub fn with_tcp_config(mut self, tcp_cfg: Option<host::TcpConfig>) -> HostConfig {
         self.tcp_cfg = tcp_cfg;
         self
     }
 
     /// Assign a configuration to the Host `UdpSocket`
-    pub fn with_udp_config(mut self, udp_cfg: Option<host::NetworkConfig>) -> HostConfig {
+    pub fn with_udp_config(mut self, udp_cfg: Option<host::UdpConfig>) -> HostConfig {
         self.udp_cfg = udp_cfg;
+        self
+    }
+
+    /// Assign a configuration to the Host's QUIC `Endpoint` server
+    pub fn with_quic_config(mut self, quic_cfg: Option<host::QuicConfig>) -> HostConfig {
+        self.quic_cfg = quic_cfg;
         self
     }
 
@@ -56,6 +64,7 @@ impl HostConfig {
         };
 
         let connections = Arc::new(StdMutex::new(Vec::new()));
+        let connections_quic = Arc::new(StdMutex::new(Vec::<Connection>::new()));
         let store: sled::Db = match self.sled_cfg.open() {
             Ok(store) => store,
             Err(_e) => return Err(Error::OpeningSled),
@@ -66,9 +75,11 @@ impl HostConfig {
         Ok(Host {
             cfg: self,
             runtime,
-            connections,
             task_listen_tcp: None,
+            connections,
             task_listen_udp: None,
+            task_listen_quic: None,
+            connections_quic: Arc::new(StdMutex::new(Vec::new())),
             store: Some(store),
             reply_count,
         })

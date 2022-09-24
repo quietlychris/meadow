@@ -2,12 +2,14 @@ mod active;
 mod config;
 mod idle;
 mod network_config;
+mod quic;
 mod subscription;
 
 pub use crate::node::active::*;
 pub use crate::node::config::*;
 pub use crate::node::idle::*;
 pub use crate::node::network_config::*;
+pub use crate::node::quic::*;
 pub use crate::node::subscription::*;
 
 extern crate alloc;
@@ -33,6 +35,14 @@ use serde::{de::DeserializeOwned, Serialize};
 use crate::msg::*;
 use crate::Error;
 use chrono::{DateTime, Utc};
+
+// Quic stuff
+use quinn::NewConnection;
+use quinn::{ClientConfig, Endpoint};
+use std::fs::File;
+use std::io::BufReader;
+// use std::{error::Error, net::SocketAddr};
+use rustls::Certificate;
 
 use std::fmt::Debug;
 /// Trait for Meadow-compatible data, requiring serde De\Serialize, Debug, and Clone
@@ -67,6 +77,7 @@ pub struct Node<State, T: Message> {
     pub topic: String,
     pub stream: Option<TcpStream>,
     pub socket: Option<UdpSocket>,
+    pub endpoint: Option<Endpoint>,
     pub subscription_data: Arc<TokioMutex<Option<SubscriptionData<T>>>>,
     pub task_subscribe: Option<JoinHandle<()>>,
 }

@@ -41,3 +41,5 @@ impl NetworkConfig {
 pub use NetworkConfig as TcpConfig;
 /// Strongly-typed alias of `NetworkConfig` for UDP configuration
 pub use NetworkConfig as UdpConfig;
+/// Strongly-typed alias of `NetworkConfig` for QUIC configuration
+pub use NetworkConfig as QuicConfig;

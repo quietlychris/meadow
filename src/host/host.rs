@@ -4,6 +4,12 @@ use tokio::net::UdpSocket;
 use tokio::runtime::Runtime;
 use tokio::sync::Mutex; // as TokioMutex;
 use tokio::task::JoinHandle;
+// QUIC requirements
+use futures_util::StreamExt;
+use quinn::NewConnection;
+use quinn::{Endpoint, ServerConfig};
+use std::{fs::File, io::BufReader};
+
 // Tracing for logging
 use tracing::*;
 // Multi-threading primitives
@@ -13,8 +19,10 @@ use std::sync::Mutex as StdMutex;
 use std::net::SocketAddr;
 use std::result::Result;
 
+use crate::host::quic::*;
 use crate::host::tcp::*;
 use crate::host::udp::*;
+use crate::Error;
 use crate::*;
 
 /// Named task handle for each Hosted connection
@@ -30,9 +38,11 @@ pub struct Connection {
 pub struct Host {
     pub cfg: HostConfig,
     pub runtime: Runtime,
-    pub connections: Arc<StdMutex<Vec<Connection>>>,
     pub task_listen_tcp: Option<JoinHandle<()>>,
+    pub connections: Arc<StdMutex<Vec<Connection>>>,
     pub task_listen_udp: Option<JoinHandle<()>>,
+    pub task_listen_quic: Option<JoinHandle<()>>,
+    pub connections_quic: Arc<StdMutex<Vec<Connection>>>,
     pub store: Option<sled::Db>,
     pub reply_count: Arc<Mutex<usize>>,
 }
@@ -42,12 +52,13 @@ impl Host {
     #[tracing::instrument]
     pub fn start(&mut self) -> Result<(), crate::Error> {
         let connections_clone = self.connections.clone();
+        let connections_quic_clone = self.connections_quic.clone();
 
         let db = match self.store.clone() {
             Some(db) => db,
             None => {
                 error!("Must open a sled database to start the Host");
-                return Err(crate::Error::NoSled);
+                return Err(Error::NoSled);
             }
         };
         let counter = self.reply_count.clone();
@@ -64,7 +75,7 @@ impl Host {
                 let raw_addr = ip + ":" + &udp_cfg.socket_num.to_string();
                 let addr: SocketAddr = match raw_addr.parse() {
                     Ok(addr) => addr,
-                    Err(_e) => return Err(Error::IpParsing),
+                    Err(_e) => return Err(crate::Error::IpParsing),
                 };
 
                 let db_udp = db.clone();
@@ -116,12 +127,12 @@ impl Host {
                         };
                         info!("Host received connection from {:?}", &name);
 
-                        let db = db.clone();
+                        let db_tcp = db.clone();
                         let counter = counter.clone();
                         let connections = Arc::clone(&connections_clone.clone());
 
                         let handle = tokio::spawn(async move {
-                            process_tcp(stream, db, counter, max_buffer_size_tcp).await;
+                            process_tcp(stream, db_tcp, counter, max_buffer_size_tcp).await;
                         });
                         let connection = Connection {
                             handle,
@@ -134,6 +145,48 @@ impl Host {
                 });
 
                 self.task_listen_tcp = Some(task_listen_tcp);
+            }
+        }
+
+        // Start the QUIC process
+        match &self.cfg.quic_cfg {
+            None => (),
+            Some(cfg_quic) => {
+                let ip = match crate::get_ip(&cfg_quic.interface) {
+                    Ok(ip) => ip,
+                    Err(_e) => return Err(Error::InvalidInterface),
+                };
+                // TO_DO: This should probably be several parsing steps for IP, socket_num, and SocketAddr
+                let raw_addr = ip + ":" + &cfg_quic.socket_num.to_string();
+                let addr: SocketAddr = match raw_addr.parse() {
+                    Ok(addr) => addr,
+                    Err(_e) => return Err(Error::IpParsing),
+                };
+
+                let (certs, key) = read_certs_from_file().unwrap();
+                let server_config = ServerConfig::with_single_cert(certs, key).unwrap();
+                let (_endpoint, mut incoming) = Endpoint::server(server_config, addr).unwrap();
+
+                let (max_buffer_size_quic, max_name_size_quic) =
+                    (cfg_quic.max_buffer_size, cfg_quic.max_name_size);
+                let task_listen_quic = self.runtime.spawn(async move {
+                    while let Some(conn) = incoming.next().await {
+                        let mut connection: NewConnection = conn.await.unwrap();
+                        dbg!(&connection);
+
+                        while let Some(Ok((mut send, recv))) = connection.bi_streams.next().await {
+                            // Because it is a bidirectional stream, we can both send and receive.
+                            let request = recv.read_to_end(100).await.unwrap();
+                            let msg = std::str::from_utf8(&request[..]).unwrap();
+                            println!("request: {:?}", msg);
+
+                            send.write_all(b"response").await.unwrap();
+                            send.finish().await.unwrap();
+                        }
+                    }
+                });
+
+                self.task_listen_quic = Some(task_listen_quic);
             }
         }
 

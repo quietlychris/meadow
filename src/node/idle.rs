@@ -10,10 +10,15 @@ use tracing::*;
 
 use std::result::Result;
 use std::sync::Arc;
+use std::net::SocketAddr;
 
 use alloc::vec::Vec;
 use postcard::*;
 use std::marker::PhantomData;
+
+
+// Quic
+use quinn::Endpoint;
 
 use crate::msg::*;
 use chrono::Utc;
@@ -29,6 +34,7 @@ impl<T: Message> From<Node<Idle, T>> for Node<Active, T> {
             name: node.name,
             topic: node.topic,
             socket: node.socket,
+            endpoint: node.endpoint,
             subscription_data: node.subscription_data,
             task_subscribe: None,
         }
@@ -46,6 +52,7 @@ impl<T: Message> From<Node<Idle, T>> for Node<Subscription, T> {
             name: node.name,
             topic: node.topic,
             socket: node.socket,
+            endpoint: node.endpoint,
             subscription_data: node.subscription_data,
             task_subscribe: None,
         }
@@ -90,6 +97,13 @@ impl<T: Message + 'static> Node<Idle, T> {
             Ok(socket) => self.socket = Some(socket),
             Err(e) => return Err(e),
         };
+
+        // QUIC
+        let client_cfg = generate_client_config_from_certs();
+        let client_addr = "0.0.0.0:0".parse::<SocketAddr>().unwrap();
+        let mut endpoint = Endpoint::client(client_addr).unwrap();
+        endpoint.set_default_client_config(client_cfg);
+
 
         Ok(Node::<Active, T>::from(self))
     }

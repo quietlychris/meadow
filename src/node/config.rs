@@ -74,6 +74,7 @@ impl<T: Message> NodeConfig<T> {
             runtime,
             stream: None,
             socket: None,
+            endpoint: None,
             name: self.name,
             topic,
             subscription_data: Arc::new(TokioMutex::new(None)),
