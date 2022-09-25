@@ -14,7 +14,7 @@ fn main() {
     let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
     let node: Node<Idle, Coordinate> = NodeConfig::new("SIMPLE_NODE")
         .topic("my_coordinate")
-        .with_tcp_config(node::TcpConfig::default().set_host_addr(addr))
+        .with_tcp_config(Some(node::TcpConfig::default().set_host_addr(addr)))
         .build()
         .unwrap();
     let node = node.activate().unwrap();

@@ -121,7 +121,7 @@ pub async fn process_tcp(
                             Some(msg) => msg,
                             None => {
                                 let e: String =
-                                    format!("Error: no message with the name {} exists", &msg.name);
+                                    format!("Error: no topic \"{}\" exists", &msg.topic);
                                 error!("{}", &e);
                                 e.as_bytes().into()
                             }
