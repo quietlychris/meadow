@@ -103,15 +103,16 @@ impl<T: Message + 'static> Node<Active, T> {
         };
 
         self.runtime.block_on(async {
-            match socket
-                .send_to(&packet_as_bytes, self.cfg.udp.host_addr)
-                .await
-            {
-                Ok(_len) => Ok(()),
-                Err(e) => {
-                    error!("{:?}", e);
-                    Err(Error::UdpSend)
+            if let Some(udp_cfg) = &self.cfg.udp {
+                match socket.send_to(&packet_as_bytes, udp_cfg.host_addr).await {
+                    Ok(_len) => Ok(()),
+                    Err(e) => {
+                        error!("{:?}", e);
+                        Err(Error::UdpSend)
+                    }
                 }
+            } else {
+                Err(Error::AccessSocket)
             }
         })
     }
@@ -159,6 +160,19 @@ impl<T: Message + 'static> Node<Active, T> {
     /// Request data from host on Node's assigned topic
     #[tracing::instrument]
     pub fn request(&self) -> Result<T, Error> {
+        let mut stream = match self.stream.as_ref() {
+            Some(stream) => stream,
+            None => return Err(Error::AccessStream),
+        };
+
+        let tcp_cfg = match &self.cfg.tcp {
+            Some(tcp_cfg) => tcp_cfg,
+            None => {
+                // TO_DO: We should have a more specific error code for this
+                return Err(Error::AccessStream);
+            }
+        };
+
         let packet = GenericMsg {
             msg_type: MsgType::GET,
             timestamp: Utc::now(),
@@ -174,14 +188,9 @@ impl<T: Message + 'static> Node<Active, T> {
             Err(_e) => return Err(Error::Serialization),
         };
 
-        let mut stream = match self.stream.as_ref() {
-            Some(stream) => stream,
-            None => return Err(Error::AccessStream),
-        };
-
         self.runtime.block_on(async {
             send_msg(&mut stream, packet_as_bytes).await.unwrap();
-            match await_response::<T>(&mut stream, self.cfg.tcp.max_buffer_size).await {
+            match await_response::<T>(&mut stream, tcp_cfg.max_buffer_size).await {
                 Ok(reply) => {
                     match from_bytes::<T>(&reply.data) {
                         Ok(data) => Ok(data),

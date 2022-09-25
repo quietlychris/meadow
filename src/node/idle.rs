@@ -63,40 +63,44 @@ impl<T: Message + 'static> Node<Idle, T> {
     /// Attempt connection from the Node to the Host located at the specified address
     #[tracing::instrument]
     pub fn activate(mut self) -> Result<Node<Active, T>, Error> {
-        let addr = self.cfg.tcp.host_addr;
-        let topic = self.topic.clone();
+        if let Some(tcp_cfg) = &self.cfg.tcp {
+            let addr = tcp_cfg.host_addr;
+            let topic = self.topic.clone();
 
-        let stream = self.runtime.block_on(async move {
-            match try_connection(addr).await {
-                Ok(stream) => match handshake(stream, topic).await {
-                    Ok(stream) => Ok(stream),
+            let stream = self.runtime.block_on(async move {
+                match try_connection(addr).await {
+                    Ok(stream) => match handshake(stream, topic).await {
+                        Ok(stream) => Ok(stream),
+                        Err(e) => {
+                            error!("{:?}", e);
+                            Err(Error::Handshake)
+                        }
+                    },
                     Err(e) => {
                         error!("{:?}", e);
-                        Err(Error::Handshake)
+                        Err(Error::StreamConnection)
                     }
-                },
-                Err(e) => {
-                    error!("{:?}", e);
-                    Err(Error::StreamConnection)
                 }
-            }
-        });
-        info!("Established Node<=>Host TCP stream: {:?}", &stream);
-        match stream {
-            Ok(stream) => self.stream = Some(stream),
-            Err(e) => return Err(e),
-        };
+            });
+            info!("Established Node<=>Host TCP stream: {:?}", &stream);
+            match stream {
+                Ok(stream) => self.stream = Some(stream),
+                Err(e) => return Err(e),
+            };
+        }
 
-        match self.runtime.block_on(async move {
-            // get_ip(self.cfg.udp.)
-            match UdpSocket::bind("0.0.0.0:0").await {
-                Ok(socket) => Ok(socket),
-                Err(_e) => Err(Error::AccessSocket),
-            }
-        }) {
-            Ok(socket) => self.socket = Some(socket),
-            Err(e) => return Err(e),
-        };
+        if let Some(_udp_cfg) = &self.cfg.udp {
+            match self.runtime.block_on(async move {
+                // get_ip(self.cfg.udp.)
+                match UdpSocket::bind("[::]:0").await {
+                    Ok(socket) => Ok(socket),
+                    Err(_e) => Err(Error::AccessSocket),
+                }
+            }) {
+                Ok(socket) => self.socket = Some(socket),
+                Err(e) => return Err(e),
+            };
+        }
 
         // QUIC
         let client_cfg = generate_client_config_from_certs();
@@ -110,15 +114,23 @@ impl<T: Message + 'static> Node<Idle, T> {
 
     #[tracing::instrument]
     pub fn subscribe(mut self, rate: Duration) -> Result<Node<Subscription, T>, Error> {
-        let name = self.name.clone() + "_SUBSCRIPTION";
-        let addr = self.cfg.tcp.host_addr;
+        let tcp_cfg = match &self.cfg.tcp {
+            Some(tcp_cfg) => tcp_cfg,
+            None => {
+                // TO_DO: We should have a more specific error code for this
+                return Err(Error::AccessStream);
+            }
+        };
+
+        let name = self.name.clone();
+        let addr = tcp_cfg.host_addr;
         let topic = self.topic.clone();
 
         let subscription_data: Arc<TokioMutex<Option<SubscriptionData<T>>>> =
             Arc::new(TokioMutex::new(None));
         let data = Arc::clone(&subscription_data);
 
-        let max_buffer_size = self.cfg.tcp.max_buffer_size;
+        let max_buffer_size = tcp_cfg.max_buffer_size;
         let task_subscribe = self.runtime.spawn(async move {
             let stream = match try_connection(addr).await {
                 Ok(stream) => match handshake(stream, topic.clone()).await {

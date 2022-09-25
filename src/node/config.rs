@@ -14,8 +14,8 @@ use crate::*;
 pub struct NodeConfig<T: Message> {
     pub name: String,
     pub topic: Option<String>,
-    pub tcp: node::network_config::TcpConfig,
-    pub udp: node::network_config::UdpConfig,
+    pub tcp: Option<node::network_config::TcpConfig>,
+    pub udp: Option<node::network_config::UdpConfig>,
     pub phantom: PhantomData<T>,
 }
 
@@ -25,8 +25,8 @@ impl<T: Message> NodeConfig<T> {
         NodeConfig {
             name: name.into(),
             topic: None,
-            tcp: node::network_config::TcpConfig::default(),
-            udp: node::network_config::UdpConfig::default(),
+            tcp: Some(node::network_config::TcpConfig::default()),
+            udp: Some(node::network_config::UdpConfig::default()),
             phantom: PhantomData,
         }
     }
@@ -38,13 +38,13 @@ impl<T: Message> NodeConfig<T> {
     }
 
     /// Configure the UDP connection parameteres
-    pub fn with_udp_config(mut self, udp_cfg: node::network_config::UdpConfig) -> Self {
+    pub fn with_udp_config(mut self, udp_cfg: Option<node::network_config::UdpConfig>) -> Self {
         self.udp = udp_cfg;
         self
     }
 
     /// Configure the TCP connection parameteres
-    pub fn with_tcp_config(mut self, tcp_cfg: node::network_config::TcpConfig) -> Self {
+    pub fn with_tcp_config(mut self, tcp_cfg: Option<node::network_config::TcpConfig>) -> Self {
         self.tcp = tcp_cfg;
         self
     }
