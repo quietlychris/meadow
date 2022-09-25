@@ -6,21 +6,17 @@ fn main() -> Result<(), meadow::Error> {
     let mut host = HostConfig::default()
         // .with_sled_config(SledConfig::default().path("store").temporary(true))
         // .with_tcp_config(None)
-        // .with_udp_config(Some(host::NetworkConfig::default("lo")))
+        .with_udp_config(Some(host::TcpConfig::default("lo")))
         .build()?;
     host.start()?;
     println!("Started host");
 
     let tx_thread = thread::spawn(|| {
         let tx = NodeConfig::<f32>::new("TX")
-            .with_udp_config(
-                node::UdpConfig::default()
-                    .set_host_addr("127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap()),
-            )
-            .with_tcp_config(
-                node::TcpConfig::default()
-                    .set_host_addr("127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap()),
-            )
+            .with_udp_config(Some(node::UdpConfig::default().set_host_addr(
+                "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap(),
+            )))
+            .with_tcp_config(None)
             .topic("num")
             .build()
             .unwrap()

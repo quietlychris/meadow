@@ -200,14 +200,12 @@ fn simple_udp() {
         println!("Started host");
 
         let tx = NodeConfig::<f32>::new("TX")
-            .with_udp_config(
-                meadow::node::UdpConfig::default()
-                    .set_host_addr("127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap()),
-            )
-            .with_tcp_config(
-                meadow::node::TcpConfig::default()
-                    .set_host_addr("127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap()),
-            )
+            .with_udp_config(Some(meadow::node::UdpConfig::default().set_host_addr(
+                "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap(),
+            )))
+            .with_tcp_config(Some(meadow::node::TcpConfig::default().set_host_addr(
+                "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap(),
+            )))
             .topic("num")
             .build()
             .unwrap()
