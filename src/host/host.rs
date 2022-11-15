@@ -49,7 +49,7 @@ pub struct Host {
 
 impl Host {
     /// Allow Host to begin accepting incoming connections
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self))]
     pub fn start(&mut self) -> Result<(), crate::Error> {
         let connections_clone = self.connections.clone();
         let connections_quic_clone = self.connections_quic.clone();
@@ -65,7 +65,7 @@ impl Host {
 
         // Start up the UDP process
         match &self.cfg.udp_cfg {
-            None => (),
+            None => warn!("Host has no UDP configuration"),
             Some(udp_cfg) => {
                 let ip = match crate::get_ip(&udp_cfg.interface) {
                     Ok(ip) => ip,
@@ -94,7 +94,7 @@ impl Host {
 
         // Start the TCP process
         match &self.cfg.tcp_cfg {
-            None => (),
+            None => warn!("Host has no TCP configuration"),
             Some(tcp_cfg) => {
                 let ip = match crate::get_ip(&tcp_cfg.interface) {
                     Ok(ip) => ip,
@@ -150,35 +150,48 @@ impl Host {
 
         // Start the QUIC process
         match &self.cfg.quic_cfg {
-            None => (),
+            None => warn!("Host has no QUIC configuration"),
             Some(cfg_quic) => {
-                let ip = match crate::get_ip(&cfg_quic.interface) {
+                let ip = match crate::get_ip(&cfg_quic.network_cfg.interface) {
                     Ok(ip) => ip,
                     Err(_e) => return Err(Error::InvalidInterface),
                 };
                 // TO_DO: This should probably be several parsing steps for IP, socket_num, and SocketAddr
-                let raw_addr = ip + ":" + &cfg_quic.socket_num.to_string();
+                let raw_addr = ip + ":" + &cfg_quic.network_cfg.socket_num.to_string();
                 let addr: SocketAddr = match raw_addr.parse() {
                     Ok(addr) => addr,
                     Err(_e) => return Err(Error::IpParsing),
                 };
 
-                let (certs, key) = read_certs_from_file().unwrap();
-                let server_config = ServerConfig::with_single_cert(certs, key).unwrap();
-                let (_endpoint, mut incoming) = Endpoint::server(server_config, addr).unwrap();
+                let (certs, key) =
+                    read_certs_from_file(&cfg_quic.cert_path, &cfg_quic.key_path).unwrap();
+                info!("Successfully read in QUIC certs");
+                // let server_config = ServerConfig::with_single_cert(certs, key).unwrap();
+                // let (_endpoint, mut incoming) = Endpoint::server(server_config, addr).unwrap();
 
-                let (max_buffer_size_quic, max_name_size_quic) =
-                    (cfg_quic.max_buffer_size, cfg_quic.max_name_size);
+                let (max_buffer_size_quic, max_name_size_quic) = (
+                    cfg_quic.network_cfg.max_buffer_size,
+                    cfg_quic.network_cfg.max_name_size,
+                );
                 let task_listen_quic = self.runtime.spawn(async move {
+                    let server_config = ServerConfig::with_single_cert(certs, key).unwrap();
+                    let (_endpoint, mut incoming) = Endpoint::server(server_config, addr).unwrap();
+
+                    info!("Waiting for incoming QUIC connection");
                     while let Some(conn) = incoming.next().await {
                         let mut connection: NewConnection = conn.await.unwrap();
-                        dbg!(&connection);
+                        info!(
+                            "Received QUIC connection from {:?}",
+                            &connection.connection.remote_address()
+                        );
+                        //dbg!(&connection);
 
                         while let Some(Ok((mut send, recv))) = connection.bi_streams.next().await {
                             // Because it is a bidirectional stream, we can both send and receive.
                             let request = recv.read_to_end(100).await.unwrap();
                             let msg = std::str::from_utf8(&request[..]).unwrap();
-                            println!("request: {:?}", msg);
+                            info!("Host QUIC task received {}", &msg);
+                            // println!("request: {:?}", msg);
 
                             send.write_all(b"response").await.unwrap();
                             send.finish().await.unwrap();

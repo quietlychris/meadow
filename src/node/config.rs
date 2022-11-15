@@ -16,6 +16,7 @@ pub struct NodeConfig<T: Message> {
     pub topic: Option<String>,
     pub tcp: Option<node::network_config::TcpConfig>,
     pub udp: Option<node::network_config::UdpConfig>,
+    pub quic: Option<node::network_config::QuicConfig>,
     pub phantom: PhantomData<T>,
 }
 
@@ -27,6 +28,7 @@ impl<T: Message> NodeConfig<T> {
             topic: None,
             tcp: Some(node::network_config::TcpConfig::default()),
             udp: Some(node::network_config::UdpConfig::default()),
+            quic: Some(node::network_config::QuicConfig::default()),
             phantom: PhantomData,
         }
     }

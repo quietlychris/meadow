@@ -117,7 +117,7 @@ impl<T: Message + 'static> Node<Active, T> {
         })
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self))]
     pub fn publish_quic(&self, val: T) -> Result<(), Error> {
         let val_vec: Vec<u8> = match to_allocvec(&val) {
             Ok(val_vec) => val_vec,
@@ -145,13 +145,19 @@ impl<T: Message + 'static> Node<Active, T> {
 
         self.runtime.block_on(async {
             match socket
-                .send_to(&packet_as_bytes, self.cfg.udp.host_addr)
+                .send_to(
+                    &packet_as_bytes,
+                    self.cfg.quic.as_ref().unwrap().network_cfg.host_addr,
+                )
                 .await
             {
-                Ok(_len) => Ok(()),
+                Ok(len) => {
+                    info!("Successful QUIC publish for message of length {}", len);
+                    Ok(())
+                }
                 Err(e) => {
                     error!("{:?}", e);
-                    Err(Error::UdpSend)
+                    Err(Error::QuicIssue)
                 }
             }
         })

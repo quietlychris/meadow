@@ -5,20 +5,40 @@ use std::thread;
 use std::time::Duration;
 
 fn main() -> Result<(), meadow::Error> {
-    let mut host: Host = HostConfig::default().build()?;
+    tracing_subscriber::fmt()
+        .compact()
+        // enable everything
+        .with_max_level(tracing::Level::INFO)
+        // sets this to be the default, global collector for this application.
+        .with_target(false)
+        .init();
+
+    let number_of_yaks = 3;
+    info!(number_of_yaks, "preparing to shave yaks");
+
+    meadow::generate_certs()?;
+    let mut host: Host = HostConfig::default()
+        .with_udp_config(None)
+        // .with_tcp_config(None)
+        .with_quic_config(Some(host::QuicConfig::default("lo")))
+        .build()?;
     host.start()?;
-    println!("Host should be running in the background");
+    info!("Host should be running in the background");
 
     // Get the host up and running
-    let node: Node<Idle, String> = NodeConfig::new("TEAPOT").topic("pose").build().unwrap();
+    let node: Node<Idle, String> = NodeConfig::new("TEAPOT")
+        // .with_tcp_config(None)
+        .topic("pose")
+        .build()
+        .unwrap();
     let node = node.activate()?;
 
     for i in 0..5 {
-        node.publish("Hello".to_string())?;
+        node.publish_quic("Hello".to_string())?;
         println!("published {}", i);
-        thread::sleep(Duration::from_millis(250));
-        let result = node.request().unwrap();
-        println!("Received reply: {}", result);
+        thread::sleep(Duration::from_millis(1000));
+        // let result = node.request().unwrap();
+        //println!("Received reply: {}", result);
     }
 
     println!(
@@ -26,5 +46,6 @@ fn main() -> Result<(), meadow::Error> {
         std::mem::size_of_val(&host)
     );
     host.stop()?;
+
     Ok(())
 }

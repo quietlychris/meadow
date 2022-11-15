@@ -17,6 +17,7 @@ impl HostOperation {
     }
 }
 
+// TO_DO: Should more of these be categorized into subgroups?
 /// This is the error type used by meadow
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "use-defmt", derive(defmt::Format))]
@@ -53,6 +54,8 @@ pub enum Error {
     Handshake,
     // Result of Host-side message operation
     HostOperation(crate::error::HostOperation),
+    // General issue with QUIC setup (TO_DO: make specific error instances)
+    QuicIssue,
 }
 
 impl std::error::Error for Error {
@@ -78,6 +81,7 @@ impl std::error::Error for Error {
             HostOperation(crate::error::HostOperation::SetFailure) => None,
             HostOperation(crate::error::HostOperation::GetFailure) => None,
             HostOperation(crate::error::HostOperation::ConnectionError) => None,
+            QuicIssue => None,
         }
     }
 }
@@ -112,6 +116,7 @@ impl Display for Error {
                     "Unsuccessful Host-side SET operation",
                 HostOperation(crate::error::HostOperation::ConnectionError) =>
                     "Unsuccessful Host connection",
+                QuicIssue => "Error due to something with QUIC",
             }
         )
     }

@@ -8,14 +8,13 @@ use tokio::time::{sleep, Duration};
 
 use tracing::*;
 
+use std::net::SocketAddr;
 use std::result::Result;
 use std::sync::Arc;
-use std::net::SocketAddr;
 
 use alloc::vec::Vec;
 use postcard::*;
 use std::marker::PhantomData;
-
 
 // Quic
 use quinn::Endpoint;
@@ -61,7 +60,7 @@ impl<T: Message> From<Node<Idle, T>> for Node<Subscription, T> {
 
 impl<T: Message + 'static> Node<Idle, T> {
     /// Attempt connection from the Node to the Host located at the specified address
-    #[tracing::instrument]
+    #[tracing::instrument(skip_all)]
     pub fn activate(mut self) -> Result<Node<Active, T>, Error> {
         if let Some(tcp_cfg) = &self.cfg.tcp {
             let addr = tcp_cfg.host_addr;
@@ -82,9 +81,14 @@ impl<T: Message + 'static> Node<Idle, T> {
                     }
                 }
             });
-            info!("Established Node<=>Host TCP stream: {:?}", &stream);
             match stream {
-                Ok(stream) => self.stream = Some(stream),
+                Ok(stream) => {
+                    info!(
+                        "Established Node<=>Host TCP stream: {:?}",
+                        stream.local_addr()
+                    );
+                    self.stream = Some(stream)
+                }
                 Err(e) => return Err(e),
             };
         }
@@ -102,12 +106,19 @@ impl<T: Message + 'static> Node<Idle, T> {
             };
         }
 
-        // QUIC
-        let client_cfg = generate_client_config_from_certs();
-        let client_addr = "0.0.0.0:0".parse::<SocketAddr>().unwrap();
-        let mut endpoint = Endpoint::client(client_addr).unwrap();
-        endpoint.set_default_client_config(client_cfg);
-
+        if let Some(quic_cfg) = &self.cfg.quic {
+            info!("Attempting QUIC connection");
+            let endpoint = self.runtime.block_on(async move {
+                // QUIC, needs to be done inside of a tokio context
+                let client_cfg = generate_client_config_from_certs();
+                let client_addr = "0.0.0.0:0".parse::<SocketAddr>().unwrap();
+                let mut endpoint = Endpoint::client(client_addr).unwrap();
+                endpoint.set_default_client_config(client_cfg);
+                endpoint
+            });
+            info!("{:?}", &endpoint.local_addr());
+            self.endpoint = Some(endpoint);
+        }
 
         Ok(Node::<Active, T>::from(self))
     }

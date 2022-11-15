@@ -1,4 +1,5 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::path::{Path, PathBuf};
 
 /// Configuration for network interfaces
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -35,3 +36,21 @@ impl NetworkConfig {
 pub use NetworkConfig as TcpConfig;
 /// Strongly-typed alias of `NetworkConfig` for UDP configuration
 pub use NetworkConfig as UdpConfig;
+
+/// Configuration type containing `NetworkConfig` and certification path information
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct QuicConfig {
+    pub network_cfg: NetworkConfig,
+    pub cert_path: PathBuf,
+    pub key_path: PathBuf,
+}
+
+impl QuicConfig {
+    pub fn default() -> Self {
+        QuicConfig {
+            network_cfg: NetworkConfig::default(),
+            cert_path: Path::new("target").join("cert.pem"),
+            key_path: Path::new("target").join("priv_key.pem"),
+        }
+    }
+}

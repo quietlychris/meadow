@@ -2,6 +2,7 @@
 #![deny(unused_must_use)]
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(rustdoc::missing_crate_level_docs)]
+#![allow(unused_imports)]
 
 //! `meadow` is an experimental robotics-focused publish/request middleware
 //! for embedded Linux. It uses a star-shaped network topology, with a focus

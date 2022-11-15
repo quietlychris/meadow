@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 /// Configuration for network interfaces
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct NetworkConfig {
@@ -41,5 +43,26 @@ impl NetworkConfig {
 pub use NetworkConfig as TcpConfig;
 /// Strongly-typed alias of `NetworkConfig` for UDP configuration
 pub use NetworkConfig as UdpConfig;
-/// Strongly-typed alias of `NetworkConfig` for QUIC configuration
-pub use NetworkConfig as QuicConfig;
+
+/// Configuration type containing `NetworkConfig` and certification path information
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct QuicConfig {
+    pub network_cfg: NetworkConfig,
+    pub cert_path: PathBuf,
+    pub key_path: PathBuf,
+}
+
+impl QuicConfig {
+    pub fn default(interface: impl Into<String>) -> Self {
+        QuicConfig {
+            network_cfg: NetworkConfig {
+                interface: interface.into(),
+                socket_num: 25_000,
+                max_buffer_size: 10_000,
+                max_name_size: 100,
+            },
+            cert_path: Path::new("target").join("cert.pem"),
+            key_path: Path::new("target").join("priv_key.pem"),
+        }
+    }
+}
