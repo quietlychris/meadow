@@ -79,7 +79,7 @@ impl HostConfig {
             connections,
             task_listen_udp: None,
             task_listen_quic: None,
-            connections_quic: Arc::new(StdMutex::new(Vec::new())),
+            connections_quic,
             store: Some(store),
             reply_count,
         })

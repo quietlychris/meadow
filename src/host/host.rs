@@ -175,9 +175,12 @@ impl Host {
                 );
                 let task_listen_quic = self.runtime.spawn(async move {
                     let server_config = ServerConfig::with_single_cert(certs, key).unwrap();
-                    let (_endpoint, mut incoming) = Endpoint::server(server_config, addr).unwrap();
+                    let (endpoint, mut incoming) = Endpoint::server(server_config, addr).unwrap();
 
-                    info!("Waiting for incoming QUIC connection");
+                    info!(
+                        "Waiting for incoming QUIC connection on {:?}",
+                        endpoint.local_addr()
+                    );
                     while let Some(conn) = incoming.next().await {
                         let mut connection: NewConnection = conn.await.unwrap();
                         info!(

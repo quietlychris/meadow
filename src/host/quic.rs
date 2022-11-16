@@ -1,7 +1,8 @@
 use crate::Error;
 use futures_util::StreamExt;
 use quinn::NewConnection;
-use quinn::{Endpoint, ServerConfig};
+// use quinn::{Endpoint, ServerConfig};
+use quinn::{Endpoint, RecvStream, SendStream, ServerConfig};
 use std::path::PathBuf;
 use std::{fs, fs::File, io::BufReader};
 
@@ -49,4 +50,24 @@ pub fn generate_certs() -> Result<(), crate::Error> {
     fs::write("target/priv_key.pem", priv_key_pem).expect("Error writing private key to file");
 
     Ok(())
+}
+
+pub async fn process_quic(
+    connection: &quinn::Connection,
+    stream: (SendStream, RecvStream),
+    buf: &mut Vec<u8>,
+) {
+    let (mut tx, mut rx) = stream;
+
+    match rx.read(buf).await.unwrap() {
+        Some(n) => {
+            let msg = std::str::from_utf8(&buf[..n]).unwrap();
+            println!("msg: {:?}", msg);
+            let reply = format!("got: {} from {}", msg, connection.remote_address());
+            if let Err(e) = tx.write_all(reply.as_bytes()).await {
+                println!("Error: {}", e);
+            };
+        }
+        _ => (),
+    }
 }

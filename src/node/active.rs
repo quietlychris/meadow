@@ -4,6 +4,7 @@ use crate::*;
 use chrono::Utc;
 
 use postcard::*;
+use quinn::NewConnection;
 use std::result::Result;
 use tracing::*;
 
@@ -138,28 +139,38 @@ impl<T: Message + 'static> Node<Active, T> {
             Err(_e) => return Err(Error::Serialization),
         };
 
-        let socket = match self.socket.as_ref() {
-            Some(socket) => socket,
-            None => return Err(Error::AccessSocket),
-        };
+        let server_addr = self.cfg.quic.clone().unwrap().network_cfg.host_addr;
+        let endpoint = self.endpoint.clone().unwrap();
 
         self.runtime.block_on(async {
-            match socket
-                .send_to(
-                    &packet_as_bytes,
-                    self.cfg.quic.as_ref().unwrap().network_cfg.host_addr,
-                )
+            // let mut buf = vec![0; 1_000];
+
+            let new_connection = endpoint
+                .connect(server_addr.clone(), "localhost")
+                .unwrap()
                 .await
-            {
-                Ok(len) => {
-                    info!("Successful QUIC publish for message of length {}", len);
-                    Ok(())
+                .unwrap();
+            let NewConnection { connection, .. } = new_connection;
+            let (mut send, mut _recv) = connection.open_bi().await.unwrap();
+
+            // let msg = format!("test message");
+            send.write_all(&val_vec).await.unwrap();
+            send.finish().await.unwrap();
+
+            /*
+            match recv.read(&mut buf).await.unwrap() {
+                Some(n) => {
+                    let received = std::str::from_utf8(&buf[..n]).unwrap();
+                    dbg!(&received);
                 }
-                Err(e) => {
-                    error!("{:?}", e);
-                    Err(Error::QuicIssue)
-                }
-            }
+                None => (),
+            };
+
+            use tokio::time::{sleep, Duration};
+            sleep(Duration::from_millis(500)).await;
+            */
+
+            Ok(())
         })
     }
 
