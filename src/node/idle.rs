@@ -95,7 +95,6 @@ impl<T: Message + 'static> Node<Idle, T> {
 
         if let Some(_udp_cfg) = &self.cfg.udp {
             match self.runtime.block_on(async move {
-                // get_ip(self.cfg.udp.)
                 match UdpSocket::bind("[::]:0").await {
                     Ok(socket) => Ok(socket),
                     Err(_e) => Err(Error::AccessSocket),

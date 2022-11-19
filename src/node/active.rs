@@ -4,7 +4,7 @@ use crate::*;
 use chrono::Utc;
 
 use postcard::*;
-use quinn::NewConnection;
+use quinn::Connection as QuicConnection;
 use std::result::Result;
 use tracing::*;
 
@@ -145,30 +145,16 @@ impl<T: Message + 'static> Node<Active, T> {
         self.runtime.block_on(async {
             // let mut buf = vec![0; 1_000];
 
-            let new_connection = endpoint
+            let connection = endpoint
                 .connect(server_addr.clone(), "localhost")
                 .unwrap()
                 .await
                 .unwrap();
-            let NewConnection { connection, .. } = new_connection;
             let (mut send, mut _recv) = connection.open_bi().await.unwrap();
 
             // let msg = format!("test message");
-            send.write_all(&val_vec).await.unwrap();
+            send.write_all(&packet_as_bytes).await.unwrap();
             send.finish().await.unwrap();
-
-            /*
-            match recv.read(&mut buf).await.unwrap() {
-                Some(n) => {
-                    let received = std::str::from_utf8(&buf[..n]).unwrap();
-                    dbg!(&received);
-                }
-                None => (),
-            };
-
-            use tokio::time::{sleep, Duration};
-            sleep(Duration::from_millis(500)).await;
-            */
 
             Ok(())
         })

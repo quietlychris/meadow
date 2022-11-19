@@ -36,7 +36,7 @@ tokio = { version = "1.16.1", features = ["net", "rt-multi-thread", "io-util", "
 tracing = "0.1.29"
 
 # QUIC support
-quinn = "0.8"
+quinn = "0.9"
 rustls = { version = "0.20", features = ["dangerous_configuration", "quic"]}
 rustls-pemfile = "1"
 rcgen = "0.9"

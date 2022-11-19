@@ -1,4 +1,4 @@
-use quinn::NewConnection;
+use quinn::Connection as QuicConnection;
 use quinn::{ClientConfig, Endpoint};
 use std::fs::File;
 use std::io::BufReader;
