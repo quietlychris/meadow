@@ -63,10 +63,10 @@ impl<T: Message> From<Node<Tcp, Idle, T>> for Node<Tcp, Subscription, T> {
 }
 
 impl<T: Message + 'static> Node<Tcp, Idle, T> {
+    
     /// Attempt connection from the Node to the Host located at the specified address
-    //#[tracing::instrument(skip_all)]
+    #[tracing::instrument(skip_all)]
     pub fn activate(mut self) -> Result<Node<Tcp, Active, T>, Error> {
-        //if let Some(tcp_cfg) = &self.cfg.tcp {
         let addr = self.cfg.network_cfg.host_addr;
         let topic = self.topic.clone();
 
@@ -95,50 +95,12 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
             }
             Err(e) => return Err(e),
         };
-        //}
-
-        /*
-        if let Some(_udp_cfg) = &self.cfg.udp {
-            match self.runtime.block_on(async move {
-                match UdpSocket::bind("[::]:0").await {
-                    Ok(socket) => Ok(socket),
-                    Err(_e) => Err(Error::AccessSocket),
-                }
-            }) {
-                Ok(socket) => self.socket = Some(socket),
-                Err(e) => return Err(e),
-            };
-        }
-
-        if let Some(quic_cfg) = &self.cfg.quic {
-            info!("Attempting QUIC connection");
-            let endpoint = self.runtime.block_on(async move {
-                // QUIC, needs to be done inside of a tokio context
-                let client_cfg = generate_client_config_from_certs();
-                let client_addr = "0.0.0.0:0".parse::<SocketAddr>().unwrap();
-                let mut endpoint = Endpoint::client(client_addr).unwrap();
-                endpoint.set_default_client_config(client_cfg);
-                endpoint
-            });
-            info!("{:?}", &endpoint.local_addr());
-            self.endpoint = Some(endpoint);
-        }
-        */
 
         Ok(Node::<Tcp, Active, T>::from(self))
     }
 
-    //#[tracing::instrument]
+    #[tracing::instrument]
     pub fn subscribe(mut self, rate: Duration) -> Result<Node<Tcp, Subscription, T>, Error> {
-        /*
-        let tcp_cfg = match &self.cfg.tcp {
-            Some(tcp_cfg) => tcp_cfg,
-            None => {
-                // TO_DO: We should have a more specific error code for this
-                return Err(Error::AccessStream);
-            }
-        };
-        */
 
         let name = self.name.clone();
         let addr = self.cfg.network_cfg.host_addr;

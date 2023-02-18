@@ -1,7 +1,5 @@
 use crate::*;
 
-// use std::result::Result;
-
 impl<T: Message + 'static> Node<Tcp, Subscription, T> {
     // Should actually return a <T>
     pub fn get_subscribed_data(&self) -> Result<T, crate::Error> {

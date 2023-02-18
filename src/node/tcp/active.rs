@@ -77,91 +77,6 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
         Ok(())
     }
 
-    /*
-    #[tracing::instrument]
-    pub fn publish_udp(&self, val: T) -> Result<(), Error> {
-        let val_vec: Vec<u8> = match to_allocvec(&val) {
-            Ok(val_vec) => val_vec,
-            Err(_e) => return Err(Error::Serialization),
-        };
-
-        let packet = GenericMsg {
-            msg_type: MsgType::SET,
-            timestamp: Utc::now(),
-            name: self.name.to_string(),
-            topic: self.topic.to_string(),
-            data_type: std::any::type_name::<T>().to_string(),
-            data: val_vec.to_vec(),
-        };
-
-        let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
-            Ok(packet) => packet,
-            Err(_e) => return Err(Error::Serialization),
-        };
-
-        let socket = match self.socket.as_ref() {
-            Some(socket) => socket,
-            None => return Err(Error::AccessSocket),
-        };
-
-        self.runtime.block_on(async {
-            if let Some(udp_cfg) = &self.cfg.udp {
-                match socket.send_to(&packet_as_bytes, udp_cfg.host_addr).await {
-                    Ok(_len) => Ok(()),
-                    Err(e) => {
-                        error!("{:?}", e);
-                        Err(Error::UdpSend)
-                    }
-                }
-            } else {
-                Err(Error::AccessSocket)
-            }
-        })
-    }
-
-    #[tracing::instrument(skip(self))]
-    pub fn publish_quic(&self, val: T) -> Result<(), Error> {
-        let val_vec: Vec<u8> = match to_allocvec(&val) {
-            Ok(val_vec) => val_vec,
-            Err(_e) => return Err(Error::Serialization),
-        };
-
-        let packet = GenericMsg {
-            msg_type: MsgType::SET,
-            timestamp: Utc::now(),
-            name: self.name.to_string(),
-            topic: self.topic.to_string(),
-            data_type: std::any::type_name::<T>().to_string(),
-            data: val_vec.to_vec(),
-        };
-
-        let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
-            Ok(packet) => packet,
-            Err(_e) => return Err(Error::Serialization),
-        };
-
-        let server_addr = self.cfg.quic.clone().unwrap().network_cfg.host_addr;
-        let endpoint = self.endpoint.clone().unwrap();
-
-        self.runtime.block_on(async {
-            // let mut buf = vec![0; 1_000];
-
-            let connection = endpoint
-                .connect(server_addr.clone(), "localhost")
-                .unwrap()
-                .await
-                .unwrap();
-            let (mut send, mut _recv) = connection.open_bi().await.unwrap();
-
-            // let msg = format!("test message");
-            send.write_all(&packet_as_bytes).await.unwrap();
-            send.finish().await.unwrap();
-
-            Ok(())
-        })
-    }
-    */
-
     /// Request data from host on Node's assigned topic
     //#[tracing::instrument]
     pub fn request(&self) -> Result<T, Error> {
@@ -169,16 +84,6 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
             Some(stream) => stream,
             None => return Err(Error::AccessStream),
         };
-
-        /*
-        let tcp_cfg = match &self.cfg.tcp {
-            Some(tcp_cfg) => tcp_cfg,
-            None => {
-                // TO_DO: We should have a more specific error code for this
-                return Err(Error::AccessStream);
-            }
-        };
-        */
 
         let packet = GenericMsg {
             msg_type: MsgType::GET,
@@ -188,7 +93,6 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
             data_type: std::any::type_name::<T>().to_string(),
             data: Vec::new(),
         };
-        // info!("{:?}",&packet);
 
         let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
             Ok(packet) => packet,
@@ -203,7 +107,6 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
                         Ok(data) => Ok(data),
                         Err(_e) => Err(Error::Deserialization),
                     }
-                    // data_result
                 }
                 Err(_e) => Err(Error::BadResponse),
             }
