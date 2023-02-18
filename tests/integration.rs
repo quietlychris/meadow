@@ -134,12 +134,12 @@ fn subscription_usize() {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let writer = NodeConfig::new("WRITER")
+    let writer = NodeConfig::<Tcp, usize>::new("WRITER")
         .topic("subscription")
         .build()
+        .unwrap()
+        .activate()
         .unwrap();
-    //.activate()
-    //.unwrap();
 
     // Create a subscription node with a query rate of 100 Hz
     let reader = writer
