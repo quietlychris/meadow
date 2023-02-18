@@ -5,8 +5,8 @@ use std::fs::File;
 use std::io::BufReader;
 use std::{error::Error, net::SocketAddr};
 
-use rustls::Certificate;
 use quinn::ClientConfig;
+use rustls::Certificate;
 
 pub fn generate_client_config_from_certs() -> ClientConfig {
     let mut certs = rustls::RootCertStore::empty();
@@ -20,6 +20,5 @@ pub fn generate_client_config_from_certs() -> ClientConfig {
         certs.add(&cert).unwrap();
     }
 
-    let client_cfg = ClientConfig::with_root_certificates(certs);
-    client_cfg
+    ClientConfig::with_root_certificates(certs)
 }

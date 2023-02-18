@@ -37,7 +37,7 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
             // let mut buf = vec![0; 1_000];
 
             let connection = endpoint
-                .connect(server_addr.clone(), "localhost")
+                .connect(server_addr, "localhost")
                 .unwrap()
                 .await
                 .unwrap();

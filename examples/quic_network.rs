@@ -13,9 +13,6 @@ fn main() -> Result<(), meadow::Error> {
         .with_target(false)
         .init();
 
-    let number_of_yaks = 3;
-    info!(number_of_yaks, "preparing to shave yaks");
-
     meadow::generate_certs()?;
     let mut host: Host = HostConfig::default()
         .with_udp_config(None)
@@ -25,20 +22,22 @@ fn main() -> Result<(), meadow::Error> {
     info!("Host should be running in the background");
 
     // Get the host up and running
-    let node: Node<Quic, Idle, String> = NodeConfig::new("TEAPOT")
-        // .with_tcp_config()
+    let node = NodeConfig::<Quic, String>::new("TEAPOT")
         .topic("pose")
-        .build()
-        .unwrap();
-    let node = node.activate()?;
+        .build()?
+        .activate()?;
+    // Create a subscription node with a query rate of 10 Hz
+    let reader = NodeConfig::<_, String>::new("READER")
+        .topic("pose")
+        .build()?
+        .subscribe(Duration::from_micros(1))?;
 
     for i in 0..5 {
         let msg = format!("Hello #{}", i);
         node.publish(msg)?;
         // println!("published {}", i);
         thread::sleep(Duration::from_millis(1000));
-        let result = node.request();
-        info!("Received reply: {:?}", result);
+        info!("Received reply: {:?}", reader.get_subscribed_data());
     }
 
     println!(

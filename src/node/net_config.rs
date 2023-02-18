@@ -6,33 +6,15 @@ use std::path::{Path, PathBuf};
 use crate::node::private;
 pub trait Interface: private::Sealed + Default {}
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Tcp {}
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Udp {}
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Quic {}
 
-// Default implementations for both Tcp, Udp, and Quic
-impl Default for Tcp {
-    fn default() -> Self {
-        Tcp {}
-    }
-}
 impl Interface for Tcp {}
-
-impl Default for Udp {
-    fn default() -> Self {
-        Udp {}
-    }
-}
 impl Interface for Udp {}
-
-impl Default for Quic {
-    fn default() -> Self {
-        Quic {}
-    }
-}
 impl Interface for Quic {}
 
 /// Configuration for network interfaces

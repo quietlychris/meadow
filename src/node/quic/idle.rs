@@ -48,7 +48,6 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
     /// Attempt connection from the Node to the Host located at the specified address
     //#[tracing::instrument(skip_all)]
     pub fn activate(mut self) -> Result<Node<Quic, Active, T>, Error> {
-
         info!("Attempting QUIC connection");
         let endpoint = self.runtime.block_on(async move {
             // QUIC, needs to be done inside of a tokio context

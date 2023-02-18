@@ -6,6 +6,7 @@ mod udp;
 
 pub use crate::node::config::*;
 pub use crate::node::net_config::*;
+pub use crate::node::quic::*;
 pub use crate::node::tcp::*;
 pub use crate::node::udp::*;
 
@@ -78,7 +79,6 @@ mod private {
 #[derive(Debug)]
 pub struct Node<I: Interface + Default, State, T: Message> {
     pub __state: PhantomData<State>,
-    // pub __interface: PhantomData<Interface>,
     pub __data_type: PhantomData<T>,
     pub cfg: NodeConfig<I, T>,
     pub runtime: Runtime,
