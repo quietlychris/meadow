@@ -19,14 +19,13 @@ fn main() -> Result<(), meadow::Error> {
     meadow::generate_certs()?;
     let mut host: Host = HostConfig::default()
         .with_udp_config(None)
-        // .with_tcp_config(Some(host::TcpConfig::default("lo")))
         .with_quic_config(Some(host::QuicConfig::default("lo")))
         .build()?;
     host.start()?;
     info!("Host should be running in the background");
 
     // Get the host up and running
-    let node: Node<Idle, String> = NodeConfig::new("TEAPOT")
+    let node: Node<Quic, Idle, String> = NodeConfig::new("TEAPOT")
         // .with_tcp_config()
         .topic("pose")
         .build()
@@ -35,7 +34,7 @@ fn main() -> Result<(), meadow::Error> {
 
     for i in 0..5 {
         let msg = format!("Hello #{}", i);
-        node.publish_quic(msg)?;
+        node.publish(msg)?;
         // println!("published {}", i);
         thread::sleep(Duration::from_millis(1000));
         let result = node.request();

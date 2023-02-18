@@ -1,6 +1,6 @@
 // mod net_config;
-mod idle;
 mod active;
+mod idle;
 mod subscription;
 
 extern crate alloc;

@@ -1,15 +1,13 @@
+mod config;
 mod net_config;
+mod quic;
 mod tcp;
-//mod udp;
-// mod quic;
+mod udp;
 
-//pub use crate::node::active::*;
-//pub use crate::node::config::*;
-//pub use crate::node::idle::*;
+pub use crate::node::config::*;
 pub use crate::node::net_config::*;
 pub use crate::node::tcp::*;
-//pub use crate::node::quic::*;
-//pub use crate::node::subscription::*;
+pub use crate::node::udp::*;
 
 extern crate alloc;
 
@@ -66,20 +64,18 @@ pub struct SubscriptionData<T: Message> {
     pub timestamp: DateTime<Utc>,
 }
 
-mod config;
-use crate::node::config::*;
-
 mod private {
     pub trait Sealed {}
     impl Sealed for crate::Udp {}
     impl Sealed for crate::Tcp {}
+    impl Sealed for crate::Quic {}
 
     impl Sealed for crate::Idle {}
     impl Sealed for crate::Active {}
 }
 
 /// A named, strongly-typed Node capable of publish/request on Host
-
+#[derive(Debug)]
 pub struct Node<I: Interface + Default, State, T: Message> {
     pub __state: PhantomData<State>,
     // pub __interface: PhantomData<Interface>,
@@ -94,5 +90,3 @@ pub struct Node<I: Interface + Default, State, T: Message> {
     pub subscription_data: Arc<TokioMutex<Option<SubscriptionData<T>>>>,
     pub task_subscribe: Option<JoinHandle<()>>,
 }
-
-

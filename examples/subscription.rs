@@ -10,7 +10,7 @@ fn main() -> Result<(), meadow::Error> {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let writer = NodeConfig::new("WRITER")
+    let writer = NodeConfig::<Tcp, _>::new("WRITER")
         .topic("subscription")
         .build()?
         .activate()?;

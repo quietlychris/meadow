@@ -1,24 +1,23 @@
-use tokio::sync::Mutex as TokioMutex;
+use crate::Error;
 use std::result::Result;
 use std::sync::Arc;
-use crate::Error;
+use tokio::sync::Mutex as TokioMutex;
 
 use crate::node::net_config::*;
-use crate::node::{Message, Node, Idle, Active};
+use crate::node::{Active, Idle, Message, Node};
 use std::default::Default;
 use std::marker::PhantomData;
 
 /// Configuration of strongly-typed Node
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct NodeConfig<I: Interface + Default, T: Message> {
+    pub __data_type: PhantomData<T>,
     pub name: String,
     pub topic: Option<String>,
     pub network_cfg: NetworkConfig<I>,
-    pub __data_type: PhantomData<T>,
 }
 
 impl<I: Interface + Default + Clone, T: Message> NodeConfig<I, T> {
-
     /// Create a named, strongly-typed Node without an assigned topic
     pub fn new(name: impl Into<String>) -> NodeConfig<I, T> {
         NodeConfig {
@@ -60,7 +59,6 @@ impl<I: Interface + Default + Clone, T: Message> NodeConfig<I, T> {
         };
 
         Ok(Node::<I, Idle, T> {
-            // __interface: PhantomData::<I>,
             __state: PhantomData::<Idle>,
             __data_type: PhantomData::<T>,
             cfg: self.clone(),

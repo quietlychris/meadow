@@ -1,5 +1,4 @@
 use meadow::*;
-use serde::{Deserialize, Serialize};
 
 // Any type implementing Debug and serde's De/Serialize traits are meadow-compatible
 // (the standard library Debug and Clone traits are also required)
@@ -18,13 +17,13 @@ fn main() -> Result<(), meadow::Error> {
 
     // Build a Node
     let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-    let node: Node<Idle, Coordinate> = NodeConfig::new("GPS_NODE")
+    let node: Node<Tcp, Idle, Coordinate> = NodeConfig::new("GPS_NODE")
         .topic("position")
-        .with_tcp_config(Some(node::TcpConfig::default().set_host_addr(addr)))
+        .with_config(node::NetworkConfig::<Tcp>::default().set_host_addr(addr))
         .build()?;
     // meadow Nodes use strict typestates; without using the activate() method first,
     // the compiler won't let allow publish() or request() methods on an Idle Node
-    let node: Node<Active, Coordinate> = node.activate()?;
+    let node: Node<Tcp, Active, Coordinate> = node.activate()?;
 
     // Since Nodes are statically-typed, the following lines would fail at
     // compile-time due to type errors
@@ -35,9 +34,9 @@ fn main() -> Result<(), meadow::Error> {
 
     // Nodes can also be subscribers, which will request topic updates from the Host
     // at a given rate
-    let subscriber = NodeConfig::<Coordinate>::new("GPS_SUBSCRIBER")
+    let subscriber = NodeConfig::<Tcp, Coordinate>::new("GPS_SUBSCRIBER")
         .topic("position")
-        .with_tcp_config(Some(node::TcpConfig::default().set_host_addr(addr)))
+        .with_config(node::NetworkConfig::<Tcp>::default().set_host_addr(addr))
         .build()?
         .subscribe(std::time::Duration::from_micros(100))?;
 

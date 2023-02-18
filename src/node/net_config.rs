@@ -6,12 +6,21 @@ use std::path::{Path, PathBuf};
 use crate::node::private;
 pub trait Interface: private::Sealed + Default {}
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Tcp {}
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Udp {}
+#[derive(Debug, Clone)]
+pub struct Quic {}
 
-// Default implementations for both Udp and Tcp
+// Default implementations for both Tcp, Udp, and Quic
+impl Default for Tcp {
+    fn default() -> Self {
+        Tcp {}
+    }
+}
+impl Interface for Tcp {}
+
 impl Default for Udp {
     fn default() -> Self {
         Udp {}
@@ -19,13 +28,12 @@ impl Default for Udp {
 }
 impl Interface for Udp {}
 
-
-impl Default for Tcp {
+impl Default for Quic {
     fn default() -> Self {
-        Tcp {}
+        Quic {}
     }
 }
-impl Interface for Tcp {}
+impl Interface for Quic {}
 
 /// Configuration for network interfaces
 #[derive(Clone, Debug)]
@@ -49,7 +57,7 @@ impl<I: Interface> Default for NetworkConfig<I> {
             host_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 25_000),
             max_buffer_size: 1024,
             cert_path: None,
-            key_path: None
+            key_path: None,
         }
     }
 }
@@ -75,7 +83,7 @@ impl NetworkConfig<Tcp> {
     pub fn set_max_buffer_size(mut self, max_buffer_size: impl Into<usize>) -> Self {
         self.max_buffer_size = max_buffer_size.into();
         self
-    }     
+    }
 }
 
 impl NetworkConfig<Udp> {
@@ -99,7 +107,7 @@ impl NetworkConfig<Udp> {
     pub fn set_max_buffer_size(mut self, max_buffer_size: impl Into<usize>) -> Self {
         self.max_buffer_size = max_buffer_size.into();
         self
-    }     
+    }
 }
 
 /*
@@ -125,7 +133,7 @@ impl<I: Interface> NetworkConfig<I> {
     pub fn set_max_buffer_size(mut self, max_buffer_size: impl Into<usize>) -> Self {
         self.max_buffer_size = max_buffer_size.into();
         self
-    }    
+    }
 }
 */
 

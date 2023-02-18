@@ -1,10 +1,12 @@
-use quinn::Connection as QuicConnection;
-use quinn::{ClientConfig, Endpoint};
+mod active;
+mod idle;
+
 use std::fs::File;
 use std::io::BufReader;
 use std::{error::Error, net::SocketAddr};
 
 use rustls::Certificate;
+use quinn::ClientConfig;
 
 pub fn generate_client_config_from_certs() -> ClientConfig {
     let mut certs = rustls::RootCertStore::empty();
