@@ -1,35 +1,31 @@
 use tokio::sync::Mutex as TokioMutex;
-
-use std::marker::PhantomData;
 use std::result::Result;
 use std::sync::Arc;
-
-use std::fmt::Debug;
-
 use crate::Error;
-use crate::*;
+
+use crate::node::net_config::*;
+use crate::node::{Message, Node, Idle, Active};
+use std::default::Default;
+use std::marker::PhantomData;
 
 /// Configuration of strongly-typed Node
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct NodeConfig<T: Message> {
+#[derive(Clone)]
+pub struct NodeConfig<I: Interface + Default, T: Message> {
     pub name: String,
     pub topic: Option<String>,
-    pub tcp: Option<node::network_config::TcpConfig>,
-    pub udp: Option<node::network_config::UdpConfig>,
-    pub quic: Option<node::network_config::QuicConfig>,
-    pub phantom: PhantomData<T>,
+    pub network_cfg: NetworkConfig<I>,
+    pub __data_type: PhantomData<T>,
 }
 
-impl<T: Message> NodeConfig<T> {
+impl<I: Interface + Default + Clone, T: Message> NodeConfig<I, T> {
+
     /// Create a named, strongly-typed Node without an assigned topic
-    pub fn new(name: impl Into<String>) -> NodeConfig<T> {
+    pub fn new(name: impl Into<String>) -> NodeConfig<I, T> {
         NodeConfig {
+            __data_type: PhantomData,
             name: name.into(),
             topic: None,
-            tcp: Some(node::network_config::TcpConfig::default()),
-            udp: Some(node::network_config::UdpConfig::default()),
-            quic: Some(node::network_config::QuicConfig::default()),
-            phantom: PhantomData,
+            network_cfg: NetworkConfig::<I>::default(),
         }
     }
 
@@ -39,15 +35,9 @@ impl<T: Message> NodeConfig<T> {
         self
     }
 
-    /// Configure the UDP connection parameteres
-    pub fn with_udp_config(mut self, udp_cfg: Option<node::network_config::UdpConfig>) -> Self {
-        self.udp = udp_cfg;
-        self
-    }
-
     /// Configure the TCP connection parameteres
-    pub fn with_tcp_config(mut self, tcp_cfg: Option<node::network_config::TcpConfig>) -> Self {
-        self.tcp = tcp_cfg;
+    pub fn with_config(mut self, network_cfg: NetworkConfig<I>) -> Self {
+        self.network_cfg = network_cfg;
         self
     }
 
@@ -58,7 +48,7 @@ impl<T: Message> NodeConfig<T> {
     }
 
     /// Construct a Node from the specified configuration
-    pub fn build(self) -> Result<Node<Idle, T>, Error> {
+    pub fn build(self) -> Result<Node<I, Idle, T>, Error> {
         let runtime = match tokio::runtime::Runtime::new() {
             Ok(runtime) => runtime,
             Err(_e) => return Err(Error::RuntimeCreation),
@@ -69,9 +59,10 @@ impl<T: Message> NodeConfig<T> {
             None => panic!("Nodes must have an assigned topic to be built"),
         };
 
-        Ok(Node::<Idle, T> {
-            __state: PhantomData,
-            phantom: PhantomData,
+        Ok(Node::<I, Idle, T> {
+            // __interface: PhantomData::<I>,
+            __state: PhantomData::<Idle>,
+            __data_type: PhantomData::<T>,
             cfg: self.clone(),
             runtime,
             stream: None,

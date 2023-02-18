@@ -8,10 +8,10 @@ use quinn::Connection as QuicConnection;
 use std::result::Result;
 use tracing::*;
 
-impl<T: Message + 'static> Node<Active, T> {
+impl<T: Message + 'static> Node<Tcp, Active, T> {
     // TO_DO: The error handling in the async blocks need to be improved
     /// Send data to host on Node's assigned topic using Msg<T> packet
-    #[tracing::instrument]
+    //#[tracing::instrument]
     pub fn publish(&self, val: T) -> Result<(), Error> {
         let val_vec: Vec<u8> = match to_allocvec(&val) {
             Ok(val_vec) => val_vec,
@@ -77,6 +77,7 @@ impl<T: Message + 'static> Node<Active, T> {
         Ok(())
     }
 
+    /*
     #[tracing::instrument]
     pub fn publish_udp(&self, val: T) -> Result<(), Error> {
         let val_vec: Vec<u8> = match to_allocvec(&val) {
@@ -159,15 +160,17 @@ impl<T: Message + 'static> Node<Active, T> {
             Ok(())
         })
     }
+    */
 
     /// Request data from host on Node's assigned topic
-    #[tracing::instrument]
+    //#[tracing::instrument]
     pub fn request(&self) -> Result<T, Error> {
         let mut stream = match self.stream.as_ref() {
             Some(stream) => stream,
             None => return Err(Error::AccessStream),
         };
 
+        /*
         let tcp_cfg = match &self.cfg.tcp {
             Some(tcp_cfg) => tcp_cfg,
             None => {
@@ -175,6 +178,7 @@ impl<T: Message + 'static> Node<Active, T> {
                 return Err(Error::AccessStream);
             }
         };
+        */
 
         let packet = GenericMsg {
             msg_type: MsgType::GET,
@@ -193,7 +197,7 @@ impl<T: Message + 'static> Node<Active, T> {
 
         self.runtime.block_on(async {
             send_msg(&mut stream, packet_as_bytes).await.unwrap();
-            match await_response::<T>(&mut stream, tcp_cfg.max_buffer_size).await {
+            match await_response::<T>(&mut stream, self.cfg.network_cfg.max_buffer_size).await {
                 Ok(reply) => {
                     match from_bytes::<T>(&reply.data) {
                         Ok(data) => Ok(data),
