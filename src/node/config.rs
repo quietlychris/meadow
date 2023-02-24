@@ -17,7 +17,10 @@ pub struct NodeConfig<I: Interface + Default, T: Message> {
     pub network_cfg: NetworkConfig<I>,
 }
 
-impl<I: Interface + Default + Clone, T: Message> NodeConfig<I, T> {
+impl<I: Interface + Default + Clone, T: Message> NodeConfig<I, T>
+where
+    NetworkConfig<I>: Default,
+{
     /// Create a named, strongly-typed Node without an assigned topic
     pub fn new(name: impl Into<String>) -> NodeConfig<I, T> {
         NodeConfig {

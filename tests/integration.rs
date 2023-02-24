@@ -2,8 +2,17 @@
 
 use meadow::*;
 
+use std::sync::Once;
 use std::thread;
 use std::time::Duration;
+
+static INIT: Once = Once::new();
+
+pub fn initialize() {
+    INIT.call_once(|| {
+        meadow::generate_certs().unwrap();
+    });
+}
 
 /// Example test struct for docs and tests
 #[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
@@ -21,6 +30,8 @@ struct NotPose {
 
 #[test]
 fn integrate_host_and_single_node() {
+    initialize();
+
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
@@ -49,6 +60,8 @@ fn integrate_host_and_single_node() {
 
 #[test]
 fn request_non_existent_topic() {
+    initialize();
+
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
@@ -73,6 +86,8 @@ fn request_non_existent_topic() {
 
 #[test]
 fn node_send_options() {
+    initialize();
+
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
 
@@ -107,6 +122,8 @@ fn node_send_options() {
 
 #[test]
 fn publish_boolean() {
+    initialize();
+
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
@@ -129,6 +146,8 @@ fn publish_boolean() {
 
 #[test]
 fn subscription_usize() {
+    initialize();
+
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
@@ -169,6 +188,8 @@ fn subscription_usize() {
 #[test]
 #[should_panic]
 fn no_subscribed_value() {
+    initialize();
+
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
 
@@ -186,37 +207,37 @@ fn no_subscribed_value() {
 
 #[test]
 fn simple_udp() {
-    {
-        let mut host = HostConfig::default().build().unwrap();
-        host.start().unwrap();
-        println!("Started host");
+    initialize();
 
-        let tx = NodeConfig::<Udp, f32>::new("TX")
-            .topic("num")
-            .build()
-            .unwrap()
-            .activate()
-            .unwrap();
+    let mut host = HostConfig::default().build().unwrap();
+    host.start().unwrap();
+    println!("Started host");
 
-        let rx = NodeConfig::<Tcp, f32>::new("RECEIVER")
-            .topic("num")
-            .build()
-            .unwrap()
-            .activate()
-            .unwrap();
+    let tx = NodeConfig::<Udp, f32>::new("TX")
+        .topic("num")
+        .build()
+        .unwrap()
+        .activate()
+        .unwrap();
 
-        for i in 0..10 {
-            let x = i as f32;
+    let rx = NodeConfig::<Tcp, f32>::new("RECEIVER")
+        .topic("num")
+        .build()
+        .unwrap()
+        .activate()
+        .unwrap();
 
-            match tx.publish(x) {
-                Ok(_) => (),
-                Err(e) => {
-                    dbg!(e);
-                }
-            };
-            thread::sleep(Duration::from_millis(1));
-            let result = rx.request().unwrap();
-            assert_eq!(x, result);
-        }
+    for i in 0..10 {
+        let x = i as f32;
+
+        match tx.publish(x) {
+            Ok(_) => (),
+            Err(e) => {
+                dbg!(e);
+            }
+        };
+        thread::sleep(Duration::from_millis(1));
+        let result = rx.request().unwrap();
+        assert_eq!(x, result);
     }
 }

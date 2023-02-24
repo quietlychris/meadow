@@ -102,12 +102,10 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
         self.runtime.block_on(async {
             send_msg(&mut stream, packet_as_bytes).await.unwrap();
             match await_response::<T>(&mut stream, self.cfg.network_cfg.max_buffer_size).await {
-                Ok(reply) => {
-                    match from_bytes::<T>(&reply.data) {
-                        Ok(data) => Ok(data),
-                        Err(_e) => Err(Error::Deserialization),
-                    }
-                }
+                Ok(reply) => match from_bytes::<T>(&reply.data) {
+                    Ok(data) => Ok(data),
+                    Err(_e) => Err(Error::Deserialization),
+                },
                 Err(_e) => Err(Error::BadResponse),
             }
         })

@@ -63,7 +63,6 @@ impl<T: Message> From<Node<Tcp, Idle, T>> for Node<Tcp, Subscription, T> {
 }
 
 impl<T: Message + 'static> Node<Tcp, Idle, T> {
-    
     /// Attempt connection from the Node to the Host located at the specified address
     #[tracing::instrument(skip_all)]
     pub fn activate(mut self) -> Result<Node<Tcp, Active, T>, Error> {
@@ -101,7 +100,6 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
 
     #[tracing::instrument]
     pub fn subscribe(mut self, rate: Duration) -> Result<Node<Tcp, Subscription, T>, Error> {
-
         let name = self.name.clone();
         let addr = self.cfg.network_cfg.host_addr;
         let topic = self.topic.clone();
