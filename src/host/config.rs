@@ -18,9 +18,9 @@ pub struct HostConfig {
     pub quic_cfg: Option<host::QuicConfig>,
 }
 
-impl HostConfig {
+impl Default for HostConfig {
     /// Create a new `HostConfig` with all default options
-    pub fn default() -> HostConfig {
+    fn default() -> HostConfig {
         // Default sled database configuration
         let sled_cfg = sled::Config::default().path("store").temporary(true);
 
@@ -31,7 +31,9 @@ impl HostConfig {
             quic_cfg: Some(host::QuicConfig::default("lo")),
         }
     }
+}
 
+impl HostConfig {
     /// Add the Sled database configuration to the Host configuration
     pub fn with_sled_config(mut self, sled_cfg: sled::Config) -> HostConfig {
         self.sled_cfg = sled_cfg;

@@ -13,10 +13,6 @@ pub struct Udp {}
 #[derive(Debug, Clone, Default)]
 pub struct Quic {}
 
-impl Interface for Tcp {}
-impl Interface for Udp {}
-impl Interface for Quic {}
-
 /// Configuration for network interfaces
 #[derive(Clone, Debug)]
 pub struct NetworkConfig<Interface>
@@ -32,20 +28,6 @@ where
     pub key_path: Option<PathBuf>,
 }
 
-/*
-impl<I: Interface> Default for NetworkConfig<I> {
-    fn default() -> NetworkConfig<I> {
-        NetworkConfig {
-            __interface: PhantomData::<I>,
-            host_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 25_000),
-            max_buffer_size: 1024,
-            cert_path: None,
-            key_path: None,
-        }
-    }
-}
-*/
-
 impl Default for NetworkConfig<Tcp> {
     fn default() -> NetworkConfig<Tcp> {
         Self {
@@ -59,18 +41,7 @@ impl Default for NetworkConfig<Tcp> {
 }
 
 impl NetworkConfig<Tcp> {
-    /*
-    pub fn default() -> NetworkConfig<Tcp> {
-        Self {
-            __interface: PhantomData::<Tcp>,
-            host_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 25_000),
-            max_buffer_size: 1024,
-            cert_path: None,
-            key_path: None,
-        }
-    }
-    */
-
+    
     /// Define a custom address for the Host to which the Node will connect
     pub fn set_host_addr(mut self, host_addr: impl Into<SocketAddr>) -> Self {
         self.host_addr = host_addr.into();
@@ -97,18 +68,7 @@ impl Default for NetworkConfig<Udp> {
 }
 
 impl NetworkConfig<Udp> {
-    /*
-    fn default() -> NetworkConfig<Udp> {
-        Self {
-            __interface: PhantomData::<Udp>,
-            host_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 25_000),
-            max_buffer_size: 2048,
-            cert_path: None,
-            key_path: None,
-        }
-    }
-    */
-
+    
     /// Define a custom address for the Host to which the Node will connect
     pub fn set_host_addr(mut self, host_addr: impl Into<SocketAddr>) -> Self {
         self.host_addr = host_addr.into();
@@ -135,18 +95,6 @@ impl Default for NetworkConfig<Quic> {
 }
 
 impl NetworkConfig<Quic> {
-    /*
-
-    fn default() -> NetworkConfig<Quic> {
-        Self {
-            __interface: PhantomData::<Quic>,
-            host_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 25_000),
-            max_buffer_size: 4096,
-            cert_path: Some(Path::new("target").join("cert.pem")),
-            key_path: Some(Path::new("target").join("priv_key.pem")),
-        }
-    }
-    */
 
     /// Define a custom address for the Host to which the Node will connect
     pub fn set_host_addr(mut self, host_addr: impl Into<SocketAddr>) -> Self {

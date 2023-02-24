@@ -1,3 +1,4 @@
+use crate::node::Interface;
 use crate::Error;
 use crate::*;
 use std::marker::PhantomData;
@@ -8,6 +9,9 @@ use postcard::*;
 use quinn::Connection as QuicConnection;
 use std::result::Result;
 use tracing::*;
+
+/// Udp implements the Interface trait
+impl Interface for Udp {}
 
 impl<T: Message> From<Node<Udp, Idle, T>> for Node<Udp, Active, T> {
     fn from(node: Node<Udp, Idle, T>) -> Self {

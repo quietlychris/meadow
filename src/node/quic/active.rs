@@ -1,3 +1,4 @@
+use crate::node::Interface;
 use crate::Error;
 use crate::*;
 
@@ -7,6 +8,9 @@ use postcard::*;
 use quinn::Connection as QuicConnection;
 use std::result::Result;
 use tracing::*;
+
+/// Quic implements the Interface trait
+impl Interface for Quic {}
 
 impl<T: Message + 'static> Node<Quic, Active, T> {
     #[tracing::instrument(skip(self))]

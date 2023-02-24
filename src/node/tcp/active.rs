@@ -8,6 +8,11 @@ use quinn::Connection as QuicConnection;
 use std::result::Result;
 use tracing::*;
 
+use crate::node::net_config::Interface;
+
+/// Tcp implements the Interface trait
+impl Interface for Tcp {}
+
 impl<T: Message + 'static> Node<Tcp, Active, T> {
     // TO_DO: The error handling in the async blocks need to be improved
     /// Send data to host on Node's assigned topic using Msg<T> packet
