@@ -2,6 +2,7 @@ use criterion::{criterion_group, criterion_main};
 use meadow::*;
 use rand::prelude::*;
 
+/*
 fn meadow_instantiation(c: &mut criterion::Criterion) {
     /*
     c.bench_function("create_host", |b| {
@@ -22,9 +23,10 @@ fn meadow_instantiation(c: &mut criterion::Criterion) {
                 .expect("Error in create_nodes benchmark");
             let _node = node.activate().unwrap();
         });
-        // host.stop().unwrap();
+        host.stop().unwrap();
     });
 }
+*/
 
 fn tcp_message_sending(c: &mut criterion::Criterion) {
     // Open a Host
@@ -113,6 +115,7 @@ fn tcp_message_sending(c: &mut criterion::Criterion) {
 criterion_group!(benches, tcp_message_sending);
 criterion_main!(benches);
 
+/*
 /// Helper function for creating a simple network
 fn create_meadow_triple() -> (Host, Node<Tcp, Active, f32>, Node<Tcp, Active, f32>) {
     let mut host = HostConfig::default().build().unwrap();
@@ -132,3 +135,4 @@ fn create_meadow_triple() -> (Host, Node<Tcp, Active, f32>, Node<Tcp, Active, f3
         .unwrap();
     (host, tx, rx)
 }
+*/

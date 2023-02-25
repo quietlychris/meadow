@@ -20,9 +20,9 @@ members = ["tools/ci"]
 
 
 
-#[features]
-#default = []
-#quic = ["quinn", "rustls", "rustls-pemfile", "rcgen", "futures-util"]
+[features]
+default = []
+quic = ["quinn", "rustls", "rustls-pemfile", "rcgen", "futures-util"]
 
 [dependencies]
 # de/serialization and message sending
@@ -36,21 +36,12 @@ pnet_datalink = "0.29.0"
 tokio = { version = "1.16.1", features = ["net", "rt-multi-thread", "io-util", "sync", "time"] }
 # logging
 tracing = "0.1.29"
-
-# QUIC support
-quinn = "0.9"
-rustls = { version = "0.20", features = ["dangerous_configuration", "quic"]}
-rustls-pemfile = "1"
-rcgen = "0.9"
-futures-util = "0.3"
-
-
-# Optional QUIC support
-#quinn = {version = "0.8", optional = true}
-#rustls = { version = "0.20", features = ["dangerous_configuration", "quic"], optional = true}
-#rustls-pemfile = {version = "1", optional = true}
-#rcgen = {version = "0.9", optional = true}
-#futures-util = {version = "0.3", optional = true}
+# QUIC support (optional)
+quinn = {version = "0.9", optional = true}
+rustls = { version = "0.20", features = ["dangerous_configuration", "quic"], optional = true}
+rustls-pemfile = {version = "1", optional = true}
+rcgen = {version = "0.9", optional = true}
+futures-util = {version = "0.3", optional = true}
 
 
 [dev-dependencies]

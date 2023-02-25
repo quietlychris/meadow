@@ -1,11 +1,13 @@
 mod config;
 mod net_config;
+#[cfg(feature = "quic")]
 mod quic;
 mod tcp;
 mod udp;
 
 pub use crate::node::config::*;
 pub use crate::node::net_config::*;
+#[cfg(feature = "quic")]
 pub use crate::node::quic::*;
 pub use crate::node::tcp::*;
 pub use crate::node::udp::*;
@@ -36,12 +38,16 @@ use crate::Error;
 use chrono::{DateTime, Utc};
 
 // Quic stuff
+#[cfg(feature = "quic")]
 use quinn::Connection as QuicConnection;
+#[cfg(feature = "quic")]
 use quinn::{ClientConfig, Endpoint};
-use std::fs::File;
-use std::io::BufReader;
-// use std::{error::Error, net::SocketAddr};
+#[cfg(feature = "quic")]
 use rustls::Certificate;
+#[cfg(feature = "quic")]
+use std::fs::File;
+#[cfg(feature = "quic")]
+use std::io::BufReader;
 
 use std::fmt::Debug;
 /// Trait for Meadow-compatible data, requiring serde De\Serialize, Debug, and Clone
@@ -69,6 +75,7 @@ mod private {
     pub trait Sealed {}
     impl Sealed for crate::Udp {}
     impl Sealed for crate::Tcp {}
+    #[cfg(feature = "quic")]
     impl Sealed for crate::Quic {}
 
     impl Sealed for crate::Idle {}
@@ -86,7 +93,9 @@ pub struct Node<I: Interface + Default, State, T: Message> {
     pub topic: String,
     pub stream: Option<TcpStream>,
     pub socket: Option<UdpSocket>,
+    #[cfg(feature = "quic")]
     pub endpoint: Option<Endpoint>,
+    #[cfg(feature = "quic")]
     pub connection: Option<QuicConnection>,
     pub subscription_data: Arc<TokioMutex<Option<SubscriptionData<T>>>>,
     pub task_subscribe: Option<JoinHandle<()>>,

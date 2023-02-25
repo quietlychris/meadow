@@ -18,7 +18,7 @@ use alloc::vec::Vec;
 use postcard::*;
 use std::marker::PhantomData;
 
-// Quic
+#[cfg(feature = "quic")]
 use quinn::Endpoint;
 
 use crate::msg::*;
@@ -36,7 +36,9 @@ impl<T: Message> From<Node<Tcp, Idle, T>> for Node<Tcp, Active, T> {
             name: node.name,
             topic: node.topic,
             socket: node.socket,
+            #[cfg(feature = "quic")]
             endpoint: node.endpoint,
+            #[cfg(feature = "quic")]
             connection: node.connection,
             subscription_data: node.subscription_data,
             task_subscribe: None,
@@ -56,7 +58,9 @@ impl<T: Message> From<Node<Tcp, Idle, T>> for Node<Tcp, Subscription, T> {
             name: node.name,
             topic: node.topic,
             socket: node.socket,
+            #[cfg(feature = "quic")]
             endpoint: node.endpoint,
+            #[cfg(feature = "quic")]
             connection: node.connection,
             subscription_data: node.subscription_data,
             task_subscribe: None,

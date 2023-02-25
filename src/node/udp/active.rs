@@ -6,6 +6,7 @@ use std::marker::PhantomData;
 use chrono::Utc;
 
 use postcard::*;
+#[cfg(feature = "quic")]
 use quinn::Connection as QuicConnection;
 use std::result::Result;
 use tracing::*;
@@ -24,7 +25,9 @@ impl<T: Message> From<Node<Udp, Idle, T>> for Node<Udp, Active, T> {
             name: node.name,
             topic: node.topic,
             socket: node.socket,
+            #[cfg(feature = "quic")]
             endpoint: node.endpoint,
+            #[cfg(feature = "quic")]
             connection: node.connection,
             subscription_data: node.subscription_data,
             task_subscribe: None,

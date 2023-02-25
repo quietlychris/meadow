@@ -4,6 +4,7 @@ use crate::*;
 use chrono::Utc;
 
 use postcard::*;
+#[cfg(feature = "quic")]
 use quinn::Connection as QuicConnection;
 use std::result::Result;
 use tracing::*;

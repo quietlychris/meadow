@@ -68,7 +68,9 @@ where
             runtime,
             stream: None,
             socket: None,
+            #[cfg(feature = "quic")]
             endpoint: None,
+            #[cfg(feature = "quic")]
             connection: None,
             name: self.name,
             topic,

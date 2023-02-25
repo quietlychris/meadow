@@ -18,9 +18,6 @@ use alloc::vec::Vec;
 use postcard::*;
 use std::marker::PhantomData;
 
-// Quic
-use quinn::Endpoint;
-
 use crate::msg::*;
 use chrono::Utc;
 

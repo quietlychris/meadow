@@ -29,12 +29,14 @@ use crate::Error;
 use chrono::{DateTime, Utc};
 
 // Quic stuff
-use quinn::Connection as QuicConnection;
-use quinn::{ClientConfig, Endpoint};
-use std::fs::File;
-use std::io::BufReader;
-// use std::{error::Error, net::SocketAddr};
+#[cfg(feature = "quic")]
+use quinn::{ClientConfig, Connection as QuicConnection, Endpoint};
+#[cfg(feature = "quic")]
 use rustls::Certificate;
+#[cfg(feature = "quic")]
+use std::fs::File;
+#[cfg(feature = "quic")]
+use std::io::BufReader;
 
 use crate::Message;
 

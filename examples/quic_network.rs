@@ -4,6 +4,7 @@ use tracing::*;
 use std::thread;
 use std::time::Duration;
 
+#[cfg(feature = "quic")]
 fn main() -> Result<(), meadow::Error> {
     tracing_subscriber::fmt()
         .compact()
@@ -25,7 +26,8 @@ fn main() -> Result<(), meadow::Error> {
     let reader = NodeConfig::<Tcp, String>::new("READER")
         .topic("pose")
         .build()?
-        .subscribe(Duration::from_micros(1))?;
+        .activate()?;
+    //.subscribe(Duration::from_micros(1))?;
 
     // Get the host up and running
     let node = NodeConfig::<Quic, String>::new("TEAPOT")
@@ -39,15 +41,20 @@ fn main() -> Result<(), meadow::Error> {
         info!("Published message #{}", i);
         // println!("published {}", i);
         thread::sleep(Duration::from_millis(100));
-        info!("Received reply: {:?}", reader.get_subscribed_data());
+        info!("Received reply: {:?}", reader.request());
     }
 
     println!(
         "The size of an a meadow Host before shutdown is: {}",
         std::mem::size_of_val(&host)
     );
-    drop(reader);
     host.stop()?;
 
     Ok(())
+}
+
+#[cfg(not(feature = "quic"))]
+
+fn main() {
+    panic!("Must enable the \"quic\" feature to run");
 }

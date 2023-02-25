@@ -15,6 +15,7 @@ pub struct HostConfig {
     pub sled_cfg: sled::Config,
     pub tcp_cfg: Option<host::TcpConfig>,
     pub udp_cfg: Option<host::UdpConfig>,
+    #[cfg(feature = "quic")]
     pub quic_cfg: Option<host::QuicConfig>,
 }
 
@@ -28,6 +29,7 @@ impl Default for HostConfig {
             sled_cfg,
             tcp_cfg: Some(host::TcpConfig::default("lo")),
             udp_cfg: Some(host::UdpConfig::default("lo")),
+            #[cfg(feature = "quic")]
             quic_cfg: Some(host::QuicConfig::default()),
         }
     }
@@ -53,6 +55,7 @@ impl HostConfig {
     }
 
     /// Assign a configuration to the Host's QUIC `Endpoint` server
+    #[cfg(feature = "quic")]
     pub fn with_quic_config(mut self, quic_cfg: Option<host::QuicConfig>) -> HostConfig {
         self.quic_cfg = quic_cfg;
         self
@@ -66,7 +69,6 @@ impl HostConfig {
         };
 
         let connections = Arc::new(StdMutex::new(Vec::new()));
-        let connections_quic = Arc::new(StdMutex::new(Vec::<Connection>::new()));
         let store: sled::Db = match self.sled_cfg.open() {
             Ok(store) => store,
             Err(_e) => return Err(Error::OpeningSled),
@@ -80,8 +82,8 @@ impl HostConfig {
             task_listen_tcp: None,
             connections,
             task_listen_udp: None,
+            #[cfg(feature = "quic")]
             task_listen_quic: None,
-            connections_quic,
             store: Some(store),
             reply_count,
         })

@@ -25,5 +25,7 @@ jobs:
         profile: minimal
         toolchain: stable
         components: clippy
-    - name: CI
+    - name: Default CI
       run: cargo run -p ci
+    - name: QUIC CI
+      run: cargo run -p ci --features quic

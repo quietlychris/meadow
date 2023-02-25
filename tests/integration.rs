@@ -8,6 +8,7 @@ use std::time::Duration;
 
 static INIT: Once = Once::new();
 
+#[cfg(feature = "quic")]
 pub fn initialize() {
     INIT.call_once(|| {
         meadow::generate_certs().unwrap();
@@ -30,8 +31,6 @@ struct NotPose {
 
 #[test]
 fn integrate_host_and_single_node() {
-    initialize();
-
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
@@ -60,8 +59,6 @@ fn integrate_host_and_single_node() {
 
 #[test]
 fn request_non_existent_topic() {
-    initialize();
-
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
@@ -86,8 +83,6 @@ fn request_non_existent_topic() {
 
 #[test]
 fn node_send_options() {
-    initialize();
-
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
 
@@ -122,8 +117,6 @@ fn node_send_options() {
 
 #[test]
 fn publish_boolean() {
-    initialize();
-
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
@@ -146,8 +139,6 @@ fn publish_boolean() {
 
 #[test]
 fn subscription_usize() {
-    initialize();
-
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
@@ -188,8 +179,6 @@ fn subscription_usize() {
 #[test]
 #[should_panic]
 fn no_subscribed_value() {
-    initialize();
-
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
 
@@ -207,8 +196,6 @@ fn no_subscribed_value() {
 
 #[test]
 fn simple_udp() {
-    initialize();
-
     let mut host = HostConfig::default().build().unwrap();
     host.start().unwrap();
     println!("Started host");

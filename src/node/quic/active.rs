@@ -38,7 +38,7 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
             self.runtime.block_on(async {
                 info!("Attempting to open bi-directional stream");
                 match connection.open_bi().await {
-                    Ok((mut send, recv)) => {
+                    Ok((mut send, _recv)) => {
                         info!("Node succesfully opened stream from connection");
                         send.write_all(&packet_as_bytes).await.unwrap();
                         send.finish().await.unwrap();

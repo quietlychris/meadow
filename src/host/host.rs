@@ -5,9 +5,13 @@ use tokio::runtime::Runtime;
 use tokio::sync::Mutex; // as TokioMutex;
 use tokio::task::JoinHandle;
 // QUIC requirements
+#[cfg(feature = "quic")]
 use futures_util::StreamExt;
+#[cfg(feature = "quic")]
 use quinn::Connection as QuicConnection;
+#[cfg(feature = "quic")]
 use quinn::{Endpoint, ServerConfig};
+#[cfg(feature = "quic")]
 use std::{fs::File, io::BufReader};
 
 // Tracing for logging
@@ -19,6 +23,7 @@ use std::sync::Mutex as StdMutex;
 use std::net::SocketAddr;
 use std::result::Result;
 
+#[cfg(feature = "quic")]
 use crate::host::quic::*;
 use crate::host::tcp::*;
 use crate::host::udp::*;
@@ -41,8 +46,8 @@ pub struct Host {
     pub task_listen_tcp: Option<JoinHandle<()>>,
     pub connections: Arc<StdMutex<Vec<Connection>>>,
     pub task_listen_udp: Option<JoinHandle<()>>,
+    #[cfg(feature = "quic")]
     pub task_listen_quic: Option<JoinHandle<()>>,
-    pub connections_quic: Arc<StdMutex<Vec<Connection>>>,
     pub store: Option<sled::Db>,
     pub reply_count: Arc<Mutex<usize>>,
 }
@@ -110,7 +115,7 @@ impl Host {
                     (tcp_cfg.max_buffer_size, tcp_cfg.max_name_size);
                 let counter = counter.clone();
                 let db = db.clone();
-                let connections = Arc::clone(&connections.clone());
+                let connections = Arc::clone(&connections);
 
                 let task_listen_tcp = self.runtime.spawn(async move {
                     let listener = TcpListener::bind(addr).await.unwrap();
@@ -152,6 +157,7 @@ impl Host {
         }
 
         // Start the QUIC process
+        #[cfg(feature = "quic")]
         match &self.cfg.quic_cfg {
             None => warn!("Host has no QUIC configuration"),
             Some(cfg_quic) => {
