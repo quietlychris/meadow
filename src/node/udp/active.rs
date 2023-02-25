@@ -16,7 +16,6 @@ impl Interface for Udp {}
 impl<T: Message> From<Node<Udp, Idle, T>> for Node<Udp, Active, T> {
     fn from(node: Node<Udp, Idle, T>) -> Self {
         Self {
-            //__interface: PhantomData,
             __state: PhantomData,
             __data_type: PhantomData,
             cfg: node.cfg,
@@ -26,6 +25,7 @@ impl<T: Message> From<Node<Udp, Idle, T>> for Node<Udp, Active, T> {
             topic: node.topic,
             socket: node.socket,
             endpoint: node.endpoint,
+            connection: node.connection,
             subscription_data: node.subscription_data,
             task_subscribe: None,
         }

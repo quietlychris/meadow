@@ -17,7 +17,7 @@ impl HostOperation {
     }
 }
 
-// TO_DO: Should more of these be categorized into subgroups?
+// TO_DO: These should be categorized into subgroups
 /// This is the error type used by meadow
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "use-defmt", derive(defmt::Format))]
@@ -56,6 +56,8 @@ pub enum Error {
     HostOperation(crate::error::HostOperation),
     // General issue with QUIC setup (TO_DO: make specific error instances)
     QuicIssue,
+    // Error accessing an owned Endpoint
+    AccessEndpoint,
 }
 
 impl std::error::Error for Error {
@@ -82,6 +84,7 @@ impl std::error::Error for Error {
             HostOperation(crate::error::HostOperation::GetFailure) => None,
             HostOperation(crate::error::HostOperation::ConnectionError) => None,
             QuicIssue => None,
+            AccessEndpoint => None,
         }
     }
 }
@@ -117,6 +120,7 @@ impl Display for Error {
                 HostOperation(crate::error::HostOperation::ConnectionError) =>
                     "Unsuccessful Host connection",
                 QuicIssue => "Error due to something with QUIC",
+                AccessEndpoint => "Error accessing an owned Endpoint",
             }
         )
     }

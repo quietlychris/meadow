@@ -41,7 +41,6 @@ impl Default for NetworkConfig<Tcp> {
 }
 
 impl NetworkConfig<Tcp> {
-    
     /// Define a custom address for the Host to which the Node will connect
     pub fn set_host_addr(mut self, host_addr: impl Into<SocketAddr>) -> Self {
         self.host_addr = host_addr.into();
@@ -68,7 +67,6 @@ impl Default for NetworkConfig<Udp> {
 }
 
 impl NetworkConfig<Udp> {
-    
     /// Define a custom address for the Host to which the Node will connect
     pub fn set_host_addr(mut self, host_addr: impl Into<SocketAddr>) -> Self {
         self.host_addr = host_addr.into();
@@ -95,7 +93,6 @@ impl Default for NetworkConfig<Quic> {
 }
 
 impl NetworkConfig<Quic> {
-
     /// Define a custom address for the Host to which the Node will connect
     pub fn set_host_addr(mut self, host_addr: impl Into<SocketAddr>) -> Self {
         self.host_addr = host_addr.into();

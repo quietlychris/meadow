@@ -51,8 +51,7 @@ impl Host {
     /// Allow Host to begin accepting incoming connections
     #[tracing::instrument(skip(self))]
     pub fn start(&mut self) -> Result<(), crate::Error> {
-        let connections_clone = self.connections.clone();
-        let connections_quic_clone = self.connections_quic.clone();
+        let connections = self.connections.clone();
 
         let db = match self.store.clone() {
             Some(db) => db,
@@ -61,10 +60,6 @@ impl Host {
                 return Err(Error::NoSled);
             }
         };
-        // Clone a reference for the each of the different networking methods
-        let db_udp = db.clone();
-        let db_tcp = db.clone();
-        let db_quic = db.clone();
         let counter = self.reply_count.clone();
 
         // Start up the UDP process
@@ -82,15 +77,15 @@ impl Host {
                     Err(_e) => return Err(crate::Error::IpParsing),
                 };
 
-                // let db_udp = db.clone();
-                let counter_udp = counter.clone();
+                let db = db.clone();
+                let counter = counter.clone();
 
                 // Start the UDP listening socket
                 let (max_buffer_size_udp, _max_name_size_udp) =
                     (udp_cfg.max_buffer_size, udp_cfg.max_name_size);
                 let task_listen_udp = self.runtime.spawn(async move {
                     let socket = UdpSocket::bind(addr).await.unwrap();
-                    process_udp(socket, db_udp, counter_udp, max_buffer_size_udp).await;
+                    process_udp(socket, db, counter, max_buffer_size_udp).await;
                 });
                 self.task_listen_udp = Some(task_listen_udp);
             }
@@ -114,9 +109,12 @@ impl Host {
                 let (max_buffer_size_tcp, max_name_size_tcp) =
                     (tcp_cfg.max_buffer_size, tcp_cfg.max_name_size);
                 let counter = counter.clone();
+                let db = db.clone();
+                let connections = Arc::clone(&connections.clone());
 
                 let task_listen_tcp = self.runtime.spawn(async move {
                     let listener = TcpListener::bind(addr).await.unwrap();
+                    let connections = Arc::clone(&connections.clone());
 
                     loop {
                         let (stream, stream_addr) = listener.accept().await.unwrap();
@@ -133,11 +131,11 @@ impl Host {
                         info!("Host received connection from {:?}", &name);
 
                         let counter = counter.clone();
-                        let connections = Arc::clone(&connections_clone.clone());
-                        let db_tcp = db_tcp.clone();
+                        let connections = Arc::clone(&connections.clone());
+                        let db = db.clone();
 
                         let handle = tokio::spawn(async move {
-                            process_tcp(stream, db_tcp, counter, max_buffer_size_tcp).await;
+                            process_tcp(stream, db, counter, max_buffer_size_tcp).await;
                         });
                         let connection = Connection {
                             handle,
@@ -172,39 +170,59 @@ impl Host {
                     read_certs_from_file(&cfg_quic.cert_path, &cfg_quic.key_path).unwrap();
                 info!("Successfully read in QUIC certs");
 
-                let (max_buffer_size_quic, max_name_size_quic) = (
+                let (max_buffer_size_quic, _max_name_size_quic) = (
                     cfg_quic.network_cfg.max_buffer_size,
                     cfg_quic.network_cfg.max_name_size,
                 );
-                let mut buf = vec![0u8; max_buffer_size_quic];
-                let counter = counter.clone();
+                let server_config = ServerConfig::with_single_cert(certs, key).unwrap();
 
                 let task_listen_quic = self.runtime.spawn(async move {
-                    let server_config = ServerConfig::with_single_cert(certs, key).unwrap();
                     let endpoint = Endpoint::server(server_config, addr).unwrap();
-
                     info!(
                         "Waiting for incoming QUIC connection on {:?}",
                         endpoint.local_addr()
                     );
+                    let connections = Arc::clone(&connections.clone());
 
-                    while let Some(conn) = endpoint.accept().await {
-                        let connection = conn.await.unwrap();
+                    loop {
+                        let counter = counter.clone();
+                        if let Some(conn) = endpoint.accept().await {
+                            let connection = conn.await.unwrap();
+                            let db = db.clone();
+                            let remote_addr = connection.remote_address();
 
-                        info!(
-                            "Received QUIC connection from {:?}",
-                            &connection.remote_address()
-                        );
+                            info!(
+                                "Received QUIC connection from {:?}",
+                                &connection.remote_address()
+                            );
+                            let handle = tokio::spawn(async move {
+                                loop {
+                                    let db = db.clone();
+                                    let counter = counter.clone();
+                                    match connection.accept_bi().await {
+                                        Ok((send, recv)) => {
+                                            info!("Host successfully received bi-directional stream from {}",connection.remote_address());
+                                            tokio::spawn(async move {
+                                                process_quic(
+                                                    (send, recv),
+                                                    db.clone(),
+                                                    max_buffer_size_quic,
+                                                    counter.clone(),
+                                                )
+                                                .await;
+                                            });
+                                        }
+                                        Err(_e) => {}
+                                    }
+                                }
+                                });
+                                let connection = Connection {
+                                    handle,
+                                    stream_addr: remote_addr,
+                                    name: "TO_DO: temp".to_string(),
+                                };
 
-                        while let Ok((send, recv)) = connection.accept_bi().await {
-                            process_quic(
-                                &connection,
-                                (send, recv),
-                                db_quic.clone(),
-                                &mut buf,
-                                counter.clone(),
-                            )
-                            .await;
+                                connections.lock().unwrap().push(connection);
                         }
                     }
                 });

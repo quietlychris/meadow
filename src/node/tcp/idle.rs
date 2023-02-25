@@ -37,6 +37,7 @@ impl<T: Message> From<Node<Tcp, Idle, T>> for Node<Tcp, Active, T> {
             topic: node.topic,
             socket: node.socket,
             endpoint: node.endpoint,
+            connection: node.connection,
             subscription_data: node.subscription_data,
             task_subscribe: None,
         }
@@ -56,6 +57,7 @@ impl<T: Message> From<Node<Tcp, Idle, T>> for Node<Tcp, Subscription, T> {
             topic: node.topic,
             socket: node.socket,
             endpoint: node.endpoint,
+            connection: node.connection,
             subscription_data: node.subscription_data,
             task_subscribe: None,
         }

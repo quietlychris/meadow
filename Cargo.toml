@@ -18,6 +18,8 @@ name = "meadow"
 exclude = ["benchmarks"]
 members = ["tools/ci"]
 
+
+
 #[features]
 #default = []
 #quic = ["quinn", "rustls", "rustls-pemfile", "rcgen", "futures-util"]
@@ -56,6 +58,12 @@ futures-util = "0.3"
 tracing-subscriber = "0.3"
 tracing-appender = "0.2"
 # benchmarking
+criterion = "0.4"
 rand = "0.8"
 # Make tokio macro available
 tokio = { version = "1.16.1", features = ["macros", "signal"] }
+
+
+[[bench]]
+name = "my_benchmark"
+harness = false

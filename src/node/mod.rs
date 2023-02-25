@@ -87,6 +87,7 @@ pub struct Node<I: Interface + Default, State, T: Message> {
     pub stream: Option<TcpStream>,
     pub socket: Option<UdpSocket>,
     pub endpoint: Option<Endpoint>,
+    pub connection: Option<QuicConnection>,
     pub subscription_data: Arc<TokioMutex<Option<SubscriptionData<T>>>>,
     pub task_subscribe: Option<JoinHandle<()>>,
 }

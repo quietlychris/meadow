@@ -52,8 +52,23 @@ pub struct QuicConfig {
     pub key_path: PathBuf,
 }
 
+impl Default for QuicConfig {
+    fn default() -> Self {
+        QuicConfig {
+            network_cfg: NetworkConfig {
+                interface: "lo".into(),
+                socket_num: 25_000,
+                max_buffer_size: 10_000,
+                max_name_size: 100,
+            },
+            cert_path: Path::new("target").join("cert.pem"),
+            key_path: Path::new("target").join("priv_key.pem"),
+        }
+    }
+}
+
 impl QuicConfig {
-    pub fn default(interface: impl Into<String>) -> Self {
+    pub fn new(interface: impl Into<String>) -> Self {
         QuicConfig {
             network_cfg: NetworkConfig {
                 interface: interface.into(),

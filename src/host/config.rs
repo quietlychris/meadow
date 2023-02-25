@@ -28,7 +28,7 @@ impl Default for HostConfig {
             sled_cfg,
             tcp_cfg: Some(host::TcpConfig::default("lo")),
             udp_cfg: Some(host::UdpConfig::default("lo")),
-            quic_cfg: Some(host::QuicConfig::default("lo")),
+            quic_cfg: Some(host::QuicConfig::default()),
         }
     }
 }

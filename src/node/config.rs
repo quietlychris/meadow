@@ -69,6 +69,7 @@ where
             stream: None,
             socket: None,
             endpoint: None,
+            connection: None,
             name: self.name,
             topic,
             subscription_data: Arc::new(TokioMutex::new(None)),
