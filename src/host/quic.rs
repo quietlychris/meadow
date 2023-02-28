@@ -62,14 +62,13 @@ pub fn generate_certs() -> Result<(), crate::Error> {
 pub async fn process_quic(
     stream: (SendStream, RecvStream),
     db: sled::Db,
-    max_buffer_size: usize,
-    // buf: &mut Vec<u8>,
+    buf: &mut [u8], // TO_DO: Clippy suggests this hould be &mut [u8] but that might need to change to Vec<u8>
     count: Arc<TokioMutex<usize>>,
 ) {
     let (mut tx, mut rx) = stream;
-    let mut buf = vec![0u8; max_buffer_size];
+    // let mut buf = vec![0u8; max_buffer_size];
 
-    if let Some(n) = rx.read(&mut buf).await.unwrap() {
+    if let Some(n) = rx.read(buf).await.unwrap() {
         let bytes = &buf[..n];
         let msg: GenericMsg = match from_bytes(bytes) {
             Ok(msg) => msg,
@@ -120,12 +119,5 @@ pub async fn process_quic(
                 }
             }
         }
-
-        //let msg = std::str::from_utf8(&buf[..n]).unwrap();
-        //println!("msg: {:?}", msg);
-        //let reply = format!("got: {} from {}", msg, connection.remote_address());
-        //if let Err(e) = tx.write_all(reply.as_bytes()).await {
-        //    println!("Error: {}", e);
-        // };
     }
 }

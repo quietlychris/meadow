@@ -36,7 +36,6 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
 
         if let Some(connection) = &self.connection {
             self.runtime.block_on(async {
-                info!("Attempting to open bi-directional stream");
                 match connection.open_bi().await {
                     Ok((mut send, _recv)) => {
                         info!("Node succesfully opened stream from connection");
@@ -47,9 +46,6 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
                         warn!("{:?}", e);
                     }
                 };
-                info!("Finished sending!");
-
-                // let msg = format!("test message");
 
                 Ok(())
             })
@@ -58,13 +54,7 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
         }
     }
 
-    /*
     pub fn request(&self) -> Result<T, Error> {
-        let mut endpoint = match self.endpoint.as_ref() {
-            Some(endpoint) => endpoint,
-            None => return Err(Error::AccessEndpoint),
-        };
-
         let packet = GenericMsg {
             msg_type: MsgType::GET,
             timestamp: Utc::now(),
@@ -80,25 +70,46 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
         };
 
         self.runtime.block_on(async {
+            let mut buf = vec![0u8; self.cfg.network_cfg.max_buffer_size];
 
+            if let Some(connection) = self.connection.clone() {
+                let reply = match connection.open_bi().await {
+                    Ok((mut send, mut recv)) => {
+                        info!("Node succesfully opened stream from connection");
+                        send.write_all(&packet_as_bytes).await.unwrap();
+                        send.finish().await.unwrap();
 
+                        match recv.read(&mut buf).await {
+                            //Ok(0) => Err(Error::QuicIssue),
+                            Ok(Some(n)) => {
+                                let bytes = &buf[..n];
 
+                                // let msg: Result<GenericMsg, postcard::Error> = from_bytes::<T>(bytes);
+                                match from_bytes::<GenericMsg>(bytes) {
+                                    Ok(reply) => Ok(reply),
+                                    Err(_) => Err(Error::Deserialization),
+                                }
+                            }
+                            _ => {
+                                // if e.kind() == std::io::ErrorKind::WouldBlock {}
+                                Err(Error::QuicIssue)
+                            }
+                        }
+                    }
+                    _ => Err(Error::QuicIssue),
+                };
 
-
-
-
-            /*
-            send_msg(&mut stream, packet_as_bytes).await.unwrap();
-            match await_response::<T>(&mut stream, self.cfg.network_cfg.max_buffer_size).await {
-                Ok(reply) => match from_bytes::<T>(&reply.data) {
-                    Ok(data) => Ok(data),
-                    Err(_e) => Err(Error::Deserialization),
-                },
-                Err(_e) => Err(Error::BadResponse),
+                if let Ok(msg) = reply {
+                    match from_bytes::<T>(&msg.data) {
+                        Ok(data) => Ok(data),
+                        Err(_e) => Err(Error::Deserialization),
+                    }
+                } else {
+                    Err(Error::QuicIssue)
+                }
+            } else {
+                Err(Error::QuicIssue)
             }
-            */
         })
-
     }
-    */
 }

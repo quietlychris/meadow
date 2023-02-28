@@ -23,7 +23,7 @@ fn main() -> Result<(), meadow::Error> {
     info!("Host should be running in the background");
 
     // Create a subscription node with a query rate of 10 Hz
-    let reader = NodeConfig::<Tcp, String>::new("READER")
+    let reader = NodeConfig::<Quic, String>::new("READER")
         .topic("pose")
         .build()?
         .activate()?;

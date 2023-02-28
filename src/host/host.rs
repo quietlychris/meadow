@@ -204,6 +204,9 @@ impl Host {
                             let handle = tokio::spawn(async move {
                                 loop {
                                     let db = db.clone();
+                                    // TO_DO: Instead of having these buffers, is there a way that we can just use sled 
+                                    // to hold our buffer space instead, removing the additional allocation?
+                                    let mut buf = vec![0u8; max_buffer_size_quic];
                                     let counter = counter.clone();
                                     match connection.accept_bi().await {
                                         Ok((send, recv)) => {
@@ -212,7 +215,7 @@ impl Host {
                                                 process_quic(
                                                     (send, recv),
                                                     db.clone(),
-                                                    max_buffer_size_quic,
+                                                    &mut buf,
                                                     counter.clone(),
                                                 )
                                                 .await;

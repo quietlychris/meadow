@@ -119,6 +119,7 @@ pub async fn await_response<T: Message>(
     max_buffer_size: usize,
 ) -> Result<GenericMsg, postcard::Error> {
     // Read the requested data into a buffer
+    // TO_DO: Having to re-allocate this each time isn't very efficient
     let mut buf = vec![0u8; max_buffer_size];
     loop {
         stream.readable().await.unwrap();

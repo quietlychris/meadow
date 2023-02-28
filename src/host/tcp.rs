@@ -2,7 +2,6 @@
 use tokio::net::TcpStream;
 use tokio::sync::Mutex; // as TokioMutex;
                         // Tracing for logging
-use hex_slice::*;
 use tracing::*;
 // Postcard is the default de/serializer
 use postcard::*;
@@ -38,7 +37,11 @@ pub async fn handshake(
                         name.to_owned()
                     }
                     Err(e) => {
-                        error!("Error occurred during handshake on host-side: {} on byte string: {:?}, which in hex is: {:x}", e,&buf[..n],&buf[..n].as_hex());
+                        error!(
+                            "Error occurred during handshake on host-side: {} on byte string: {:?}",
+                            e,
+                            &buf[..n]
+                        );
                         return Err(crate::Error::Handshake);
                     }
                 };
@@ -111,12 +114,6 @@ pub async fn process_tcp(
                         }
                     }
                     MsgType::GET => loop {
-                        /*
-                        println!(
-                            "received {} bytes, asking for reply on topic: {}",
-                            n, &msg.name
-                        );*/
-
                         let return_bytes = match db.get(&msg.topic).unwrap() {
                             Some(msg) => msg,
                             None => {
