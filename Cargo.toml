@@ -38,7 +38,6 @@ rustls-pemfile = {version = "1", optional = true}
 rcgen = {version = "0.9", optional = true}
 futures-util = {version = "0.3", optional = true}
 
-
 [dev-dependencies]
 # logging to file
 tracing-subscriber = "0.3"
@@ -49,7 +48,6 @@ rand = "0.8"
 # Make tokio macro available
 tokio = { version = "1", features = ["macros", "signal"] }
 
-
 [[bench]]
-name = "my_benchmark"
+name = "criterion"
 harness = false

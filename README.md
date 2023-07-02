@@ -76,8 +76,6 @@ meadow currently supports the following messaging patterns:
 | UDP      | **X**     |            |           |            |
 | QUIC     | **X**     | **X**      | **X**     | **X**      |
 
-
-
 ## Key Dependencies
 Under the hood, `meadow` relies on:
 * [`sled`](https://github.com/spacejam/sled): High-performance embedded, thread-safe database 
