@@ -2,10 +2,12 @@
 
 use meadow::*;
 
-use std::sync::Once;
 use std::thread;
 use std::time::Duration;
 
+#[cfg(feature = "quic")]
+use std::sync::Once;
+#[cfg(feature = "quic")]
 static INIT: Once = Once::new();
 
 #[cfg(feature = "quic")]

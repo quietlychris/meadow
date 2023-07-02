@@ -16,7 +16,7 @@ impl Interface for Tcp {}
 
 impl<T: Message + 'static> Node<Tcp, Active, T> {
     // TO_DO: The error handling in the async blocks need to be improved
-    /// Send data to host on Node's assigned topic using Msg<T> packet
+    /// Send data to host on Node's assigned topic using `Msg<T>` packet
     //#[tracing::instrument]
     pub fn publish(&self, val: T) -> Result<(), Error> {
         let val_vec: Vec<u8> = match to_allocvec(&val) {

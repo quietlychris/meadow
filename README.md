@@ -70,11 +70,11 @@ Meadow is more similar to [ZeroMQ](https://zguide.zeromq.org/docs/chapter1/) tha
 
 meadow currently supports the following messaging patterns:
 
-| Protocol | Publish   | Request    | Subscribe |
-|----------|-----------|------------|-----------|
-| TCP      | **X**     | **X**      | **X**     |
-| UDP      | **X**     |            |           |
-| QUIC     | **X**     | **X**      | **X**     |
+| Protocol | Publish   | Request    | Subscribe | Encryption |
+|----------|-----------|------------|-----------|------------|
+| TCP      | **X**     | **X**      | **X**     |            |
+| UDP      | **X**     |            |           |            |
+| QUIC     | **X**     | **X**      | **X**     | **X**      |
 
 
 

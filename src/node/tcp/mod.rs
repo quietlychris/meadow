@@ -113,7 +113,7 @@ pub async fn send_msg(stream: &mut &TcpStream, packet_as_bytes: Vec<u8>) -> Resu
     Ok(())
 }
 
-/// Set Node to wait for `GenericMsg` response from Host, with data to be deserialized into Node's <T>-type
+/// Set Node to wait for `GenericMsg` response from Host, with data to be deserialized into Node's `<T>`-type
 pub async fn await_response<T: Message>(
     stream: &mut &TcpStream,
     max_buffer_size: usize,
