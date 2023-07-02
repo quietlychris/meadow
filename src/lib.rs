@@ -30,8 +30,8 @@ pub mod networks;
 /// Named objects that publish and request strongly-typed data to named topics on the Host
 pub mod node;
 
-// /// Re-export sled for building the key-value store configuration
 pub use serde::{Deserialize, Serialize};
+
 #[doc(hidden)]
 pub use sled::Config as SledConfig;
 
