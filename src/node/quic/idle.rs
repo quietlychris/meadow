@@ -2,6 +2,7 @@ extern crate alloc;
 use crate::Error;
 use crate::*;
 
+use crate::node::network_config::Quic;
 use crate::node::*;
 
 use tokio::net::UdpSocket;
@@ -97,8 +98,9 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
 
     #[tracing::instrument(skip_all)]
     pub fn subscribe(mut self, rate: Duration) -> Result<Node<Quic, Subscription, T>, Error> {
+        self.create_connection();
+        let connection = self.connection.clone();
         let name = self.name.clone();
-        let addr = self.cfg.network_cfg.host_addr;
         let topic = self.topic.clone();
 
         let subscription_data: Arc<TokioMutex<Option<SubscriptionData<T>>>> =
@@ -106,8 +108,6 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
         let data = Arc::clone(&subscription_data);
 
         let max_buffer_size = self.cfg.network_cfg.max_buffer_size;
-        self.create_connection();
-        let connection = self.connection.clone();
 
         let task_subscribe = self.runtime.spawn(async move {
             let packet = GenericMsg {
@@ -127,7 +127,7 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
                 };
 
                 if let Some(connection) = connection.clone() {
-                    let _reply = match connection.open_bi().await {
+                    match connection.open_bi().await {
                         Ok((mut send, mut recv)) => {
                             send.write_all(&packet_as_bytes).await.unwrap();
                             send.finish().await.unwrap();
@@ -140,19 +140,17 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
                                     match from_bytes::<GenericMsg>(bytes) {
                                         Ok(reply) => {
                                             {
-                                                let timestamp = match data.lock().await.as_ref() {
-                                                    Some(data) => {
-                                                        debug!("Timestamp: {}", data.timestamp);
-                                                        let delta =
-                                                            data.timestamp - reply.timestamp;
-                                                        // println!("The time difference between msg tx/rx is: {} us",delta);
-                                                        if delta <= chrono::Duration::zero() {
-                                                            // println!("Data is not newer, skipping to next subscription iteration");
-                                                            continue;
-                                                        }
+
+                                                if let Some(data) = data.lock().await.as_ref() {
+                                                    debug!("Timestamp: {}", data.timestamp);
+                                                    let delta =
+                                                        data.timestamp - reply.timestamp;
+                                                    debug!("The time difference between QUIC subscription msg tx/rx is: {} us",delta);
+                                                    if delta <= chrono::Duration::zero() {
+                                                        // println!("Data is not newer, skipping to next subscription iteration");
+                                                        continue;
                                                     }
-                                                    _ => (),
-                                                };
+                                                }
                                             }
 
                                             match from_bytes::<T>(&reply.data) {

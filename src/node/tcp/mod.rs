@@ -1,4 +1,4 @@
-// mod net_config;
+// mod network_config;
 mod active;
 mod idle;
 mod subscription;
@@ -24,7 +24,7 @@ use postcard::*;
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::msg::*;
-use crate::node::net_config::Interface;
+use crate::node::network_config::Interface;
 use crate::Error;
 use chrono::{DateTime, Utc};
 

@@ -3,8 +3,9 @@ use std::result::Result;
 use std::sync::Arc;
 use tokio::sync::Mutex as TokioMutex;
 
-use crate::node::net_config::*;
+use crate::node::network_config::*;
 use crate::node::{Active, Idle, Message, Node};
+use crate::node::{Interface, NetworkConfig};
 use std::default::Default;
 use std::marker::PhantomData;
 

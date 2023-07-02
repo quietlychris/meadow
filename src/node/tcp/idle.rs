@@ -2,6 +2,7 @@ extern crate alloc;
 use crate::Error;
 use crate::*;
 
+use crate::node::network_config::Tcp;
 use crate::node::*;
 
 use tokio::net::UdpSocket;

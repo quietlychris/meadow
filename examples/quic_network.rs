@@ -9,7 +9,7 @@ fn main() -> Result<(), meadow::Error> {
     tracing_subscriber::fmt()
         .compact()
         // enable everything
-        .with_max_level(tracing::Level::INFO)
+        .with_max_level(tracing::Level::DEBUG)
         // sets this to be the default, global collector for this application.
         .with_target(false)
         .init();
@@ -41,6 +41,7 @@ fn main() -> Result<(), meadow::Error> {
         debug!("Published message #{}", i);
         // println!("published {}", i);
         let value = node.request().unwrap();
+        debug!("QUIC request received with value {:?}", value);
         thread::sleep(Duration::from_millis(100));
         debug!("Received reply: {:?}", reader.get_subscribed_data());
     }

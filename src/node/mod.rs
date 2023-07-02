@@ -1,12 +1,15 @@
 mod config;
-mod net_config;
+mod network_config;
 #[cfg(feature = "quic")]
 mod quic;
 mod tcp;
 mod udp;
 
 pub use crate::node::config::*;
-pub use crate::node::net_config::*;
+pub use crate::node::network_config::NetworkConfig;
+#[cfg(feature = "quic")]
+pub use crate::node::network_config::Quic;
+pub use crate::node::network_config::{Tcp, Udp};
 #[cfg(feature = "quic")]
 pub use crate::node::quic::*;
 pub use crate::node::tcp::*;
@@ -33,7 +36,7 @@ use postcard::*;
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::msg::*;
-use crate::node::net_config::Interface;
+use crate::node::network_config::Interface;
 use crate::Error;
 use chrono::{DateTime, Utc};
 
