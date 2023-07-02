@@ -92,7 +92,7 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
         });
         match stream {
             Ok(stream) => {
-                info!(
+                debug!(
                     "Established Node<=>Host TCP stream: {:?}",
                     stream.local_addr()
                 );
@@ -130,7 +130,7 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
                 }
             }
             .unwrap();
-            info!("Successfully subscribed to Host");
+            debug!("Successfully subscribed to Host");
 
             let packet = GenericMsg {
                 msg_type: MsgType::GET,
@@ -140,7 +140,7 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
                 data_type: std::any::type_name::<T>().to_string(),
                 data: Vec::new(),
             };
-            // info!("{:?}",&packet);
+            // debug!("{:?}",&packet);
 
             loop {
                 let packet_as_bytes: Vec<u8> = to_allocvec(&packet).unwrap();
@@ -158,7 +158,7 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
                     // println!("Data is not newer, skipping to next subscription iteration");
                     continue;
                 }
-                // info!("Node has received msg data: {:?}",&msg.data);
+                // debug!("Node has received msg data: {:?}",&msg.data);
                 let reply_data = match from_bytes::<T>(&reply.data) {
                     Ok(data) => data,
                     Err(e) => {

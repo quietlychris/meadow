@@ -33,13 +33,13 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
             data_type: std::any::type_name::<T>().to_string(),
             data: val_vec.to_vec(),
         };
-        // info!("The Node's packet to send looks like: {:?}",&packet);
+        // debug!("The Node's packet to send looks like: {:?}",&packet);
 
         let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
             Ok(packet) => packet,
             Err(_e) => return Err(Error::Serialization),
         };
-        // info!("Node is publishing: {:?}",&packet_as_bytes);
+        // debug!("Node is publishing: {:?}",&packet_as_bytes);
 
         let mut stream = match self.stream.as_ref() {
             Some(stream) => stream,

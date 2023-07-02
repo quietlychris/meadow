@@ -77,7 +77,7 @@ pub async fn process_quic(
                 panic!("{}", e);
             }
         };
-        // info!("{:?}", &msg);
+        // debug!("{:?}", &msg);
         match msg.msg_type {
             MsgType::SET => {
                 let db_result = match db.insert(msg.topic.as_bytes(), bytes) {

@@ -21,7 +21,7 @@ fn main() -> Result<(), meadow::Error> {
         .with_quic_config(Some(host::QuicConfig::default()))
         .build()?;
     host.start()?;
-    info!("Host should be running in the background");
+    debug!("Host should be running in the background");
 
     // Get the writer up and running
     let node = NodeConfig::<Quic, String>::new("WRITER")
@@ -38,11 +38,11 @@ fn main() -> Result<(), meadow::Error> {
     for i in 0..5 {
         let msg = format!("Hello #{}", i);
         node.publish(msg)?;
-        info!("Published message #{}", i);
+        debug!("Published message #{}", i);
         // println!("published {}", i);
         let value = node.request().unwrap();
         thread::sleep(Duration::from_millis(100));
-        info!("Received reply: {:?}", reader.get_subscribed_data());
+        debug!("Received reply: {:?}", reader.get_subscribed_data());
     }
 
     println!(

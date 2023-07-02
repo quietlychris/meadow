@@ -133,7 +133,7 @@ impl Host {
                             Ok((stream, name)) => (stream, name),
                             Err(_e) => continue,
                         };
-                        info!("Host received connection from {:?}", &name);
+                        debug!("Host received connection from {:?}", &name);
 
                         let counter = counter.clone();
                         let connections = Arc::clone(&connections.clone());
@@ -174,7 +174,7 @@ impl Host {
 
                 let (certs, key) =
                     read_certs_from_file(&cfg_quic.cert_path, &cfg_quic.key_path).unwrap();
-                info!("Successfully read in QUIC certs");
+                debug!("Successfully read in QUIC certs");
 
                 let (max_buffer_size_quic, _max_name_size_quic) = (
                     cfg_quic.network_cfg.max_buffer_size,
@@ -184,7 +184,7 @@ impl Host {
 
                 let task_listen_quic = self.runtime.spawn(async move {
                     let endpoint = Endpoint::server(server_config, addr).unwrap();
-                    info!(
+                    debug!(
                         "Waiting for incoming QUIC connection on {:?}",
                         endpoint.local_addr()
                     );
@@ -197,7 +197,7 @@ impl Host {
                             let db = db.clone();
                             let remote_addr = connection.remote_address();
 
-                            info!(
+                            debug!(
                                 "Received QUIC connection from {:?}",
                                 &connection.remote_address()
                             );
@@ -210,7 +210,7 @@ impl Host {
                                     let counter = counter.clone();
                                     match connection.accept_bi().await {
                                         Ok((send, recv)) => {
-                                            info!("Host successfully received bi-directional stream from {}",connection.remote_address());
+                                            debug!("Host successfully received bi-directional stream from {}",connection.remote_address());
                                             tokio::spawn(async move {
                                                 process_quic(
                                                     (send, recv),
@@ -251,7 +251,7 @@ impl Host {
         match self.connections.lock() {
             Ok(connections) => {
                 for conn in &*connections {
-                    info!("Aborting connection: {}", conn.name);
+                    debug!("Aborting connection: {}", conn.name);
                     conn.handle.abort();
                 }
                 self.store = None;

@@ -70,7 +70,7 @@ pub async fn handshake(stream: TcpStream, topic: String) -> Result<TcpStream, Er
         stream.writable().await.unwrap();
         match stream.try_write(topic.as_bytes()) {
             Ok(_n) => {
-                info!("{}: Wrote {} bytes to host", topic, _n);
+                debug!("{}: Wrote {} bytes to host", topic, _n);
                 break;
             }
             Err(e) => {
@@ -81,7 +81,7 @@ pub async fn handshake(stream: TcpStream, topic: String) -> Result<TcpStream, Er
             }
         }
     }
-    info!("{}: Successfully connected to host", topic);
+    debug!("{}: Successfully connected to host", topic);
     // TO_DO: Is there a better way to do this?
     // Pause after connection to avoid accidentally including published data in initial handshake
     sleep(Duration::from_millis(20)).await;
@@ -101,7 +101,7 @@ pub async fn send_msg(stream: &mut &TcpStream, packet_as_bytes: Vec<u8>) -> Resu
     loop {
         match stream.try_write(&packet_as_bytes) {
             Ok(_n) => {
-                // info!("Node successfully wrote {}-byte request to host",n);
+                // debug!("Node successfully wrote {}-byte request to host",n);
                 break;
             }
             Err(e) => {

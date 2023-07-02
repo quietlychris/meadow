@@ -23,17 +23,17 @@ pub async fn handshake(
 ) -> Result<(TcpStream, String), crate::Error> {
     // Handshake
     let mut buf = vec![0u8; max_buffer_size];
-    info!("Starting handshake");
+    debug!("Starting handshake");
     let mut _name: String = String::with_capacity(max_name_size);
     let mut count = 0;
     stream.readable().await.unwrap();
     loop {
-        info!("In handshake loop");
+        debug!("In handshake loop");
         match stream.try_read_buf(&mut buf) {
             Ok(n) => {
                 _name = match std::str::from_utf8(&buf[..n]) {
                     Ok(name) => {
-                        info!("Received connection from {}", &name);
+                        debug!("Received connection from {}", &name);
                         name.to_owned()
                     }
                     Err(e) => {
@@ -60,7 +60,7 @@ pub async fn handshake(
             }
         }
     }
-    info!("Returning from handshake: ({:?}, {})", &stream, &_name);
+    debug!("Returning from handshake: ({:?}, {})", &stream, &_name);
     Ok((stream, _name))
 }
 

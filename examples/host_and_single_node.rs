@@ -24,7 +24,7 @@ fn main() -> Result<(), meadow::Error> {
     // Get the host up and running
     let node: Node<Tcp, Idle, Pose> = NodeConfig::new("TEAPOT").topic("pose").build().unwrap();
     let node = node.activate()?;
-    info!("Node should now be connected");
+    debug!("Node should now be connected");
     println!(
         "The size of an active meadow Node is: {}",
         std::mem::size_of_val(&node)
