@@ -1,5 +1,6 @@
 mod active;
 mod idle;
+mod subscription;
 
 use std::fs::File;
 use std::io::BufReader;
