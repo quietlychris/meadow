@@ -1,11 +1,10 @@
-use meadow::*;
-use tracing::*;
-
-use std::thread;
-use std::time::Duration;
-
 #[cfg(feature = "quic")]
 fn main() -> Result<(), meadow::Error> {
+    use meadow::*;
+    use std::thread;
+    use std::time::Duration;
+    use tracing::*;
+
     tracing_subscriber::fmt()
         .compact()
         // enable everything
