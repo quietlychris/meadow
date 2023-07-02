@@ -74,7 +74,7 @@ meadow currently supports the following messaging patterns:
 |----------|-----------|------------|-----------|
 | TCP      | **X**     | **X**      | **X**     |
 | UDP      | **X**     |            |           |
-| QUIC     | **X**     |            |           |
+| QUIC     | **X**     | **X**      | **X**     |
 
 
 
