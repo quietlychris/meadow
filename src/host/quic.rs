@@ -1,9 +1,8 @@
+use crate::error::{Error, HostOperation, Quic::*};
+use crate::*;
 use futures_util::lock::Mutex;
 use futures_util::StreamExt;
 use quinn::Connection as QuicConnection;
-// use quinn::{Endpoint, ServerConfig};
-use crate::error::{Error, HostOperation, Quic::*};
-use crate::*;
 use std::sync::{Arc, Mutex as StdMutex};
 use tokio::sync::Mutex as TokioMutex;
 
@@ -111,7 +110,7 @@ pub async fn process_quic(
 
                 match tx.write(&return_bytes).await {
                     Ok(_n) => {
-                        let mut count = count.lock().await; //.unwrap();
+                        let mut count = count.lock().await;
                         *count += 1;
                     }
                     Err(e) => {

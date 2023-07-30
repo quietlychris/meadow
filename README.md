@@ -88,6 +88,9 @@ compilation profile, on the README's `Coordinate` data (strongly-typed, 8 bytes)
 
 Additional benchmarking information can be found using `cargo run --release --example benchmark`. 
 
+## Stability
+As mentioned above, this library should be considered *experimental*. While the goal is eventually to make this available at a level of maturity, stability, and reliability of other middlewares, `meadow` is not there yet. This library is being used as a dependency for robotics research, with interprocess communication focused on dozens of nodes on `localhost` or a few over a WLAN connection. While `meadow` can work for other use-cases, it has not been extensively tested in those areas. If you are using this library in other areas and come across issues or unexpected behavior, well-formatted bug reports or pull requests addressing those problems are welcomed. 
+
 ## Additional Resources
 The following projects are built with Meadow:
 - [Tutlesim](https://github.com/quietlychris/turtlesim): Simple 2D autonomy simulator
