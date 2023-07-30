@@ -1,111 +1,14 @@
 #![allow(unused_variables)]
 
+mod host_operation;
+pub use crate::error::host_operation::*;
+#[cfg(feature = "quic")]
+mod quic;
+#[cfg(feature = "quic")]
+pub use crate::error::quic::*;
+
 use core::fmt::{Display, Formatter};
 use serde::*;
-
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub enum HostOperation {
-    Success,
-    SetFailure,
-    GetFailure,
-    ConnectionError,
-}
-
-impl std::error::Error for HostOperation {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        use HostOperation::*;
-        match *self {
-            Success => None,
-            SetFailure => None,
-            GetFailure => None,
-            ConnectionError => None,
-        }
-    }
-}
-
-impl Display for HostOperation {
-    fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
-        use HostOperation::*;
-        match *self {
-            Success => write!(f, "Success Host-side operation"),
-            SetFailure => write!(f, "Unsuccessful Host-side SET operation"),
-            GetFailure => write!(f, "Unsuccessful Host-side SET operation"),
-            ConnectionError => write!(f, "Unsuccessful Host connection"),
-        }
-    }
-}
-
-impl HostOperation {
-    pub fn as_bytes(&self) -> Vec<u8> {
-        postcard::to_allocvec(&self).unwrap()
-    }
-}
-
-#[cfg(feature = "quic")]
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub enum Quic {
-    QuicIssue,
-    BadGenericMsg,
-    OpenBi,
-    RecvRead,
-    Connection,
-    // Error accessing an owned Endpoint
-    AccessEndpoint,
-    EndpointConnect,
-    FindKeys,
-    ReadKeys,
-    FindCerts,
-    ReadCerts,
-}
-
-#[cfg(feature = "quic")]
-impl std::error::Error for Quic {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        use Quic::*;
-        match *self {
-            QuicIssue => None,
-            BadGenericMsg => None,
-            OpenBi => None,
-            RecvRead => None,
-            Connection => None,
-            // Error accessing an owned Endpoint
-            AccessEndpoint => None,
-            EndpointConnect => None,
-            FindKeys => None,
-            ReadKeys => None,
-            FindCerts => None,
-            ReadCerts => None,
-        }
-    }
-}
-
-#[cfg(feature = "quic")]
-impl Display for Quic {
-    fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
-        use Quic::*;
-        match self {
-            QuicIssue => write!(f, "Generic Quic Issue"),
-            BadGenericMsg => write!(f, "Error with deserialization into proper GenericMsg"),
-            OpenBi => write!(f, "Error opening bidirectional stream from connection"),
-            RecvRead => write!(f, "Error reading bytes from stream receiver"),
-            Connection => write!(f, "Error acquiring owned connection"),
-            // Error accessing an owned Endpoint
-            AccessEndpoint => write!(f, "Unable to access owned Endpoint"),
-            EndpointConnect => write!(f, "Unable to establish Connection to remote Endpoint"),
-            FindKeys => write!(f, "Unable to find .pem key file"),
-            ReadKeys => write!(f, "Error reading .pem key file"),
-            FindCerts => write!(f, "Unable to find .pem certificates"),
-            ReadCerts => write!(f, "Error reading .pem certificates"),
-        }
-    }
-}
-
-#[cfg(feature = "quic")]
-impl Quic {
-    pub fn as_bytes(&self) -> Vec<u8> {
-        postcard::to_allocvec(&self).unwrap()
-    }
-}
 
 // TO_DO: These should be categorized into subgroups
 /// This is the error type used by meadow
@@ -143,15 +46,15 @@ pub enum Error {
     // Error during Host <=> Node handshake
     Handshake,
     // Result of Host-side message operation
-    HostOperation(crate::error::HostOperation),
+    HostOperation(crate::error::host_operation::HostOperation),
     // General issue with QUIC setup (TO_DO: make specific error instances)
     #[cfg(feature = "quic")]
-    Quic(crate::error::Quic),
+    Quic(crate::error::quic::Quic),
 }
 
 #[cfg(feature = "quic")]
-impl From<crate::error::Quic> for Error {
-    fn from(err: crate::error::Quic) -> Error {
+impl From<crate::error::quic::Quic> for Error {
+    fn from(err: crate::error::quic::Quic) -> Error {
         crate::Error::Quic(err)
     }
 }
@@ -206,7 +109,6 @@ impl Display for Error {
             #[cfg(feature = "quic")]
             Quic(ref err) => err.fmt(f),
         }
-
     }
 }
 
