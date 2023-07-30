@@ -1,6 +1,6 @@
+use crate::error::{Error, Quic::*};
 use crate::node::network_config::Quic;
 use crate::node::Interface;
-use crate::Error;
 use crate::*;
 
 use chrono::Utc;
@@ -41,7 +41,7 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
                     Ok((mut send, _recv)) => {
                         debug!("Node succesfully opened stream from connection");
                         send.write_all(&packet_as_bytes).await.unwrap();
-                        send.finish().await.unwrap();
+                        send.finish().await.unwrap(); // TO_DO: This can cause a panic
                     }
                     Err(e) => {
                         warn!("{:?}", e);
@@ -51,7 +51,7 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
                 Ok(())
             })
         } else {
-            Err(Error::QuicIssue)
+            Err(Error::Quic(Connection))
         }
     }
 
@@ -93,11 +93,11 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
                             }
                             _ => {
                                 // if e.kind() == std::io::ErrorKind::WouldBlock {}
-                                Err(Error::QuicIssue)
+                                Err(Error::Quic(RecvRead))
                             }
                         }
                     }
-                    _ => Err(Error::QuicIssue),
+                    _ => Err(Error::Quic(OpenBi)),
                 };
 
                 if let Ok(msg) = reply {
@@ -106,10 +106,10 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
                         Err(_e) => Err(Error::Deserialization),
                     }
                 } else {
-                    Err(Error::QuicIssue)
+                    Err(Error::Quic(BadGenericMsg))
                 }
             } else {
-                Err(Error::QuicIssue)
+                Err(Error::Quic(Connection))
             }
         })
     }

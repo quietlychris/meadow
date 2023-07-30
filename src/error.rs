@@ -11,7 +11,97 @@ pub enum HostOperation {
     ConnectionError,
 }
 
+impl std::error::Error for HostOperation {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        use HostOperation::*;
+        match *self {
+            Success => None,
+            SetFailure => None,
+            GetFailure => None,
+            ConnectionError => None,
+        }
+    }
+}
+
+impl Display for HostOperation {
+    fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
+        use HostOperation::*;
+        match *self {
+            Success => write!(f, "Success Host-side operation"),
+            SetFailure => write!(f, "Unsuccessful Host-side SET operation"),
+            GetFailure => write!(f, "Unsuccessful Host-side SET operation"),
+            ConnectionError => write!(f, "Unsuccessful Host connection"),
+        }
+    }
+}
+
 impl HostOperation {
+    pub fn as_bytes(&self) -> Vec<u8> {
+        postcard::to_allocvec(&self).unwrap()
+    }
+}
+
+#[cfg(feature = "quic")]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum Quic {
+    QuicIssue,
+    BadGenericMsg,
+    OpenBi,
+    RecvRead,
+    Connection,
+    // Error accessing an owned Endpoint
+    AccessEndpoint,
+    EndpointConnect,
+    FindKeys,
+    ReadKeys,
+    FindCerts,
+    ReadCerts,
+}
+
+#[cfg(feature = "quic")]
+impl std::error::Error for Quic {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        use Quic::*;
+        match *self {
+            QuicIssue => None,
+            BadGenericMsg => None,
+            OpenBi => None,
+            RecvRead => None,
+            Connection => None,
+            // Error accessing an owned Endpoint
+            AccessEndpoint => None,
+            EndpointConnect => None,
+            FindKeys => None,
+            ReadKeys => None,
+            FindCerts => None,
+            ReadCerts => None,
+        }
+    }
+}
+
+#[cfg(feature = "quic")]
+impl Display for Quic {
+    fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
+        use Quic::*;
+        match self {
+            QuicIssue => write!(f, "Generic Quic Issue"),
+            BadGenericMsg => write!(f, "Error with deserialization into proper GenericMsg"),
+            OpenBi => write!(f, "Error opening bidirectional stream from connection"),
+            RecvRead => write!(f, "Error reading bytes from stream receiver"),
+            Connection => write!(f, "Error acquiring owned connection"),
+            // Error accessing an owned Endpoint
+            AccessEndpoint => write!(f, "Unable to access owned Endpoint"),
+            EndpointConnect => write!(f, "Unable to establish Connection to remote Endpoint"),
+            FindKeys => write!(f, "Unable to find .pem key file"),
+            ReadKeys => write!(f, "Error reading .pem key file"),
+            FindCerts => write!(f, "Unable to find .pem certificates"),
+            ReadCerts => write!(f, "Error reading .pem certificates"),
+        }
+    }
+}
+
+#[cfg(feature = "quic")]
+impl Quic {
     pub fn as_bytes(&self) -> Vec<u8> {
         postcard::to_allocvec(&self).unwrap()
     }
@@ -55,15 +145,21 @@ pub enum Error {
     // Result of Host-side message operation
     HostOperation(crate::error::HostOperation),
     // General issue with QUIC setup (TO_DO: make specific error instances)
-    QuicIssue,
-    // Error accessing an owned Endpoint
-    AccessEndpoint,
+    #[cfg(feature = "quic")]
+    Quic(crate::error::Quic),
+}
+
+#[cfg(feature = "quic")]
+impl From<crate::error::Quic> for Error {
+    fn from(err: crate::error::Quic) -> Error {
+        crate::Error::Quic(err)
+    }
 }
 
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         use Error::*;
-        match *self {
+        match self {
             NoSubscriptionValue => None,
             LockFailure => None,
             NoSled => None,
@@ -79,12 +175,9 @@ impl std::error::Error for Error {
             UdpSend => None,
             StreamConnection => None,
             Handshake => None,
-            HostOperation(crate::error::HostOperation::Success) => None,
-            HostOperation(crate::error::HostOperation::SetFailure) => None,
-            HostOperation(crate::error::HostOperation::GetFailure) => None,
-            HostOperation(crate::error::HostOperation::ConnectionError) => None,
-            QuicIssue => None,
-            AccessEndpoint => None,
+            HostOperation(_) => None,
+            #[cfg(feature = "quic")]
+            Quic(_) => None,
         }
     }
 }
@@ -92,37 +185,28 @@ impl std::error::Error for Error {
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
         use Error::*;
-        write!(
-            f,
-            "{}",
-            match self {
-                NoSubscriptionValue => "No subscription value exists",
-                LockFailure => "Couldn't achieve lock on shared resource",
-                NoSled => "The Host's sled key-value store was not found",
-                IpParsing => "Couldn't parse the provided IP into a SocketAddr",
-                InvalidInterface => "Unable to produce IP address from specified interface",
-                OpeningSled => "Unable to open sled key-value store",
-                RuntimeCreation => "Unable to create a Tokio runtime",
-                Serialization => "Error serializing data to bytes",
-                Deserialization => "Error deserializing data from bytes",
-                AccessStream => "Error accessing an owned TcpStream",
-                AccessSocket => "Error accessing an owned TcpStream",
-                BadResponse => "Node received bad response from Host",
-                UdpSend => "Error sending packet from UdpSocket",
-                StreamConnection => "Error creating TcpStream",
-                Handshake => "Error during Host <=> Node handshake",
-                HostOperation(crate::error::HostOperation::Success) =>
-                    "Success Host-side operation",
-                HostOperation(crate::error::HostOperation::SetFailure) =>
-                    "Unsuccessful Host-side SET operation",
-                HostOperation(crate::error::HostOperation::GetFailure) =>
-                    "Unsuccessful Host-side SET operation",
-                HostOperation(crate::error::HostOperation::ConnectionError) =>
-                    "Unsuccessful Host connection",
-                QuicIssue => "Error due to something with QUIC",
-                AccessEndpoint => "Error accessing an owned Endpoint",
-            }
-        )
+
+        match *self {
+            NoSubscriptionValue => write!(f, "No subscription value exists"),
+            LockFailure => write!(f, "Couldn't achieve lock on shared resource"),
+            NoSled => write!(f, "The Host's sled key-value store was not found"),
+            IpParsing => write!(f, "Couldn't parse the provided IP into a SocketAddr"),
+            InvalidInterface => write!(f, "Unable to produce IP address from specified interface"),
+            OpeningSled => write!(f, "Unable to open sled key-value store"),
+            RuntimeCreation => write!(f, "Unable to create a Tokio runtime"),
+            Serialization => write!(f, "Error serializing data to bytes"),
+            Deserialization => write!(f, "Error deserializing data from bytes"),
+            AccessStream => write!(f, "Error accessing an owned TcpStream"),
+            AccessSocket => write!(f, "Error accessing an owned TcpStream"),
+            BadResponse => write!(f, "Node received bad response from Host"),
+            UdpSend => write!(f, "Error sending packet from UdpSocket"),
+            StreamConnection => write!(f, "Error creating TcpStream"),
+            Handshake => write!(f, "Error during Host <=> Node handshake"),
+            HostOperation(ref err) => err.fmt(f),
+            #[cfg(feature = "quic")]
+            Quic(ref err) => err.fmt(f),
+        }
+
     }
 }
 

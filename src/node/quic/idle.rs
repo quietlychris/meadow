@@ -1,5 +1,5 @@
 extern crate alloc;
-use crate::Error;
+use crate::error::{Error, Quic::*};
 use crate::*;
 
 use crate::node::network_config::Quic;
@@ -85,9 +85,9 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
             match endpoint.connect(host_addr, "localhost") {
                 Ok(connecting) => match connecting.await {
                     Ok(connection) => Ok((endpoint, connection)),
-                    Err(_) => Err(Error::QuicIssue),
+                    Err(_) => Err(Error::Quic(EndpointConnect)),
                 },
-                Err(_) => Err(Error::QuicIssue),
+                Err(_) => Err(Error::Quic(EndpointConnect)),
             }
         }) {
             debug!("{:?}", &endpoint.local_addr());
