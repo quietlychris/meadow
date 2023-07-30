@@ -12,11 +12,8 @@ fn main() -> Result<(), meadow::Error> {
     println!("Started host");
 
     let tx_thread = thread::spawn(|| {
-        let tx = NodeConfig::<f32>::new("TX")
-            .with_udp_config(Some(node::UdpConfig::default().set_host_addr(
-                "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap(),
-            )))
-            .with_tcp_config(None)
+        let tx = NodeConfig::<Udp, f32>::new("TX")
+            .with_config(node::NetworkConfig::<Udp>::default())
             .topic("num")
             .build()
             .unwrap()
@@ -27,7 +24,7 @@ fn main() -> Result<(), meadow::Error> {
         for i in 0..10 {
             let x = i as f32;
 
-            match tx.publish_udp(x) {
+            match tx.publish(x) {
                 Ok(_) => (),
                 Err(e) => {
                     dbg!(e);
@@ -39,7 +36,7 @@ fn main() -> Result<(), meadow::Error> {
         std::process::exit(0);
     });
 
-    let rx = NodeConfig::<f32>::new("RECEIVER")
+    let rx = NodeConfig::<Tcp, f32>::new("RECEIVER")
         .topic("num")
         .build()
         .unwrap()

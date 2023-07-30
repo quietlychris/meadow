@@ -12,30 +12,42 @@ categories = ["science::robotics", "network-programming"]
 [lib]
 name = "meadow"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [workspace]
 exclude = ["benchmarks"]
 members = ["tools/ci"]
 
+[features]
+default = []
+quic = ["quinn", "rustls", "rustls-pemfile", "rcgen", "futures-util"]
+
 [dependencies]
 # de/serialization and message sending
-serde = {version = "1.0.136", default-features = false, features = ["derive"]}
-postcard = {version = "1.0.2", features = ["alloc"]}
-hex-slice = "0.1.4"
+serde = {version = "1", default-features = false, features = ["derive"]}
+postcard = {version = "1", features = ["alloc"]}
 chrono = {version = "0.4", features = ["serde"]}
 # key value store, networking, and async
-sled = "0.34.7"
-pnet_datalink = "0.29.0"
-tokio = { version = "1.16.1", features = ["net", "rt-multi-thread", "io-util", "sync", "time"] }
+sled = "0.34"
+pnet_datalink = "0.33"
+tokio = { version = "1", features = ["net", "rt-multi-thread", "io-util", "sync", "time"] }
 # logging
-tracing = "0.1.29"
+tracing = "0.1"
+# QUIC support (optional)
+quinn = {version = "0.9", optional = true}
+rustls = { version = "0.20", features = ["dangerous_configuration", "quic"], optional = true}
+rustls-pemfile = {version = "1", optional = true}
+rcgen = {version = "0.9", optional = true}
+futures-util = {version = "0.3", optional = true}
 
 [dev-dependencies]
 # logging to file
-tracing-subscriber = "0.3.7"
-tracing-appender = "0.2.0"
+tracing-subscriber = "0.3"
+tracing-appender = "0.2"
 # benchmarking
+criterion = "0.4"
 rand = "0.8"
 # Make tokio macro available
-tokio = { version = "1.16.1", features = ["macros", "signal"] }
+tokio = { version = "1", features = ["macros", "signal"] }
+
+[[bench]]
+name = "criterion"
+harness = false

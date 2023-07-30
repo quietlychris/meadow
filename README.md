@@ -6,9 +6,8 @@
 ```rust
 use meadow::*;
 
-// Any type implementing Debug and the serde's re-exported De/Serialize traits 
-// are meadow-compatible. The standard library Debug and Clone traits 
-// are also required
+// Any type implementing Debug and serde's De/Serialize traits are meadow-compatible
+// (the standard library Debug and Clone traits are also required)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Coordinate {
     x: f32,
@@ -24,13 +23,13 @@ fn main() -> Result<(), meadow::Error> {
 
     // Build a Node
     let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-    let node: Node<Idle, Coordinate> = NodeConfig::new("GPS_NODE")
+    let node: Node<Tcp, Idle, Coordinate> = NodeConfig::new("GPS_NODE")
         .topic("position")
-        .with_tcp_config(Some(node::TcpConfig::default().set_host_addr(addr)))
+        .with_config(node::NetworkConfig::<Tcp>::default().set_host_addr(addr))
         .build()?;
-    // Meadow Nodes use strict typestates; without using the activate() method first,
+    // meadow Nodes use strict typestates; without using the activate() method first,
     // the compiler won't let allow publish() or request() methods on an Idle Node
-    let node: Node<Active, Coordinate> = node.activate()?;
+    let node: Node<Tcp, Active, Coordinate> = node.activate()?;
 
     // Since Nodes are statically-typed, the following lines would fail at
     // compile-time due to type errors
@@ -41,9 +40,9 @@ fn main() -> Result<(), meadow::Error> {
 
     // Nodes can also be subscribers, which will request topic updates from the Host
     // at a given rate
-    let subscriber = NodeConfig::<Coordinate>::new("GPS_SUBSCRIBER")
+    let subscriber = NodeConfig::<Tcp, Coordinate>::new("GPS_SUBSCRIBER")
         .topic("position")
-        .with_tcp_config(Some(node::TcpConfig::default().set_host_addr(addr)))
+        .with_config(node::NetworkConfig::<Tcp>::default().set_host_addr(addr))
         .build()?
         .subscribe(std::time::Duration::from_micros(100))?;
 
@@ -71,11 +70,11 @@ Meadow is more similar to [ZeroMQ](https://zguide.zeromq.org/docs/chapter1/) tha
 
 meadow currently supports the following messaging patterns:
 
-| Protocol | Publish   | Request    | Subscribe |
-|----------|-----------|------------|-----------|
-| TCP      | **X**     | **X**      | **X**     |
-| UDP      | **X**     |            |           |
-
+| Protocol | Publish   | Request    | Subscribe | Encryption |
+|----------|-----------|------------|-----------|------------|
+| TCP      | **X**     | **X**      | **X**     |            |
+| UDP      | **X**     |            |           |            |
+| QUIC     | **X**     | **X**      | **X**     | **X**      |
 
 ## Key Dependencies
 Under the hood, `meadow` relies on:
@@ -88,6 +87,9 @@ Preliminary benchmark data is showing round-trip message times (publish-request-
 compilation profile, on the README's `Coordinate` data (strongly-typed, 8 bytes) to be ~100 microseconds.
 
 Additional benchmarking information can be found using `cargo run --release --example benchmark`. 
+
+## Stability
+As mentioned above, this library should be considered *experimental*. While the goal is eventually to make this available at a level of maturity, stability, and reliability of other middlewares, `meadow` is not there yet. This library is being used as a dependency for robotics research, with interprocess communication focused on dozens of nodes on `localhost` or a few over a WLAN connection. While `meadow` can work for other use-cases, it has not been extensively tested in those areas. If you are using this library in other areas and come across issues or unexpected behavior, well-formatted bug reports or pull requests addressing those problems are welcomed. 
 
 ## Additional Resources
 The following projects are built with Meadow:

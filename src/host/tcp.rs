@@ -2,7 +2,6 @@
 use tokio::net::TcpStream;
 use tokio::sync::Mutex; // as TokioMutex;
                         // Tracing for logging
-use hex_slice::*;
 use tracing::*;
 // Postcard is the default de/serializer
 use postcard::*;
@@ -10,7 +9,7 @@ use postcard::*;
 use std::sync::Arc;
 // Misc other imports
 
-use crate::error::{Error, HostOperation};
+use crate::error::{Error, HostOperation::*};
 use crate::*;
 use std::result::Result;
 
@@ -24,21 +23,25 @@ pub async fn handshake(
 ) -> Result<(TcpStream, String), crate::Error> {
     // Handshake
     let mut buf = vec![0u8; max_buffer_size];
-    info!("Starting handshake");
+    debug!("Starting handshake");
     let mut _name: String = String::with_capacity(max_name_size);
     let mut count = 0;
     stream.readable().await.unwrap();
     loop {
-        info!("In handshake loop");
+        debug!("In handshake loop");
         match stream.try_read_buf(&mut buf) {
             Ok(n) => {
                 _name = match std::str::from_utf8(&buf[..n]) {
                     Ok(name) => {
-                        info!("Received connection from {}", &name);
+                        debug!("Received connection from {}", &name);
                         name.to_owned()
                     }
                     Err(e) => {
-                        error!("Error occurred during handshake on host-side: {} on byte string: {:?}, which in hex is: {:x}", e,&buf[..n],&buf[..n].as_hex());
+                        error!(
+                            "Error occurred during handshake on host-side: {} on byte string: {:?}",
+                            e,
+                            &buf[..n]
+                        );
                         return Err(crate::Error::Handshake);
                     }
                 };
@@ -57,7 +60,7 @@ pub async fn handshake(
             }
         }
     }
-    info!("Returning from handshake: ({:?}, {})", &stream, &_name);
+    debug!("Returning from handshake: ({:?}, {})", &stream, &_name);
     Ok((stream, _name))
 }
 
@@ -92,8 +95,8 @@ pub async fn process_tcp(
                     MsgType::SET => {
                         // println!("received {} bytes, to be assigned to: {}", n, &msg.name);
                         let db_result = match db.insert(msg.topic.as_bytes(), bytes) {
-                            Ok(_prev_msg) => Error::HostOperation(HostOperation::Success), //"SUCCESS".to_string(),
-                            Err(_e) => Error::HostOperation(HostOperation::SetFailure),
+                            Ok(_prev_msg) => Error::HostOperation(Success), //"SUCCESS".to_string(),
+                            Err(_e) => Error::HostOperation(SetFailure),
                         };
 
                         loop {
@@ -111,12 +114,6 @@ pub async fn process_tcp(
                         }
                     }
                     MsgType::GET => loop {
-                        /*
-                        println!(
-                            "received {} bytes, asking for reply on topic: {}",
-                            n, &msg.name
-                        );*/
-
                         let return_bytes = match db.get(&msg.topic).unwrap() {
                             Some(msg) => msg,
                             None => {

@@ -20,7 +20,7 @@ pub struct Msg<T> {
     pub data: T,
 }
 
-/// Message format containing a generic Vec<u8> data payload and associated metadata
+/// Message format containing a generic `Vec<u8>` data payload and associated metadata
 #[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
 pub struct GenericMsg {

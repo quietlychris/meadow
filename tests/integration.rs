@@ -1,12 +1,21 @@
 #![deny(unused_must_use)]
 
-use serde::{Deserialize, Serialize};
-
-use meadow::host::*;
-use meadow::node::*;
+use meadow::*;
 
 use std::thread;
 use std::time::Duration;
+
+#[cfg(feature = "quic")]
+use std::sync::Once;
+#[cfg(feature = "quic")]
+static INIT: Once = Once::new();
+
+#[cfg(feature = "quic")]
+pub fn initialize() {
+    INIT.call_once(|| {
+        meadow::generate_certs().unwrap();
+    });
+}
 
 /// Example test struct for docs and tests
 #[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
@@ -29,7 +38,7 @@ fn integrate_host_and_single_node() {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let node: Node<Idle, Pose> = NodeConfig::new("TEST_NODE").topic("pose").build().unwrap();
+    let node: Node<Tcp, Idle, Pose> = NodeConfig::new("TEST_NODE").topic("pose").build().unwrap();
     let node = node.activate().unwrap();
 
     for i in 0..5 {
@@ -57,7 +66,7 @@ fn request_non_existent_topic() {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let node: Node<Idle, Pose> = NodeConfig::new("TEST_NODE")
+    let node: Node<Tcp, Idle, Pose> = NodeConfig::new("TEST_NODE")
         .topic("doesnt_exist")
         .build()
         .unwrap();
@@ -80,13 +89,13 @@ fn node_send_options() {
     host.start().unwrap();
 
     // Get the host up and running
-    let node_a = NodeConfig::<Option<f32>>::new("OptionTx")
+    let node_a = NodeConfig::<Tcp, Option<f32>>::new("OptionTx")
         .topic("pose")
         .build()
         .unwrap()
         .activate()
         .unwrap();
-    let node_b = NodeConfig::<Option<f32>>::new("OptionTx")
+    let node_b = NodeConfig::<Tcp, Option<f32>>::new("OptionTx")
         .topic("pose")
         .build()
         .unwrap()
@@ -115,7 +124,7 @@ fn publish_boolean() {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let node: Node<Idle, bool> = NodeConfig::new("TEST_NODE")
+    let node: Node<Tcp, Idle, bool> = NodeConfig::new("TEST_NODE")
         .topic("my_boolean")
         .build()
         .unwrap();
@@ -137,7 +146,7 @@ fn subscription_usize() {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let writer = NodeConfig::new("WRITER")
+    let writer = NodeConfig::<Tcp, usize>::new("WRITER")
         .topic("subscription")
         .build()
         .unwrap()
@@ -176,7 +185,7 @@ fn no_subscribed_value() {
     host.start().unwrap();
 
     // Create a subscription node with a query rate of 10 Hz
-    let reader = NodeConfig::<usize>::new("READER")
+    let reader = NodeConfig::<Tcp, usize>::new("READER")
         .topic("subscription")
         .build()
         .unwrap()
@@ -189,48 +198,35 @@ fn no_subscribed_value() {
 
 #[test]
 fn simple_udp() {
-    {
-        let mut host = HostConfig::default()
-            // .with_sled_config(SledConfig::default().path("store").temporary(true))
-            // .with_tcp_config(None)
-            // .with_udp_config(Some(host::NetworkConfig::default("lo")))
-            .build()
-            .unwrap();
-        host.start().unwrap();
-        println!("Started host");
+    let mut host = HostConfig::default().build().unwrap();
+    host.start().unwrap();
+    println!("Started host");
 
-        let tx = NodeConfig::<f32>::new("TX")
-            .with_udp_config(Some(meadow::node::UdpConfig::default().set_host_addr(
-                "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap(),
-            )))
-            .with_tcp_config(Some(meadow::node::TcpConfig::default().set_host_addr(
-                "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap(),
-            )))
-            .topic("num")
-            .build()
-            .unwrap()
-            .activate()
-            .unwrap();
+    let tx = NodeConfig::<Udp, f32>::new("TX")
+        .topic("num")
+        .build()
+        .unwrap()
+        .activate()
+        .unwrap();
 
-        let rx = NodeConfig::<f32>::new("RECEIVER")
-            .topic("num")
-            .build()
-            .unwrap()
-            .activate()
-            .unwrap();
+    let rx = NodeConfig::<Tcp, f32>::new("RECEIVER")
+        .topic("num")
+        .build()
+        .unwrap()
+        .activate()
+        .unwrap();
 
-        for i in 0..10 {
-            let x = i as f32;
+    for i in 0..10 {
+        let x = i as f32;
 
-            match tx.publish_udp(x) {
-                Ok(_) => (),
-                Err(e) => {
-                    dbg!(e);
-                }
-            };
-            thread::sleep(Duration::from_millis(1));
-            let result = rx.request().unwrap();
-            assert_eq!(x, result);
-        }
+        match tx.publish(x) {
+            Ok(_) => (),
+            Err(e) => {
+                dbg!(e);
+            }
+        };
+        thread::sleep(Duration::from_millis(1));
+        let result = rx.request().unwrap();
+        assert_eq!(x, result);
     }
 }
