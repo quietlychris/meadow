@@ -1,5 +1,7 @@
 use meadow::*;
+use std::{fs::File, sync::Arc};
 use tracing::*;
+use tracing_subscriber::{filter, prelude::*};
 
 use std::thread;
 use std::time::Duration;
@@ -12,10 +14,7 @@ struct Pose {
 }
 
 fn main() -> Result<(), meadow::Error> {
-    // Set up logging
-    let file_appender = tracing_appender::rolling::hourly("logs/", "example");
-    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-    tracing_subscriber::fmt().with_writer(non_blocking).init();
+    logging();
 
     let mut host: Host = HostConfig::default().build()?;
     host.start()?;
@@ -56,4 +55,26 @@ fn main() -> Result<(), meadow::Error> {
     );
     host.stop()?;
     Ok(())
+}
+
+fn logging() {
+    // A layer that logs events to a file.
+    let file = File::create("logs/debug.log");
+    let file = match file {
+        Ok(file) => file,
+        Err(error) => panic!("Error: {:?}", error),
+    };
+
+    let log = tracing_subscriber::fmt::layer()
+        .compact()
+        .with_line_number(true)
+        .with_writer(Arc::new(file));
+
+    tracing_subscriber::registry()
+        .with(
+            log
+                // Add an `INFO` filter to the stdout logging layer
+                .with_filter(filter::LevelFilter::INFO),
+        )
+        .init();
 }

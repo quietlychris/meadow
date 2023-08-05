@@ -17,29 +17,21 @@ impl Interface for Tcp {}
 impl<T: Message + 'static> Node<Tcp, Active, T> {
     // TO_DO: The error handling in the async blocks need to be improved
     /// Send data to host on Node's assigned topic using `Msg<T>` packet
-    //#[tracing::instrument]
+    #[tracing::instrument]
     pub fn publish(&self, val: T) -> Result<(), Error> {
-        let val_vec: Vec<u8> = match to_allocvec(&val) {
-            Ok(val_vec) => val_vec,
-            Err(_e) => return Err(Error::Serialization),
-        };
-
-        // println!("Number of bytes in data for {:?} is {}",std::any::type_name::<M>(),val_vec.len());
-        let packet = GenericMsg {
+        let packet = Msg {
             msg_type: MsgType::SET,
             timestamp: Utc::now(),
             name: self.name.to_string(),
             topic: self.topic.to_string(),
             data_type: std::any::type_name::<T>().to_string(),
-            data: val_vec.to_vec(),
+            data: val,
         };
-        // debug!("The Node's packet to send looks like: {:?}",&packet);
 
         let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
             Ok(packet) => packet,
             Err(_e) => return Err(Error::Serialization),
         };
-        // debug!("Node is publishing: {:?}",&packet_as_bytes);
 
         let mut stream = match self.stream.as_ref() {
             Some(stream) => stream,

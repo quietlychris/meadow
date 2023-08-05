@@ -84,7 +84,10 @@ pub async fn process_tcp(
 
                 let bytes = &buf[..n];
                 let msg: GenericMsg = match from_bytes(bytes) {
-                    Ok(msg) => msg,
+                    Ok(msg) => {
+                        info!("{:?}", msg);
+                        msg
+                    }
                     Err(e) => {
                         error!("Had received Msg of {} bytes: {:?}, Error: {}", n, bytes, e);
                         panic!("{}", e);
@@ -95,7 +98,10 @@ pub async fn process_tcp(
                     MsgType::SET => {
                         // println!("received {} bytes, to be assigned to: {}", n, &msg.name);
                         let db_result = match db.insert(msg.topic.as_bytes(), bytes) {
-                            Ok(_prev_msg) => Error::HostOperation(Success), //"SUCCESS".to_string(),
+                            Ok(_prev_msg) => {
+                                info!("{:?}", msg.data);
+                                Error::HostOperation(Success)
+                            } //"SUCCESS".to_string(),
                             Err(_e) => Error::HostOperation(SetFailure),
                         };
 

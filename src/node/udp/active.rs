@@ -39,18 +39,13 @@ impl<T: Message> From<Node<Udp, Idle, T>> for Node<Udp, Active, T> {
 impl<T: Message + 'static> Node<Udp, Active, T> {
     #[tracing::instrument]
     pub fn publish(&self, val: T) -> Result<(), Error> {
-        let val_vec: Vec<u8> = match to_allocvec(&val) {
-            Ok(val_vec) => val_vec,
-            Err(_e) => return Err(Error::Serialization),
-        };
-
-        let packet = GenericMsg {
+        let packet = Msg {
             msg_type: MsgType::SET,
             timestamp: Utc::now(),
             name: self.name.to_string(),
             topic: self.topic.to_string(),
             data_type: std::any::type_name::<T>().to_string(),
-            data: val_vec.to_vec(),
+            data: val,
         };
 
         let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
