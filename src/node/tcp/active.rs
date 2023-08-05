@@ -19,16 +19,20 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
     /// Send data to host on Node's assigned topic using `Msg<T>` packet
     #[tracing::instrument]
     pub fn publish(&self, val: T) -> Result<(), Error> {
-        let packet = Msg {
-            msg_type: MsgType::SET,
-            timestamp: Utc::now(),
-            name: self.name.to_string(),
-            topic: self.topic.to_string(),
-            data_type: std::any::type_name::<T>().to_string(),
-            data: val,
+        let data: Vec<u8> = match to_allocvec(&val) {
+            Ok(data) => data,
+            Err(_e) => return Err(Error::Serialization),
         };
 
-        let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
+        let generic = GenericMsg {
+            msg_type: MsgType::SET,
+            timestamp: Utc::now(),
+            topic: self.topic.to_string(),
+            data_type: std::any::type_name::<T>().to_string(),
+            data,
+        };
+
+        let packet_as_bytes: Vec<u8> = match to_allocvec(&generic) {
             Ok(packet) => packet,
             Err(_e) => return Err(Error::Serialization),
         };
@@ -83,13 +87,12 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
             None => return Err(Error::AccessStream),
         };
 
-        let packet: Msg<()> = Msg {
+        let packet: GenericMsg = GenericMsg {
             msg_type: MsgType::GET,
             timestamp: Utc::now(),
-            name: self.name.to_string(),
             topic: self.topic.to_string(),
             data_type: std::any::type_name::<T>().to_string(),
-            data: (),
+            data: Vec::new(),
         };
 
         let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {

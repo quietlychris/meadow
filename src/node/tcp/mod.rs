@@ -13,6 +13,7 @@ use tokio::time::{sleep, Duration};
 
 use tracing::*;
 
+use std::convert::TryInto;
 use std::net::SocketAddr;
 
 use std::marker::{PhantomData, Sync};
@@ -129,8 +130,14 @@ pub async fn await_response<T: Message>(
             Ok(0) => continue,
             Ok(n) => {
                 let bytes = &buf[..n];
-                match from_bytes::<Msg<T>>(bytes) {
-                    Ok(msg) => return Ok(msg),
+                match from_bytes::<GenericMsg>(bytes) {
+                    Ok(generic) => {
+                        if let Ok(msg) = TryInto::<Msg<T>>::try_into(generic) {
+                            return Ok(msg);
+                        } else {
+                            return Err(Error::Deserialization);
+                        }
+                    }
                     Err(_e) => return Err(Error::Deserialization),
                 }
             }

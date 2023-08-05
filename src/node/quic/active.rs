@@ -16,21 +16,20 @@ impl Interface for Quic {}
 impl<T: Message + 'static> Node<Quic, Active, T> {
     #[tracing::instrument(skip(self))]
     pub fn publish(&self, val: T) -> Result<(), Error> {
-        let val_vec: Vec<u8> = match to_allocvec(&val) {
-            Ok(val_vec) => val_vec,
+        let data: Vec<u8> = match to_allocvec(&val) {
+            Ok(data) => data,
             Err(_e) => return Err(Error::Serialization),
         };
 
-        let packet = GenericMsg {
+        let generic = GenericMsg {
             msg_type: MsgType::SET,
             timestamp: Utc::now(),
-            name: self.name.to_string(),
             topic: self.topic.to_string(),
             data_type: std::any::type_name::<T>().to_string(),
-            data: val_vec.to_vec(),
+            data,
         };
 
-        let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
+        let packet_as_bytes: Vec<u8> = match to_allocvec(&generic) {
             Ok(packet) => packet,
             Err(_e) => return Err(Error::Serialization),
         };
@@ -59,7 +58,6 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
         let packet = GenericMsg {
             msg_type: MsgType::GET,
             timestamp: Utc::now(),
-            name: self.name.to_string(),
             topic: self.topic.to_string(),
             data_type: std::any::type_name::<T>().to_string(),
             data: Vec::new(),

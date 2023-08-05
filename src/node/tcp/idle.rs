@@ -34,7 +34,6 @@ impl<T: Message> From<Node<Tcp, Idle, T>> for Node<Tcp, Active, T> {
             cfg: node.cfg,
             runtime: node.runtime,
             stream: node.stream,
-            name: node.name,
             topic: node.topic,
             socket: node.socket,
             #[cfg(feature = "quic")]
@@ -56,7 +55,6 @@ impl<T: Message> From<Node<Tcp, Idle, T>> for Node<Tcp, Subscription, T> {
             cfg: node.cfg,
             runtime: node.runtime,
             stream: node.stream,
-            name: node.name,
             topic: node.topic,
             socket: node.socket,
             #[cfg(feature = "quic")]
@@ -107,7 +105,6 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
 
     #[tracing::instrument]
     pub fn subscribe(mut self, rate: Duration) -> Result<Node<Tcp, Subscription, T>, Error> {
-        let name = self.name.clone();
         let addr = self.cfg.network_cfg.host_addr;
         let topic = self.topic.clone();
 
@@ -132,20 +129,19 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
             .unwrap();
             debug!("Successfully subscribed to Host");
 
-            let packet: Msg<()> = Msg {
+            let packet = GenericMsg {
                 msg_type: MsgType::GET,
                 timestamp: Utc::now(),
-                name: name.clone(),
                 topic: topic.clone(),
                 data_type: std::any::type_name::<T>().to_string(),
-                data: (),
+                data: Vec::new(),
             };
 
             loop {
                 let packet_as_bytes: Vec<u8> = to_allocvec(&packet).unwrap();
                 send_msg(&mut &stream, packet_as_bytes).await.unwrap();
                 let msg = match await_response::<T>(&mut &stream, max_buffer_size).await {
-                    Ok(val) => val,
+                    Ok(msg) => msg,
                     Err(e) => {
                         error!("Subscription Error: {}", e);
                         continue;
@@ -157,14 +153,6 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
                     // println!("Data is not newer, skipping to next subscription iteration");
                     continue;
                 }
-                // debug!("Node has received msg data: {:?}",&msg.data);
-                /* let reply_data = match from_bytes::<T>(&reply.data) {
-                    Ok(data) => data,
-                    Err(e) => {
-                        error!("{:?}", e);
-                        continue;
-                    }
-                }; */
 
                 let mut data = data.lock().await;
 

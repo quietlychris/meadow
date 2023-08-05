@@ -13,7 +13,6 @@ use std::marker::PhantomData;
 #[derive(Debug, Clone)]
 pub struct NodeConfig<I: Interface + Default, T: Message> {
     pub __data_type: PhantomData<T>,
-    pub name: String,
     pub topic: Option<String>,
     pub network_cfg: NetworkConfig<I>,
 }
@@ -23,30 +22,17 @@ where
     NetworkConfig<I>: Default,
 {
     /// Create a named, strongly-typed Node without an assigned topic
-    pub fn new(name: impl Into<String>) -> NodeConfig<I, T> {
+    pub fn new(topic: impl Into<String>) -> NodeConfig<I, T> {
         NodeConfig {
             __data_type: PhantomData,
-            name: name.into(),
-            topic: None,
+            topic: Some(topic.into()),
             network_cfg: NetworkConfig::<I>::default(),
         }
-    }
-
-    /// Convenience method for re-setting the name of the Node to be generated
-    pub fn name(mut self, name: impl Into<String>) -> Self {
-        self.name = name.into();
-        self
     }
 
     /// Configure the TCP connection parameteres
     pub fn with_config(mut self, network_cfg: NetworkConfig<I>) -> Self {
         self.network_cfg = network_cfg;
-        self
-    }
-
-    /// Set topic of the generated Node
-    pub fn topic(mut self, topic: impl Into<String>) -> Self {
-        self.topic = Some(topic.into());
         self
     }
 
@@ -65,7 +51,7 @@ where
         Ok(Node::<I, Idle, T> {
             __state: PhantomData::<Idle>,
             __data_type: PhantomData::<T>,
-            cfg: self.clone(),
+            cfg: self,
             runtime,
             stream: None,
             socket: None,
@@ -73,7 +59,6 @@ where
             endpoint: None,
             #[cfg(feature = "quic")]
             connection: None,
-            name: self.name,
             topic,
             subscription_data: Arc::new(TokioMutex::new(None)),
             task_subscribe: None,

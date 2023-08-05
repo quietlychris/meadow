@@ -23,8 +23,7 @@ fn main() -> Result<(), meadow::Error> {
 
     // Build a Node
     let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-    let node: Node<Tcp, Idle, Coordinate> = NodeConfig::new("GPS_NODE")
-        .topic("position")
+    let node: Node<Tcp, Idle, Coordinate> = NodeConfig::new("position")
         .with_config(node::NetworkConfig::<Tcp>::default().set_host_addr(addr))
         .build()?;
     // meadow Nodes use strict typestates; without using the activate() method first,
@@ -40,8 +39,7 @@ fn main() -> Result<(), meadow::Error> {
 
     // Nodes can also be subscribers, which will request topic updates from the Host
     // at a given rate
-    let subscriber = NodeConfig::<Tcp, Coordinate>::new("GPS_SUBSCRIBER")
-        .topic("position")
+    let subscriber = NodeConfig::<Tcp, Coordinate>::new("position")
         .with_config(node::NetworkConfig::<Tcp>::default().set_host_addr(addr))
         .build()?
         .subscribe(std::time::Duration::from_micros(100))?;

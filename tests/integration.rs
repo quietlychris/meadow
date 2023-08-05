@@ -38,7 +38,7 @@ fn integrate_host_and_single_node() {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let node: Node<Tcp, Idle, Pose> = NodeConfig::new("TEST_NODE").topic("pose").build().unwrap();
+    let node: Node<Tcp, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
     let node = node.activate().unwrap();
 
     for i in 0..5 {
@@ -66,10 +66,7 @@ fn request_non_existent_topic() {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let node: Node<Tcp, Idle, Pose> = NodeConfig::new("TEST_NODE")
-        .topic("doesnt_exist")
-        .build()
-        .unwrap();
+    let node: Node<Tcp, Idle, Pose> = NodeConfig::new("doesnt_exist").build().unwrap();
     let node = node.activate().unwrap();
 
     // Requesting a topic that doesn't exist should return a recoverable error
@@ -89,14 +86,12 @@ fn node_send_options() {
     host.start().unwrap();
 
     // Get the host up and running
-    let node_a = NodeConfig::<Tcp, Option<f32>>::new("OptionTx")
-        .topic("pose")
+    let node_a = NodeConfig::<Tcp, Option<f32>>::new("pose")
         .build()
         .unwrap()
         .activate()
         .unwrap();
-    let node_b = NodeConfig::<Tcp, Option<f32>>::new("OptionTx")
-        .topic("pose")
+    let node_b = NodeConfig::<Tcp, Option<f32>>::new("pose")
         .build()
         .unwrap()
         .activate()
@@ -124,10 +119,7 @@ fn publish_boolean() {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let node: Node<Tcp, Idle, bool> = NodeConfig::new("TEST_NODE")
-        .topic("my_boolean")
-        .build()
-        .unwrap();
+    let node: Node<Tcp, Idle, bool> = NodeConfig::new("my_boolean").build().unwrap();
     let node = node.activate().unwrap();
 
     for _i in 0..5 {
@@ -146,8 +138,7 @@ fn subscription_usize() {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let writer = NodeConfig::<Tcp, usize>::new("WRITER")
-        .topic("subscription")
+    let writer = NodeConfig::<Tcp, usize>::new("subscription")
         .build()
         .unwrap()
         .activate()
@@ -157,7 +148,6 @@ fn subscription_usize() {
     let reader = writer
         .cfg
         .clone()
-        .name("READER")
         .build()
         .unwrap()
         .subscribe(Duration::from_millis(10))
@@ -185,8 +175,7 @@ fn no_subscribed_value() {
     host.start().unwrap();
 
     // Create a subscription node with a query rate of 10 Hz
-    let reader = NodeConfig::<Tcp, usize>::new("READER")
-        .topic("subscription")
+    let reader = NodeConfig::<Tcp, usize>::new("subscription")
         .build()
         .unwrap()
         .subscribe(Duration::from_millis(100))
@@ -202,15 +191,13 @@ fn simple_udp() {
     host.start().unwrap();
     println!("Started host");
 
-    let tx = NodeConfig::<Udp, f32>::new("TX")
-        .topic("num")
+    let tx = NodeConfig::<Udp, f32>::new("num")
         .build()
         .unwrap()
         .activate()
         .unwrap();
 
-    let rx = NodeConfig::<Tcp, f32>::new("RECEIVER")
-        .topic("num")
+    let rx = NodeConfig::<Tcp, f32>::new("num")
         .build()
         .unwrap()
         .activate()

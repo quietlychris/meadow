@@ -12,9 +12,8 @@ fn main() -> Result<(), meadow::Error> {
     println!("Started host");
 
     let tx_thread = thread::spawn(|| {
-        let tx = NodeConfig::<Udp, f32>::new("TX")
+        let tx = NodeConfig::<Udp, f32>::new("num")
             .with_config(node::NetworkConfig::<Udp>::default())
-            .topic("num")
             .build()
             .unwrap()
             .activate()
@@ -36,8 +35,7 @@ fn main() -> Result<(), meadow::Error> {
         std::process::exit(0);
     });
 
-    let rx = NodeConfig::<Tcp, f32>::new("RECEIVER")
-        .topic("num")
+    let rx = NodeConfig::<Tcp, f32>::new("num")
         .build()
         .unwrap()
         .activate()?;

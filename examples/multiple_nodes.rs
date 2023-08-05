@@ -29,8 +29,7 @@ fn main() -> Result<(), meadow::Error> {
             };
 
             // Create a node
-            let name = format!("NODE_{}", i);
-            let node: Node<Tcp, Idle, Pose> = NodeConfig::new(name).topic("pose").build().unwrap();
+            let node: Node<Tcp, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
             let node = match node.activate() {
                 Ok(node) => {
                     println!("NODE_{} connected successfully", i);

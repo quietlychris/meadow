@@ -34,7 +34,6 @@ impl<T: Message> From<Node<Quic, Idle, T>> for Node<Quic, Active, T> {
             cfg: node.cfg,
             runtime: node.runtime,
             stream: node.stream,
-            name: node.name,
             topic: node.topic,
             socket: node.socket,
             endpoint: node.endpoint,
@@ -53,7 +52,6 @@ impl<T: Message> From<Node<Quic, Idle, T>> for Node<Quic, Subscription, T> {
             cfg: node.cfg,
             runtime: node.runtime,
             stream: node.stream,
-            name: node.name,
             topic: node.topic,
             socket: node.socket,
             endpoint: node.endpoint,
@@ -100,7 +98,6 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
     pub fn subscribe(mut self, rate: Duration) -> Result<Node<Quic, Subscription, T>, Error> {
         self.create_connection();
         let connection = self.connection.clone();
-        let name = self.name.clone();
         let topic = self.topic.clone();
 
         let subscription_data: Arc<TokioMutex<Option<Msg<T>>>> = Arc::new(TokioMutex::new(None));
@@ -112,7 +109,6 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
             let packet = GenericMsg {
                 msg_type: MsgType::GET,
                 timestamp: Utc::now(),
-                name: name.to_string(),
                 topic: topic.to_string(),
                 data_type: std::any::type_name::<T>().to_string(),
                 data: Vec::new(),

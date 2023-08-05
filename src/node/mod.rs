@@ -33,7 +33,6 @@ use std::sync::Arc;
 
 use alloc::vec::Vec;
 use postcard::*;
-use serde::{de::DeserializeOwned, Serialize};
 
 use crate::msg::*;
 use crate::node::network_config::Interface;
@@ -51,11 +50,6 @@ use rustls::Certificate;
 use std::fs::File;
 #[cfg(feature = "quic")]
 use std::io::BufReader;
-
-use std::fmt::Debug;
-/// Trait for Meadow-compatible data, requiring serde De\Serialize, Debug, and Clone
-pub trait Message: Serialize + DeserializeOwned + Debug + Sync + Send + Clone {}
-impl<T> Message for T where T: Serialize + DeserializeOwned + Debug + Sync + Send + Clone {}
 
 /// State marker for a Node that has not been connected to a Host
 #[derive(Debug)]

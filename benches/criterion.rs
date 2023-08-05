@@ -33,10 +33,7 @@ fn tcp_message_sending(c: &mut criterion::Criterion) {
     let mut host = HostConfig::default().build().unwrap();
     host.start().unwrap();
     // Create and activate a Node
-    let node = NodeConfig::<Tcp, usize>::new("SIMPLE_NODE")
-        .topic("number")
-        .build()
-        .unwrap();
+    let node = NodeConfig::<Tcp, usize>::new("number").build().unwrap();
     let node = node.activate().unwrap();
     let val = 1;
 
@@ -46,14 +43,12 @@ fn tcp_message_sending(c: &mut criterion::Criterion) {
         });
     });
 
-    let tx = NodeConfig::<Tcp, f32>::new("TX_f32")
-        .topic("number")
+    let tx = NodeConfig::<Tcp, f32>::new("number")
         .build()
         .unwrap()
         .activate()
         .unwrap();
-    let rx = NodeConfig::<Tcp, f32>::new("RX_f32")
-        .topic("number")
+    let rx = NodeConfig::<Tcp, f32>::new("number")
         .build()
         .unwrap()
         .activate()
@@ -80,14 +75,12 @@ fn tcp_message_sending(c: &mut criterion::Criterion) {
         let bench_name = "msg_".to_owned() + &size.to_string();
         let mut rng = rand::thread_rng();
         // Create and activate a Node
-        let tx = NodeConfig::<Tcp, Vec<f32>>::new("TX")
-            .topic("number")
+        let tx = NodeConfig::<Tcp, Vec<f32>>::new("number")
             .build()
             .unwrap()
             .activate()
             .unwrap();
-        let rx = NodeConfig::<Tcp, Vec<f32>>::new("RX")
-            .topic("number")
+        let rx = NodeConfig::<Tcp, Vec<f32>>::new("number")
             .build()
             .unwrap()
             .activate()

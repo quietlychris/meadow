@@ -23,7 +23,6 @@ impl<T: Message> From<Node<Udp, Idle, T>> for Node<Udp, Active, T> {
             cfg: node.cfg,
             runtime: node.runtime,
             stream: node.stream,
-            name: node.name,
             topic: node.topic,
             socket: node.socket,
             #[cfg(feature = "quic")]
@@ -39,16 +38,20 @@ impl<T: Message> From<Node<Udp, Idle, T>> for Node<Udp, Active, T> {
 impl<T: Message + 'static> Node<Udp, Active, T> {
     #[tracing::instrument]
     pub fn publish(&self, val: T) -> Result<(), Error> {
-        let packet = Msg {
-            msg_type: MsgType::SET,
-            timestamp: Utc::now(),
-            name: self.name.to_string(),
-            topic: self.topic.to_string(),
-            data_type: std::any::type_name::<T>().to_string(),
-            data: val,
+        let data: Vec<u8> = match to_allocvec(&val) {
+            Ok(data) => data,
+            Err(_e) => return Err(Error::Serialization),
         };
 
-        let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
+        let generic = GenericMsg {
+            msg_type: MsgType::SET,
+            timestamp: Utc::now(),
+            topic: self.topic.to_string(),
+            data_type: std::any::type_name::<T>().to_string(),
+            data,
+        };
+
+        let packet_as_bytes: Vec<u8> = match to_allocvec(&generic) {
             Ok(packet) => packet,
             Err(_e) => return Err(Error::Serialization),
         };
