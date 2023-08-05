@@ -53,7 +53,7 @@ fn main() -> Result<(), meadow::Error> {
             y: i as f32,
         };
         node.publish(c)?;
-        let result = node.request()?;
+        let result: Msg<Coordinate> = node.request()?;
         // or could use the value held by the subscribed node
         let subscription = subscriber.get_subscribed_data();
         println!("request: {:?}, subscription: {:?}", result, subscription);

@@ -104,7 +104,7 @@ fn tcp_message_sending(c: &mut criterion::Criterion) {
             });
 
             let result = rx.request().unwrap();
-            assert_eq!(nums, result);
+            assert_eq!(nums, result.data);
             // host.stop().unwrap();
         });
     }

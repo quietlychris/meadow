@@ -25,7 +25,7 @@ fn main() -> Result<(), meadow::Error> {
 
     // Since subscribed topics are not guaranteed to exist, subscribed nodes always return Option<T>
     let result = match reader.get_subscribed_data() {
-        Ok(val) => val,
+        Ok(val) => val.data,
         Err(e) => {
             println!("Error: {:?}, returning 0", e);
             0

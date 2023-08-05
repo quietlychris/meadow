@@ -111,8 +111,7 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
         let addr = self.cfg.network_cfg.host_addr;
         let topic = self.topic.clone();
 
-        let subscription_data: Arc<TokioMutex<Option<SubscriptionData<T>>>> =
-            Arc::new(TokioMutex::new(None));
+        let subscription_data: Arc<TokioMutex<Option<Msg<T>>>> = Arc::new(TokioMutex::new(None));
         let data = Arc::clone(&subscription_data);
 
         let max_buffer_size = self.cfg.network_cfg.max_buffer_size;
@@ -141,39 +140,35 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
                 data_type: std::any::type_name::<T>().to_string(),
                 data: Vec::new(),
             };
-            // debug!("{:?}",&packet);
 
             loop {
                 let packet_as_bytes: Vec<u8> = to_allocvec(&packet).unwrap();
                 send_msg(&mut &stream, packet_as_bytes).await.unwrap();
-                let reply = match await_response::<T>(&mut &stream, max_buffer_size).await {
+                let msg = match await_response::<T>(&mut &stream, max_buffer_size).await {
                     Ok(val) => val,
                     Err(e) => {
                         error!("Subscription Error: {}", e);
                         continue;
                     }
                 };
-                let delta = Utc::now() - reply.timestamp;
+                let delta = Utc::now() - msg.timestamp;
                 // println!("The time difference between msg tx/rx is: {} us",delta);
                 if delta <= chrono::Duration::zero() {
                     // println!("Data is not newer, skipping to next subscription iteration");
                     continue;
                 }
                 // debug!("Node has received msg data: {:?}",&msg.data);
-                let reply_data = match from_bytes::<T>(&reply.data) {
+                /* let reply_data = match from_bytes::<T>(&reply.data) {
                     Ok(data) => data,
                     Err(e) => {
                         error!("{:?}", e);
                         continue;
                     }
-                };
-                let reply_sub_data = SubscriptionData {
-                    data: reply_data,
-                    timestamp: reply.timestamp,
-                };
+                }; */
+
                 let mut data = data.lock().await;
 
-                *data = Some(reply_sub_data);
+                *data = Some(msg);
                 sleep(rate).await;
             }
         });

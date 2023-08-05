@@ -103,8 +103,7 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
         let name = self.name.clone();
         let topic = self.topic.clone();
 
-        let subscription_data: Arc<TokioMutex<Option<SubscriptionData<T>>>> =
-            Arc::new(TokioMutex::new(None));
+        let subscription_data: Arc<TokioMutex<Option<Msg<T>>>> = Arc::new(TokioMutex::new(None));
         let data = Arc::clone(&subscription_data);
 
         let max_buffer_size = self.cfg.network_cfg.max_buffer_size;
@@ -137,14 +136,14 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
                                 Ok(Some(n)) => {
                                     let bytes = &buf[..n];
 
-                                    match from_bytes::<GenericMsg>(bytes) {
-                                        Ok(reply) => {
+                                    match from_bytes::<Msg<T>>(bytes) {
+                                        Ok(msg) => {
                                             {
 
                                                 if let Some(data) = data.lock().await.as_ref() {
                                                     debug!("Timestamp: {}", data.timestamp);
                                                     let delta =
-                                                        data.timestamp - reply.timestamp;
+                                                        data.timestamp - msg.timestamp;
                                                     debug!("The time difference between QUIC subscription msg tx/rx is: {} us",delta);
                                                     if delta <= chrono::Duration::zero() {
                                                         // println!("Data is not newer, skipping to next subscription iteration");
@@ -153,7 +152,12 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
                                                 }
                                             }
 
-                                            match from_bytes::<T>(&reply.data) {
+                                            debug!("QUIC Subscriber received new data");
+                                            let mut data = data.lock().await;
+                                            *data = Some(msg);
+                                            sleep(rate).await;
+
+                /*                             match from_bytes::<T>(&reply.data) {
                                                 Ok(val) => {
                                                     let reply_sub_data = SubscriptionData {
                                                         data: val,
@@ -166,7 +170,7 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
                                                     sleep(rate).await;
                                                 }
                                                 _ => continue,
-                                            };
+                                            }; */
                                         }
                                         Err(_) => continue,
                                     }

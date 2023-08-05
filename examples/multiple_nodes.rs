@@ -43,8 +43,8 @@ fn main() -> Result<(), meadow::Error> {
 
             node.publish(pose).unwrap();
             thread::sleep(Duration::from_millis((100 / (i + 1)) as u64));
-            let result: Pose = node.request().unwrap();
-            println!("From thread {}, got: {:?}", thread_num, result);
+            let result = node.request().unwrap();
+            println!("From thread {}, got: {:?}", thread_num, result.data);
 
             println!("Thread {} returning!", i);
             // thread::sleep(Duration::from_millis(10));

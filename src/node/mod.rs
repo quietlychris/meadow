@@ -67,13 +67,6 @@ pub struct Active;
 #[derive(Debug)]
 pub struct Subscription;
 
-/// Composite data comprised of Meadow-compatible data and a String timestamp
-#[derive(Debug, Clone)]
-pub struct SubscriptionData<T: Message> {
-    pub data: T,
-    pub timestamp: DateTime<Utc>,
-}
-
 mod private {
     pub trait Sealed {}
     impl Sealed for crate::Udp {}
@@ -100,6 +93,6 @@ pub struct Node<I: Interface + Default, State, T: Message> {
     pub endpoint: Option<Endpoint>,
     #[cfg(feature = "quic")]
     pub connection: Option<QuicConnection>,
-    pub subscription_data: Arc<TokioMutex<Option<SubscriptionData<T>>>>,
+    pub subscription_data: Arc<TokioMutex<Option<Msg<T>>>>,
     pub task_subscribe: Option<JoinHandle<()>>,
 }

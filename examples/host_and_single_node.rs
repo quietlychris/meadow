@@ -44,10 +44,10 @@ fn main() -> Result<(), meadow::Error> {
         node.publish(pose.clone())?;
         println!("published {}", i);
         thread::sleep(Duration::from_millis(250));
-        let result = node.request().unwrap();
+        let result: Msg<Pose> = node.request().unwrap();
         println!("Got position: {:?}", result);
 
-        assert_eq!(pose, result);
+        assert_eq!(pose, result.data);
     }
 
     println!(

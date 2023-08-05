@@ -53,10 +53,10 @@ fn integrate_host_and_single_node() {
         let result = node.request().unwrap();
         println!("Got position: {:?}", result);
 
-        assert_eq!(pose, result);
+        assert_eq!(pose, result.data);
     }
 
-    host.stop().unwrap();
+    // host.stop().unwrap();
 }
 
 #[test]
@@ -106,13 +106,13 @@ fn node_send_options() {
     node_a.publish(Some(1.0)).unwrap();
     let result = node_b.request().unwrap();
     dbg!(&result);
-    assert_eq!(result.unwrap(), 1.0);
+    assert_eq!(result.data.unwrap(), 1.0);
 
     // Send option with `None`
     node_a.publish(None).unwrap();
     let result = node_b.request();
     dbg!(&result);
-    assert_eq!(result.unwrap(), None);
+    assert_eq!(result.unwrap().data, None);
 
     host.stop().unwrap();
 }
@@ -133,7 +133,7 @@ fn publish_boolean() {
     for _i in 0..5 {
         node.publish(true).unwrap();
         thread::sleep(Duration::from_millis(50));
-        assert!(node.request().unwrap());
+        assert!(node.request().unwrap().data);
     }
 
     host.stop().unwrap();
@@ -169,7 +169,7 @@ fn subscription_usize() {
         std::thread::sleep(std::time::Duration::from_millis(100));
         // let result = reader.get_subscribed_data();
         match reader.get_subscribed_data() {
-            Ok(result) => assert_eq!(test_value, result),
+            Ok(result) => assert_eq!(test_value, result.data),
             Err(e) => println!("{:?}", e),
         }
         // dbg!(result);
@@ -193,7 +193,7 @@ fn no_subscribed_value() {
         .unwrap();
 
     // Unwrapping on an error should lead to panic
-    let _result: usize = reader.get_subscribed_data().unwrap();
+    let _result: usize = reader.get_subscribed_data().unwrap().data;
 }
 
 #[test]
@@ -227,6 +227,6 @@ fn simple_udp() {
         };
         thread::sleep(Duration::from_millis(1));
         let result = rx.request().unwrap();
-        assert_eq!(x, result);
+        assert_eq!(x, result.data);
     }
 }
