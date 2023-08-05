@@ -132,13 +132,13 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
             .unwrap();
             debug!("Successfully subscribed to Host");
 
-            let packet = GenericMsg {
+            let packet: Msg<()> = Msg {
                 msg_type: MsgType::GET,
                 timestamp: Utc::now(),
                 name: name.clone(),
                 topic: topic.clone(),
                 data_type: std::any::type_name::<T>().to_string(),
-                data: Vec::new(),
+                data: (),
             };
 
             loop {

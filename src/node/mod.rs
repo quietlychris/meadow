@@ -85,7 +85,6 @@ pub struct Node<I: Interface + Default, State, T: Message> {
     pub __data_type: PhantomData<T>,
     pub cfg: NodeConfig<I, T>,
     pub runtime: Runtime,
-    pub name: String,
     pub topic: String,
     pub stream: Option<TcpStream>,
     pub socket: Option<UdpSocket>,

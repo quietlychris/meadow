@@ -30,7 +30,7 @@ pub async fn process_udp(
             Ok((0, _)) => break, // TO_DO: break or continue?
             Ok((n, _)) => {
                 let bytes = &buf[..n];
-                let msg: GenericMsg = match from_bytes(bytes) {
+                let msg: Msg<&[u8]> = match from_bytes(bytes) {
                     Ok(msg) => msg,
                     Err(e) => {
                         error!("Had received Msg of {} bytes: {:?}, Error: {}", n, bytes, e);

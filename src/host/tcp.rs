@@ -83,14 +83,14 @@ pub async fn process_tcp(
                 stream.writable().await.unwrap();
 
                 let bytes = &buf[..n];
-                let msg: GenericMsg = match from_bytes(bytes) {
+                let msg: Msg<&[u8]> = match from_bytes(bytes) {
                     Ok(msg) => {
                         info!("{:?}", msg);
                         msg
                     }
                     Err(e) => {
                         error!("Had received Msg of {} bytes: {:?}, Error: {}", n, bytes, e);
-                        panic!("{}", e);
+                        panic!("Had received Msg of {} bytes: {:?}, Error: {}", n, bytes, e);
                     }
                 };
 

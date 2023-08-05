@@ -83,13 +83,13 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
             None => return Err(Error::AccessStream),
         };
 
-        let packet = GenericMsg {
+        let packet: Msg<()> = Msg {
             msg_type: MsgType::GET,
             timestamp: Utc::now(),
             name: self.name.to_string(),
             topic: self.topic.to_string(),
             data_type: std::any::type_name::<T>().to_string(),
-            data: Vec::new(),
+            data: (),
         };
 
         let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
