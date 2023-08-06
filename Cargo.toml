@@ -40,7 +40,7 @@ futures-util = {version = "0.3", optional = true}
 
 [dev-dependencies]
 # logging to file
-tracing-subscriber = "0.3"
+tracing-subscriber = {version = "^0.3.17", features = ["env-filter"]}
 tracing-appender = "0.2"
 # benchmarking
 criterion = "0.4"

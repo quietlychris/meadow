@@ -10,8 +10,7 @@ fn main() -> Result<(), meadow::Error> {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let writer = NodeConfig::<Tcp, _>::new("WRITER")
-        .topic("subscription")
+    let writer = NodeConfig::<Tcp, _>::new("subcription")
         .build()?
         .activate()?;
 
@@ -19,13 +18,12 @@ fn main() -> Result<(), meadow::Error> {
     let reader = writer
         .cfg
         .clone()
-        .name("READER")
         .build()?
         .subscribe(Duration::from_micros(1))?;
 
     // Since subscribed topics are not guaranteed to exist, subscribed nodes always return Option<T>
     let result = match reader.get_subscribed_data() {
-        Ok(val) => val,
+        Ok(val) => val.data,
         Err(e) => {
             println!("Error: {:?}, returning 0", e);
             0

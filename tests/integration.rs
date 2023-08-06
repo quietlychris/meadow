@@ -38,7 +38,7 @@ fn integrate_host_and_single_node() {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let node: Node<Tcp, Idle, Pose> = NodeConfig::new("TEST_NODE").topic("pose").build().unwrap();
+    let node: Node<Tcp, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
     let node = node.activate().unwrap();
 
     for i in 0..5 {
@@ -53,10 +53,10 @@ fn integrate_host_and_single_node() {
         let result = node.request().unwrap();
         println!("Got position: {:?}", result);
 
-        assert_eq!(pose, result);
+        assert_eq!(pose, result.data);
     }
 
-    host.stop().unwrap();
+    // host.stop().unwrap();
 }
 
 #[test]
@@ -66,10 +66,7 @@ fn request_non_existent_topic() {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let node: Node<Tcp, Idle, Pose> = NodeConfig::new("TEST_NODE")
-        .topic("doesnt_exist")
-        .build()
-        .unwrap();
+    let node: Node<Tcp, Idle, Pose> = NodeConfig::new("doesnt_exist").build().unwrap();
     let node = node.activate().unwrap();
 
     // Requesting a topic that doesn't exist should return a recoverable error
@@ -89,14 +86,12 @@ fn node_send_options() {
     host.start().unwrap();
 
     // Get the host up and running
-    let node_a = NodeConfig::<Tcp, Option<f32>>::new("OptionTx")
-        .topic("pose")
+    let node_a = NodeConfig::<Tcp, Option<f32>>::new("pose")
         .build()
         .unwrap()
         .activate()
         .unwrap();
-    let node_b = NodeConfig::<Tcp, Option<f32>>::new("OptionTx")
-        .topic("pose")
+    let node_b = NodeConfig::<Tcp, Option<f32>>::new("pose")
         .build()
         .unwrap()
         .activate()
@@ -106,13 +101,13 @@ fn node_send_options() {
     node_a.publish(Some(1.0)).unwrap();
     let result = node_b.request().unwrap();
     dbg!(&result);
-    assert_eq!(result.unwrap(), 1.0);
+    assert_eq!(result.data.unwrap(), 1.0);
 
     // Send option with `None`
     node_a.publish(None).unwrap();
     let result = node_b.request();
     dbg!(&result);
-    assert_eq!(result.unwrap(), None);
+    assert_eq!(result.unwrap().data, None);
 
     host.stop().unwrap();
 }
@@ -124,16 +119,13 @@ fn publish_boolean() {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let node: Node<Tcp, Idle, bool> = NodeConfig::new("TEST_NODE")
-        .topic("my_boolean")
-        .build()
-        .unwrap();
+    let node: Node<Tcp, Idle, bool> = NodeConfig::new("my_boolean").build().unwrap();
     let node = node.activate().unwrap();
 
     for _i in 0..5 {
         node.publish(true).unwrap();
         thread::sleep(Duration::from_millis(50));
-        assert!(node.request().unwrap());
+        assert!(node.request().unwrap().data);
     }
 
     host.stop().unwrap();
@@ -146,8 +138,7 @@ fn subscription_usize() {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let writer = NodeConfig::<Tcp, usize>::new("WRITER")
-        .topic("subscription")
+    let writer = NodeConfig::<Tcp, usize>::new("subscription")
         .build()
         .unwrap()
         .activate()
@@ -157,7 +148,6 @@ fn subscription_usize() {
     let reader = writer
         .cfg
         .clone()
-        .name("READER")
         .build()
         .unwrap()
         .subscribe(Duration::from_millis(10))
@@ -169,7 +159,7 @@ fn subscription_usize() {
         std::thread::sleep(std::time::Duration::from_millis(100));
         // let result = reader.get_subscribed_data();
         match reader.get_subscribed_data() {
-            Ok(result) => assert_eq!(test_value, result),
+            Ok(result) => assert_eq!(test_value, result.data),
             Err(e) => println!("{:?}", e),
         }
         // dbg!(result);
@@ -185,15 +175,14 @@ fn no_subscribed_value() {
     host.start().unwrap();
 
     // Create a subscription node with a query rate of 10 Hz
-    let reader = NodeConfig::<Tcp, usize>::new("READER")
-        .topic("subscription")
+    let reader = NodeConfig::<Tcp, usize>::new("subscription")
         .build()
         .unwrap()
         .subscribe(Duration::from_millis(100))
         .unwrap();
 
     // Unwrapping on an error should lead to panic
-    let _result: usize = reader.get_subscribed_data().unwrap();
+    let _result: usize = reader.get_subscribed_data().unwrap().data;
 }
 
 #[test]
@@ -202,15 +191,13 @@ fn simple_udp() {
     host.start().unwrap();
     println!("Started host");
 
-    let tx = NodeConfig::<Udp, f32>::new("TX")
-        .topic("num")
+    let tx = NodeConfig::<Udp, f32>::new("num")
         .build()
         .unwrap()
         .activate()
         .unwrap();
 
-    let rx = NodeConfig::<Tcp, f32>::new("RECEIVER")
-        .topic("num")
+    let rx = NodeConfig::<Tcp, f32>::new("num")
         .build()
         .unwrap()
         .activate()
@@ -227,6 +214,6 @@ fn simple_udp() {
         };
         thread::sleep(Duration::from_millis(1));
         let result = rx.request().unwrap();
-        assert_eq!(x, result);
+        assert_eq!(x, result.data);
     }
 }

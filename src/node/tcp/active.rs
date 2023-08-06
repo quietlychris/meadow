@@ -17,29 +17,25 @@ impl Interface for Tcp {}
 impl<T: Message + 'static> Node<Tcp, Active, T> {
     // TO_DO: The error handling in the async blocks need to be improved
     /// Send data to host on Node's assigned topic using `Msg<T>` packet
-    //#[tracing::instrument]
+    #[tracing::instrument]
     pub fn publish(&self, val: T) -> Result<(), Error> {
-        let val_vec: Vec<u8> = match to_allocvec(&val) {
-            Ok(val_vec) => val_vec,
+        let data: Vec<u8> = match to_allocvec(&val) {
+            Ok(data) => data,
             Err(_e) => return Err(Error::Serialization),
         };
 
-        // println!("Number of bytes in data for {:?} is {}",std::any::type_name::<M>(),val_vec.len());
-        let packet = GenericMsg {
+        let generic = GenericMsg {
             msg_type: MsgType::SET,
             timestamp: Utc::now(),
-            name: self.name.to_string(),
             topic: self.topic.to_string(),
             data_type: std::any::type_name::<T>().to_string(),
-            data: val_vec.to_vec(),
+            data,
         };
-        // debug!("The Node's packet to send looks like: {:?}",&packet);
 
-        let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
+        let packet_as_bytes: Vec<u8> = match to_allocvec(&generic) {
             Ok(packet) => packet,
             Err(_e) => return Err(Error::Serialization),
         };
-        // debug!("Node is publishing: {:?}",&packet_as_bytes);
 
         let mut stream = match self.stream.as_ref() {
             Some(stream) => stream,
@@ -84,17 +80,16 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
     }
 
     /// Request data from host on Node's assigned topic
-    //#[tracing::instrument]
-    pub fn request(&self) -> Result<T, Error> {
+    #[tracing::instrument]
+    pub fn request(&self) -> Result<Msg<T>, Error> {
         let mut stream = match self.stream.as_ref() {
             Some(stream) => stream,
             None => return Err(Error::AccessStream),
         };
 
-        let packet = GenericMsg {
+        let packet: GenericMsg = GenericMsg {
             msg_type: MsgType::GET,
             timestamp: Utc::now(),
-            name: self.name.to_string(),
             topic: self.topic.to_string(),
             data_type: std::any::type_name::<T>().to_string(),
             data: Vec::new(),
@@ -108,11 +103,8 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
         self.runtime.block_on(async {
             send_msg(&mut stream, packet_as_bytes).await.unwrap();
             match await_response::<T>(&mut stream, self.cfg.network_cfg.max_buffer_size).await {
-                Ok(reply) => match from_bytes::<T>(&reply.data) {
-                    Ok(data) => Ok(data),
-                    Err(_e) => Err(Error::Deserialization),
-                },
-                Err(_e) => Err(Error::BadResponse),
+                Ok(msg) => Ok(msg),
+                Err(_e) => Err(Error::Deserialization),
             }
         })
     }

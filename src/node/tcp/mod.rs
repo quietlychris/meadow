@@ -13,6 +13,7 @@ use tokio::time::{sleep, Duration};
 
 use tracing::*;
 
+use std::convert::TryInto;
 use std::net::SocketAddr;
 
 use std::marker::{PhantomData, Sync};
@@ -113,26 +114,36 @@ pub async fn send_msg(stream: &mut &TcpStream, packet_as_bytes: Vec<u8>) -> Resu
     Ok(())
 }
 
-/// Set Node to wait for `GenericMsg` response from Host, with data to be deserialized into Node's `<T>`-type
+/// Set Node to wait for response from Host, with data to be deserialized into `Msg<T>`-type
+// #[tracing::instrument]
 pub async fn await_response<T: Message>(
     stream: &mut &TcpStream,
     max_buffer_size: usize,
-) -> Result<GenericMsg, postcard::Error> {
+) -> Result<Msg<T>, Error> {
     // Read the requested data into a buffer
     // TO_DO: Having to re-allocate this each time isn't very efficient
     let mut buf = vec![0u8; max_buffer_size];
+    // TO_DO: This can be made cleaner
     loop {
         stream.readable().await.unwrap();
         match stream.try_read(&mut buf) {
             Ok(0) => continue,
             Ok(n) => {
                 let bytes = &buf[..n];
-
-                let msg: Result<GenericMsg, postcard::Error> = from_bytes(bytes);
-                return msg;
+                match from_bytes::<GenericMsg>(bytes) {
+                    Ok(generic) => {
+                        if let Ok(msg) = TryInto::<Msg<T>>::try_into(generic) {
+                            return Ok(msg);
+                        } else {
+                            return Err(Error::Deserialization);
+                        }
+                    }
+                    Err(_e) => return Err(Error::Deserialization),
+                }
             }
             Err(e) => {
                 if e.kind() == std::io::ErrorKind::WouldBlock {}
+                debug!("Would block");
                 continue;
             }
         }
