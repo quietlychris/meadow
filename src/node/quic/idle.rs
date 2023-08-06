@@ -153,20 +153,6 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
                                             *data = Some(msg);
                                             sleep(rate).await;
 
-                /*                             match from_bytes::<T>(&reply.data) {
-                                                Ok(val) => {
-                                                    let reply_sub_data = SubscriptionData {
-                                                        data: val,
-                                                        timestamp: reply.timestamp,
-                                                    };
-                                                    debug!("QUIC Subscriber received new data");
-                                                    let mut data = data.lock().await;
-
-                                                    *data = Some(reply_sub_data);
-                                                    sleep(rate).await;
-                                                }
-                                                _ => continue,
-                                            }; */
                                         }
                                         Err(_) => continue,
                                     }
