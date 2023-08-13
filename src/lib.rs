@@ -41,7 +41,7 @@ pub use sled::Config as SledConfig;
 #[cfg(doctest)]
 pub struct ReadMeDocTests;
 
-pub use crate::host::*;
+pub use crate::host::{Host, HostConfig};
 pub use crate::node::*;
 
 pub use crate::msg::*;
