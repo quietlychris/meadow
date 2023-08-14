@@ -1,4 +1,4 @@
-use crate::*;
+use crate::quic::{Quic, Subscription};
 
 impl<T: Message + 'static> Node<Quic, Subscription, T> {
     // Should actually return a <T>

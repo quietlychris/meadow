@@ -21,10 +21,10 @@ use std::result::Result;
 use std::sync::Arc;
 
 use alloc::vec::Vec;
-use postcard::*;
+use postcard::from_bytes;
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::msg::*;
+use crate::msg::{GenericMsg, Message, Msg};
 use crate::node::network_config::Interface;
 use crate::Error;
 use chrono::{DateTime, Utc};
@@ -38,8 +38,6 @@ use rustls::Certificate;
 use std::fs::File;
 #[cfg(feature = "quic")]
 use std::io::BufReader;
-
-use crate::Message;
 
 /// Attempts to create an async `TcpStream` connection with a Host at the specified socket address
 pub async fn try_connection(host_addr: SocketAddr) -> Result<TcpStream, Error> {
