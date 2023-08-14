@@ -7,13 +7,17 @@ use std::time::Duration;
 
 #[cfg(feature = "quic")]
 use std::sync::Once;
+
+#[cfg(feature = "quic")]
+use meadow::host::quic::generate_certs;
+
 #[cfg(feature = "quic")]
 static INIT: Once = Once::new();
 
 #[cfg(feature = "quic")]
 pub fn initialize() {
     INIT.call_once(|| {
-        meadow::generate_certs().unwrap();
+        generate_certs().unwrap();
     });
 }
 
