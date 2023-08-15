@@ -41,10 +41,10 @@ pub use sled::Config as SledConfig;
 #[cfg(doctest)]
 pub struct ReadMeDocTests;
 
-pub use crate::host::*;
-pub use crate::node::*;
-
-pub use crate::msg::*;
-pub use crate::networks::*;
-
 pub use crate::error::Error;
+pub use crate::host::{Host, HostConfig};
+pub use crate::msg::{GenericMsg, Message, Msg, MsgType};
+pub use crate::networks::get_ip;
+pub use crate::node::{
+    await_response, send_msg, Active, Idle, NetworkConfig, Node, NodeConfig, Subscription, Tcp, Udp,
+};

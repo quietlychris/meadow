@@ -3,6 +3,12 @@ use tracing::*;
 use tracing_subscriber::{filter, prelude::*};
 
 #[cfg(feature = "quic")]
+use meadow::host::quic::generate_certs;
+
+#[cfg(feature = "quic")]
+use meadow::node::Quic;
+
+#[cfg(feature = "quic")]
 fn main() -> Result<(), meadow::Error> {
     use meadow::*;
     use std::thread;
@@ -11,7 +17,7 @@ fn main() -> Result<(), meadow::Error> {
 
     logging();
 
-    meadow::generate_certs()?;
+    generate_certs()?;
     let mut host: Host = HostConfig::default()
         .with_tcp_config(None)
         .with_udp_config(None)
