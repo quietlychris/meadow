@@ -25,6 +25,8 @@ jobs:
         profile: minimal
         toolchain: stable
         components: clippy
+    - name: Install cargo-deny
+      run: cargo install --locked cargo-deny
     - name: Default CI
       run: cargo run -p ci
     - name: QUIC CI

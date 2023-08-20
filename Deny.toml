@@ -1,0 +1,5 @@
+[bans]
+deny = [
+    # See https://github.com/serde-rs/serde/issues/2538
+    { name = "serde_derive", version = ">1.0.171" },
+]
