@@ -67,6 +67,7 @@ fn logging() {
 
     let log = tracing_subscriber::fmt::layer()
         .compact()
+        .with_ansi(false)
         .with_line_number(true)
         .with_writer(Arc::new(file));
 
