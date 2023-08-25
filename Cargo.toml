@@ -14,7 +14,7 @@ name = "meadow"
 
 [workspace]
 exclude = ["benchmarks"]
-members = ["tools/ci"]
+members = ["tools/ci", "pymeadow"]
 
 [features]
 default = []
