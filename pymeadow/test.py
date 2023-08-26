@@ -11,13 +11,12 @@ def main():
     # The topic is `gps`
     node = meadow.TcpNode("gps")
 
-    # Publish a value; PyMeadow operates *exclusively* on String types right now
-    node.publish(str(6))
+    # Publish a value, which can be any Python type
+    node.publish(6)
     time.sleep(1)
+    # Request methods always return a String, so we'll need to do that conversion explicitly
     result = node.request()
-
-    # If we want to do something numeric with that data we've requested, we need to convert
-    # it back into the proper numeric type from the String the request() method returned      
+   
     test = int(result.data()) + 1
     if test == 7:
         print("Success!")

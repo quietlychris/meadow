@@ -18,8 +18,8 @@ impl TcpNode {
         TcpNode { inner: node }
     }
 
-    pub fn publish(&self, value: String) -> PyResult<()> {
-        if let Ok(()) = self.inner.publish(value) {
+    pub fn publish(&self, value: &PyAny) -> PyResult<()> {
+        if let Ok(()) = self.inner.publish(value.to_string()) {
             Ok(())
         } else {
             Err(PyValueError::new_err("Error publishing value"))

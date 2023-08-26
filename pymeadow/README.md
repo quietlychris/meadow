@@ -1,10 +1,37 @@
-## PyMeadow
+# PyMeadow
 
-A Python binding to the Meadow library. All types are considered to be `String`'s, which must then be parsed accordingly. 
+An *incomplete* Python binding for the Meadow library. Most Python types can be published, but operates on `String` types under the hood, which will need to parsed after `request()` methods both on the Rust and Python sides.
+
+```python
+import pymeadow as meadow
+import time
+import unittest
+    
+# Create a Meadow Host
+host = meadow.Host()
+
+# Create Node that operates over Tcp with all the default settings
+# The topic is `gps`
+node = meadow.TcpNode("gps")
+
+# Publish a value, which can be any Python type
+node.publish(6)
+time.sleep(1)
+# Request methods always return a String, so we'll need to do that conversion explicitly
+result = node.request()
+```
+
+## Development
+
+To get started with `maturin`-based development, follow the documentation [here](https://www.maturin.rs/installation.html)
 
 ```sh
 $ cd pymeadow
-$ source .env/bin/activate\
+$ source .env/bin/activate
 $ maturin develop
 $ python3 test.py
 ```
+
+## License
+
+This library is licensed under the Mozilla Public License, version 2.0 (MPL-2.0)
