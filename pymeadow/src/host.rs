@@ -5,7 +5,7 @@ use pyo3::prelude::*;
 
 #[pyclass]
 pub struct Host {
-    inner: m::Host,
+    _inner: m::Host,
 }
 
 #[pymethods]
@@ -14,7 +14,7 @@ impl Host {
     pub fn py_new() -> PyResult<Host> {
         if let Ok(mut host) = HostConfig::default().with_quic_config(None).build() {
             host.start().unwrap();
-            Ok(Host { inner: host })
+            Ok(Host { _inner: host })
         } else {
             Err(PyValueError::new_err("Error creating Host"))
         }
