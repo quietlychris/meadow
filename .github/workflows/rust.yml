@@ -25,6 +25,10 @@ jobs:
         profile: minimal
         toolchain: stable
         components: clippy
+    - name: Maturin
+      run: apt-get install python-pip
+    - name: Maturin
+      run: pip install maturin
     - name: Install cargo-deny
       run: cargo install --locked cargo-deny
     - name: Default CI

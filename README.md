@@ -1,7 +1,7 @@
 [![crates.io](https://img.shields.io/crates/v/meadow.svg)](https://crates.io/crates/meadow) [![Documentation](https://docs.rs/meadow/badge.svg)](https://docs.rs/meadow) ![CI](https://github.com/quietlychris/meadow/actions/workflows/rust.yml/badge.svg)
 # Meadow
 
-`meadow` is an experimental robotics-focused middleware for embedded Linux. It is built with a high preference for catching errors at compile-time over runtime and a focus on developer ergonomics. 
+`meadow` is an experimental robotics-focused middleware for embedded Linux. It is built with a high preference for catching errors at compile-time over runtime and a focus on developer ergonomics.
 
 ```rust
 use meadow::*;
