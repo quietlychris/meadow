@@ -261,6 +261,21 @@ impl Host {
         }
     }
 
+    pub fn topics(&self) -> Vec<String> {
+        if let Some(db) = self.store.clone() {
+            let names = db.tree_names();
+            let mut strings = Vec::new();
+            for name in names {
+                let name = std::str::from_utf8(&name[..]).unwrap();
+                strings.push(name.to_string());
+            }
+
+            strings
+        } else {
+            Vec::new()
+        }
+    }
+
     /// Print information about all Host connections
     #[no_mangle]
     pub fn print_connections(&mut self) -> Result<(), crate::Error> {

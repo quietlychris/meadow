@@ -54,13 +54,13 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
                     Ok(n) => {
                         let bytes = &buf[..n];
                         // TO_DO: This error handling is not great
-                        match from_bytes::<Error>(bytes) {
+                        match from_bytes::<Result<(), Error>>(bytes) {
                             Err(e) => {
                                 error!("{:?}", e);
                             }
-                            Ok(e) => match e {
-                                Error::HostOperation(error::HostOperation::Success) => (),
-                                _ => {
+                            Ok(result) => match result {
+                                Ok(()) => (),
+                                Err(e) => {
                                     error!("{:?}", e);
                                 }
                             },

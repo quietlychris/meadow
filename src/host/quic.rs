@@ -81,19 +81,22 @@ pub async fn process_quic(
         match msg.msg_type {
             MsgType::SET => {
                 let db_result = match db.insert(msg.topic.as_bytes(), bytes) {
-                    Ok(_prev_msg) => Error::HostOperation(HostOperation::Success), //"SUCCESS".to_string(),
-                    Err(_e) => Error::HostOperation(HostOperation::SetFailure),
+                    Ok(_prev_msg) => Ok(()), //"SUCCESS".to_string(),
+                    Err(_e) => Err(Error::HostOperation(HostOperation::SetFailure)),
                 };
-                loop {
-                    match tx.write(&db_result.as_bytes()).await {
-                        Ok(_n) => {
-                            let mut count = count.lock().await; //.unwrap();
-                            *count += 1;
-                            break;
-                        }
-                        Err(e) => {
-                            error!("{}", e);
-                            continue;
+
+                if let Ok(bytes) = postcard::to_allocvec(&db_result) {
+                    loop {
+                        match tx.write(&bytes).await {
+                            Ok(_n) => {
+                                let mut count = count.lock().await; //.unwrap();
+                                *count += 1;
+                                break;
+                            }
+                            Err(e) => {
+                                error!("{}", e);
+                                continue;
+                            }
                         }
                     }
                 }

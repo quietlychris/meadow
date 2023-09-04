@@ -97,31 +97,43 @@ pub async fn process_tcp(
                 match msg.msg_type {
                     MsgType::SET => {
                         // println!("received {} bytes, to be assigned to: {}", n, &msg.name);
-                        let db_result = match db.insert(msg.topic.as_bytes(), bytes) {
-                            Ok(_prev_msg) => {
-                                info!("{:?}", msg.data);
-                                Error::HostOperation(Success)
-                            } //"SUCCESS".to_string(),
-                            Err(_e) => Error::HostOperation(SetFailure),
+                        let tree = db
+                            .open_tree(msg.topic.as_bytes())
+                            .expect("Error opening tree");
+
+                        let db_result = {
+                            match tree.insert(msg.timestamp.to_string().as_bytes(), bytes) {
+                                Ok(_prev_msg) => {
+                                    info!("{:?}", msg.data);
+                                    Ok(())
+                                } //"SUCCESS".to_string(),
+                                Err(_e) => Err(Error::HostOperation(SetFailure)),
+                            }
                         };
 
-                        loop {
-                            match stream.try_write(&db_result.as_bytes()) {
-                                Ok(_n) => {
-                                    let mut count = count.lock().await; //.unwrap();
-                                    *count += 1;
-                                    break;
-                                }
-                                Err(e) => {
-                                    if e.kind() == std::io::ErrorKind::WouldBlock {}
-                                    continue;
+                        if let Ok(bytes) = postcard::to_allocvec(&db_result) {
+                            loop {
+                                match stream.try_write(&bytes) {
+                                    Ok(_n) => {
+                                        let mut count = count.lock().await; //.unwrap();
+                                        *count += 1;
+                                        break;
+                                    }
+                                    Err(e) => {
+                                        if e.kind() == std::io::ErrorKind::WouldBlock {}
+                                        continue;
+                                    }
                                 }
                             }
                         }
                     }
                     MsgType::GET => loop {
-                        let return_bytes = match db.get(&msg.topic).unwrap() {
-                            Some(msg) => msg,
+                        let tree = db
+                            .open_tree(msg.topic.as_bytes())
+                            .expect("Error opening tree");
+
+                        let return_bytes = match tree.last().unwrap() {
+                            Some(msg) => msg.1,
                             None => {
                                 let e: String =
                                     format!("Error: no topic \"{}\" exists", &msg.topic);
