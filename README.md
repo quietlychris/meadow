@@ -82,9 +82,9 @@ Under the hood, `meadow` relies on:
 
 ## Benchmarks
 Preliminary benchmark data is showing round-trip message times (publish-request-reply) on `locahost` using the `--release`
-compilation profile, on the README's `Coordinate` data (strongly-typed, 8 bytes) to be ~100 microseconds.
+compilation profile, on the README's `Coordinate` data (strongly-typed, 8 bytes) to be <50 microseconds.
 
-Additional benchmarking information can be found using `cargo run --release --example benchmark`. 
+Statistical benchmarks on different data profiles can be run via [`criterion`](https://github.com/bheisler/criterion.rs) via `cargo bench`.
 
 ## Stability
 As mentioned above, this library should be considered *experimental*. While the goal is eventually to make this available at a level of maturity, stability, and reliability of other middlewares, `meadow` is not there yet. This library is being used as a dependency for robotics research, with interprocess communication focused on dozens of nodes on `localhost` or a few over a WLAN connection. While `meadow` can work for other use-cases, it has not been extensively tested in those areas. If you are using this library in other areas and come across issues or unexpected behavior, well-formatted bug reports or pull requests addressing those problems are welcomed. 

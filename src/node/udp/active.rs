@@ -99,7 +99,7 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
         };
 
         self.runtime.block_on(async {
-            if let Ok(n) = self.send_msg(packet_as_bytes).await {
+            if let Ok(_n) = self.send_msg(packet_as_bytes).await {
                 match await_response::<T>(&mut socket, self.cfg.network_cfg.max_buffer_size).await {
                     Ok(msg) => Ok(msg),
                     Err(_e) => Err(Error::Deserialization),
@@ -119,14 +119,13 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
                 };
 
                 // Write the request
-                // TO_DO: This should be a loop with a maximum number of attempts
-                for i in 0..10 {
+                for _ in 0..10 {
                     match socket
                         .send_to(&packet_as_bytes, self.cfg.network_cfg.host_addr)
                         .await
                     {
                         Ok(n) => return Ok(n),
-                        Err(e_) => {}
+                        Err(_e) => {}
                     }
                 }
                 Err(Error::BadResponse)
