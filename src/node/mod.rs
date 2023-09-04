@@ -13,7 +13,6 @@ pub use crate::node::network_config::{Tcp, Udp};
 #[cfg(feature = "quic")]
 pub use crate::node::quic::*;
 pub use crate::node::tcp::*;
-pub use crate::node::udp::*;
 
 extern crate alloc;
 
