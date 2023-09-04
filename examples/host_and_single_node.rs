@@ -75,7 +75,6 @@ fn main() -> Result<(), meadow::Error> {
         }
     }
 
-    host.stop()?;
     Ok(())
 }
 

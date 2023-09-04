@@ -21,14 +21,14 @@ fn main() -> Result<(), meadow::Error> {
     host.start()?;
     // Other tasks can operate while the host is running in the background
 
-    // Build a Node
+    // Build a Node. Nodes can run over TCP, UDP, or QUIC
     let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-    let node: Node<Tcp, Idle, Coordinate> = NodeConfig::new("position")
-        .with_config(node::NetworkConfig::<Tcp>::default().set_host_addr(addr))
+    let node: Node<Udp, Idle, Coordinate> = NodeConfig::new("position")
+        .with_config(node::NetworkConfig::<Udp>::default().set_host_addr(addr))
         .build()?;
-    // meadow Nodes use strict typestates; without using the activate() method first,
+    // Nodes use strict typestates; without using the activate() method first,
     // the compiler won't let allow publish() or request() methods on an Idle Node
-    let node: Node<Tcp, Active, Coordinate> = node.activate()?;
+    let node: Node<Udp, Active, Coordinate> = node.activate()?;
 
     // Since Nodes are statically-typed, the following lines would fail at
     // compile-time due to type errors
@@ -57,7 +57,6 @@ fn main() -> Result<(), meadow::Error> {
         println!("request: {:?}, subscription: {:?}", result, subscription);
     }
 
-    host.stop()?;
     Ok(())
 }
 ```
