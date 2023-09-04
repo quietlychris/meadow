@@ -69,7 +69,7 @@ pub async fn process_udp(
                                 e.as_bytes().into()
                             }
                         };
-                        println!("return_addr: {:?}", return_addr);
+
                         if let Ok(()) = socket.writable().await {
                             if let Err(e) = socket.try_send_to(&return_bytes, return_addr) {
                                 error!("Error sending data back on UDP/GET: {}", e)

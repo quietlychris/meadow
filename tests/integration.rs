@@ -59,8 +59,6 @@ fn integrate_host_and_single_node() {
 
         assert_eq!(pose, result.data);
     }
-
-    // host.stop().unwrap();
 }
 
 #[test]
@@ -80,8 +78,6 @@ fn request_non_existent_topic() {
         dbg!(&result);
         thread::sleep(Duration::from_millis(50));
     }
-
-    host.stop().unwrap();
 }
 
 #[test]
@@ -112,8 +108,6 @@ fn node_send_options() {
     let result = node_b.request();
     dbg!(&result);
     assert_eq!(result.unwrap().data, None);
-
-    host.stop().unwrap();
 }
 
 #[test]
@@ -168,8 +162,6 @@ fn subscription_usize() {
         }
         // dbg!(result);
     }
-
-    // host.stop().unwrap();
 }
 
 #[test]
@@ -195,13 +187,7 @@ fn simple_udp() {
     host.start().unwrap();
     println!("Started host");
 
-    let tx = NodeConfig::<Udp, f32>::new("num")
-        .build()
-        .unwrap()
-        .activate()
-        .unwrap();
-
-    let rx = NodeConfig::<Tcp, f32>::new("num")
+    let node = NodeConfig::<Udp, f32>::new("num")
         .build()
         .unwrap()
         .activate()
@@ -210,14 +196,14 @@ fn simple_udp() {
     for i in 0..10 {
         let x = i as f32;
 
-        match tx.publish(x) {
+        match node.publish(x) {
             Ok(_) => (),
             Err(e) => {
                 dbg!(e);
             }
         };
         thread::sleep(Duration::from_millis(1));
-        let result = rx.request().unwrap();
+        let result = node.request().unwrap();
         assert_eq!(x, result.data);
     }
 }
