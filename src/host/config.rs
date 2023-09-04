@@ -31,7 +31,7 @@ impl Default for HostConfig {
             date.time().format("%H:%M:%S").to_string()
         );
         let sled_cfg = sled::Config::default()
-            .path(format!("./logs/{}", stamp))
+            .path(format!("./logs/{}.sled", stamp))
             .temporary(true);
 
         HostConfig {
