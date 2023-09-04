@@ -30,7 +30,9 @@ impl Default for HostConfig {
             date.date_naive().to_string(),
             date.time().format("%H:%M:%S").to_string()
         );
-        let sled_cfg = sled::Config::default().path(stamp).temporary(true);
+        let sled_cfg = sled::Config::default()
+            .path(format!("./logs/{}", stamp))
+            .temporary(true);
 
         HostConfig {
             sled_cfg,

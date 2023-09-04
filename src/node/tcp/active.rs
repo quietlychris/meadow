@@ -43,7 +43,9 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
         };
 
         self.runtime.block_on(async {
-            send_msg(&mut stream, packet_as_bytes).await.unwrap();
+            crate::node::tcp::send_msg(&mut stream, packet_as_bytes)
+                .await
+                .unwrap();
 
             // Wait for the publish acknowledgement
             let mut buf = vec![0u8; 1024];
@@ -101,8 +103,15 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
         };
 
         self.runtime.block_on(async {
-            send_msg(&mut stream, packet_as_bytes).await.unwrap();
-            match await_response::<T>(&mut stream, self.cfg.network_cfg.max_buffer_size).await {
+            crate::node::tcp::send_msg(&mut stream, packet_as_bytes)
+                .await
+                .unwrap();
+            match crate::node::tcp::await_response::<T>(
+                &mut stream,
+                self.cfg.network_cfg.max_buffer_size,
+            )
+            .await
+            {
                 Ok(msg) => Ok(msg),
                 Err(_e) => Err(Error::Deserialization),
             }

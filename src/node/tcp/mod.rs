@@ -1,4 +1,3 @@
-// mod network_config;
 mod active;
 mod idle;
 mod subscription;
