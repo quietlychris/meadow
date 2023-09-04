@@ -26,6 +26,7 @@ where
     pub max_buffer_size: usize,
     pub cert_path: Option<PathBuf>,
     pub key_path: Option<PathBuf>,
+    pub send_tries: usize,
 }
 
 impl Default for NetworkConfig<Tcp> {
@@ -36,6 +37,7 @@ impl Default for NetworkConfig<Tcp> {
             max_buffer_size: 1024,
             cert_path: None,
             key_path: None,
+            send_tries: 10,
         }
     }
 }
@@ -62,6 +64,7 @@ impl Default for NetworkConfig<Udp> {
             max_buffer_size: 2048,
             cert_path: None,
             key_path: None,
+            send_tries: 10,
         }
     }
 }
@@ -86,6 +89,7 @@ impl Default for NetworkConfig<Quic> {
             __interface: PhantomData::<Quic>,
             host_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 25_000),
             max_buffer_size: 4096,
+            send_tries: 10,
             cert_path: Some(Path::new("target").join("cert.pem")),
             key_path: Some(Path::new("target").join("priv_key.pem")),
         }

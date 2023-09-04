@@ -2,8 +2,8 @@ mod config;
 mod network_config;
 #[cfg(feature = "quic")]
 mod quic;
-mod tcp;
-mod udp;
+pub mod tcp;
+pub mod udp;
 
 pub use crate::node::config::*;
 pub use crate::node::network_config::NetworkConfig;

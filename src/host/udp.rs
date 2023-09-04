@@ -28,7 +28,7 @@ pub async fn process_udp(
         // dbg!(&count);
         match socket.recv_from(&mut buf).await {
             Ok((0, _)) => break, // TO_DO: break or continue?
-            Ok((n, _)) => {
+            Ok((n, return_addr)) => {
                 let bytes = &buf[..n];
                 let msg: Msg<&[u8]> = match from_bytes(bytes) {
                     Ok(msg) => msg,
@@ -55,9 +55,27 @@ pub async fn process_udp(
                                 Err(e) => e.to_string(),
                             };
                     }
-                    MsgType::GET => loop {
-                        println!("Hey, we're not doing UDP responses rn");
-                    },
+                    MsgType::GET => {
+                        let tree = db
+                            .open_tree(msg.topic.as_bytes())
+                            .expect("Error opening tree");
+
+                        let return_bytes = match tree.last().unwrap() {
+                            Some(msg) => msg.1,
+                            None => {
+                                let e: String =
+                                    format!("Error: no topic \"{}\" exists", &msg.topic);
+                                error!("{}", &e);
+                                e.as_bytes().into()
+                            }
+                        };
+                        println!("return_addr: {:?}", return_addr);
+                        if let Ok(()) = socket.writable().await {
+                            if let Err(e) = socket.try_send_to(&return_bytes, return_addr) {
+                                error!("Error sending data back on UDP/GET")
+                            };
+                        };
+                    }
                 }
             }
             Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
