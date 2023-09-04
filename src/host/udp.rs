@@ -42,14 +42,18 @@ pub async fn process_udp(
                 match msg.msg_type {
                     MsgType::SET => {
                         // println!("received {} bytes, to be assigned to: {}", n, &msg.name);
-                        let _db_result = match db.insert(msg.topic.as_bytes(), bytes) {
-                            Ok(_prev_msg) => {
-                                let mut count = count.lock().await; //.unwrap();
-                                *count += 1;
-                                "SUCCESS".to_string()
-                            }
-                            Err(e) => e.to_string(),
-                        };
+                        let tree = db
+                            .open_tree(msg.topic.as_bytes())
+                            .expect("Error opening tree");
+                        let _db_result =
+                            match tree.insert(msg.timestamp.to_string().as_bytes(), bytes) {
+                                Ok(_prev_msg) => {
+                                    let mut count = count.lock().await; //.unwrap();
+                                    *count += 1;
+                                    "SUCCESS".to_string()
+                                }
+                                Err(e) => e.to_string(),
+                            };
                     }
                     MsgType::GET => loop {
                         println!("Hey, we're not doing UDP responses rn");

@@ -1,4 +1,5 @@
 use crate::*;
+use chrono::Utc;
 
 // Tokio for async
 use tokio::sync::Mutex; // as TokioMutex;
@@ -23,7 +24,13 @@ impl Default for HostConfig {
     /// Create a new `HostConfig` with all default options
     fn default() -> HostConfig {
         // Default sled database configuration
-        let sled_cfg = sled::Config::default().path("store").temporary(true);
+        let date = Utc::now();
+        let stamp = format!(
+            "{}_{}_UTC",
+            date.date_naive().to_string(),
+            date.time().format("%H:%M:%S").to_string()
+        );
+        let sled_cfg = sled::Config::default().path(stamp).temporary(true);
 
         HostConfig {
             sled_cfg,

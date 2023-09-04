@@ -16,7 +16,20 @@ struct Pose {
 fn main() -> Result<(), meadow::Error> {
     logging();
 
-    let mut host: Host = HostConfig::default().build()?;
+    // Configure the Host a
+    let mut host = {
+        let date = chrono::Utc::now();
+        let stamp = format!(
+            "{}_{}_UTC",
+            date.date_naive().to_string(),
+            date.time().format("%H:%M:%S").to_string()
+        );
+        let sled_cfg = SledConfig::default()
+            .path(format!("./logs/{}", stamp))
+            // If we wanted to keep the logs, we'd make this `false`
+            .temporary(true);
+        HostConfig::default().with_sled_config(sled_cfg).build()?
+    };
     host.start()?;
     println!("Host should be running in the background");
 
@@ -53,6 +66,15 @@ fn main() -> Result<(), meadow::Error> {
         "The size of an a meadow Host before shutdown is: {}",
         std::mem::size_of_val(&host)
     );
+    let topics = host.topics();
+    for topic in &topics {
+        if let Some(ref db) = host.store {
+            let db = db.clone();
+            let tree = db.open_tree(topic.as_bytes()).unwrap();
+            println!("Topic {} has {} stored values", topic, tree.len());
+        }
+    }
+
     host.stop()?;
     Ok(())
 }
