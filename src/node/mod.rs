@@ -2,8 +2,8 @@ mod config;
 mod network_config;
 #[cfg(feature = "quic")]
 mod quic;
-mod tcp;
-mod udp;
+pub mod tcp;
+pub mod udp;
 
 pub use crate::node::config::*;
 pub use crate::node::network_config::NetworkConfig;
@@ -13,7 +13,6 @@ pub use crate::node::network_config::{Tcp, Udp};
 #[cfg(feature = "quic")]
 pub use crate::node::quic::*;
 pub use crate::node::tcp::*;
-pub use crate::node::udp::*;
 
 extern crate alloc;
 

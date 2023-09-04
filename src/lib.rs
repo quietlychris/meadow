@@ -46,5 +46,6 @@ pub use crate::host::{Host, HostConfig};
 pub use crate::msg::{GenericMsg, Message, Msg, MsgType};
 pub use crate::networks::get_ip;
 pub use crate::node::{
-    await_response, send_msg, Active, Idle, NetworkConfig, Node, NodeConfig, Subscription, Tcp, Udp,
+    tcp::await_response, tcp::send_msg, Active, Idle, NetworkConfig, Node, NodeConfig,
+    Subscription, Tcp, Udp,
 };

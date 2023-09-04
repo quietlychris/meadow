@@ -21,14 +21,14 @@ fn main() -> Result<(), meadow::Error> {
     host.start()?;
     // Other tasks can operate while the host is running in the background
 
-    // Build a Node
+    // Build a Node. Nodes can run over TCP, UDP, or QUIC
     let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-    let node: Node<Tcp, Idle, Coordinate> = NodeConfig::new("position")
-        .with_config(node::NetworkConfig::<Tcp>::default().set_host_addr(addr))
+    let node: Node<Udp, Idle, Coordinate> = NodeConfig::new("position")
+        .with_config(node::NetworkConfig::<Udp>::default().set_host_addr(addr))
         .build()?;
-    // meadow Nodes use strict typestates; without using the activate() method first,
+    // Nodes use strict typestates; without using the activate() method first,
     // the compiler won't let allow publish() or request() methods on an Idle Node
-    let node: Node<Tcp, Active, Coordinate> = node.activate()?;
+    let node: Node<Udp, Active, Coordinate> = node.activate()?;
 
     // Since Nodes are statically-typed, the following lines would fail at
     // compile-time due to type errors
@@ -57,7 +57,6 @@ fn main() -> Result<(), meadow::Error> {
         println!("request: {:?}, subscription: {:?}", result, subscription);
     }
 
-    host.stop()?;
     Ok(())
 }
 ```
@@ -71,7 +70,7 @@ meadow currently supports the following messaging patterns:
 | Protocol | Publish   | Request    | Subscribe | Encryption |
 |----------|-----------|------------|-----------|------------|
 | TCP      | **X**     | **X**      | **X**     |            |
-| UDP      | **X**     |            |           |            |
+| UDP      | **X**     | **X**      |           |            |
 | QUIC     | **X**     | **X**      | **X**     | **X**      |
 
 ## Key Dependencies
@@ -82,9 +81,9 @@ Under the hood, `meadow` relies on:
 
 ## Benchmarks
 Preliminary benchmark data is showing round-trip message times (publish-request-reply) on `locahost` using the `--release`
-compilation profile, on the README's `Coordinate` data (strongly-typed, 8 bytes) to be ~100 microseconds.
+compilation profile, on the README's `Coordinate` data (strongly-typed, 8 bytes) to be <50 microseconds.
 
-Additional benchmarking information can be found using `cargo run --release --example benchmark`. 
+Statistical benchmarks on different data profiles can be run via [`criterion`](https://github.com/bheisler/criterion.rs) via `cargo bench`.
 
 ## Stability
 As mentioned above, this library should be considered *experimental*. While the goal is eventually to make this available at a level of maturity, stability, and reliability of other middlewares, `meadow` is not there yet. This library is being used as a dependency for robotics research, with interprocess communication focused on dozens of nodes on `localhost` or a few over a WLAN connection. While `meadow` can work for other use-cases, it has not been extensively tested in those areas. If you are using this library in other areas and come across issues or unexpected behavior, well-formatted bug reports or pull requests addressing those problems are welcomed. 

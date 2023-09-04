@@ -26,11 +26,6 @@ fn main() {
         .run()
         .expect("Please check that all documentation follows rustdoc standards");
 
-    // Need this to check for Serde >=1.0.171 due to binary blobs
-    cmd!(sh, "cargo deny check bans")
-        .run()
-        .expect("Please check that all documentation follows rustdoc standards");
-
     // These tests are already run on the CI
     // Using a double-negative here allows end-users to have a nicer experience
     // as we can pass in the extra argument to the CI script

@@ -37,13 +37,15 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
             Err(_e) => return Err(Error::Serialization),
         };
 
-        let mut stream = match self.stream.as_ref() {
+        let stream = match self.stream.as_ref() {
             Some(stream) => stream,
             None => return Err(Error::AccessStream),
         };
 
         self.runtime.block_on(async {
-            send_msg(&mut stream, packet_as_bytes).await.unwrap();
+            crate::node::tcp::send_msg(stream, packet_as_bytes)
+                .await
+                .unwrap();
 
             // Wait for the publish acknowledgement
             let mut buf = vec![0u8; 1024];
@@ -54,13 +56,13 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
                     Ok(n) => {
                         let bytes = &buf[..n];
                         // TO_DO: This error handling is not great
-                        match from_bytes::<Error>(bytes) {
+                        match from_bytes::<Result<(), Error>>(bytes) {
                             Err(e) => {
                                 error!("{:?}", e);
                             }
-                            Ok(e) => match e {
-                                Error::HostOperation(error::HostOperation::Success) => (),
-                                _ => {
+                            Ok(result) => match result {
+                                Ok(()) => (),
+                                Err(e) => {
                                     error!("{:?}", e);
                                 }
                             },
@@ -68,8 +70,8 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
 
                         break;
                     }
-                    Err(e) => {
-                        if e.kind() == std::io::ErrorKind::WouldBlock {}
+                    Err(_e) => {
+                        // if e.kind() == std::io::ErrorKind::WouldBlock {}
                         continue;
                     }
                 }
@@ -82,7 +84,7 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
     /// Request data from host on Node's assigned topic
     #[tracing::instrument]
     pub fn request(&self) -> Result<Msg<T>, Error> {
-        let mut stream = match self.stream.as_ref() {
+        let stream = match self.stream.as_ref() {
             Some(stream) => stream,
             None => return Err(Error::AccessStream),
         };
@@ -101,8 +103,15 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
         };
 
         self.runtime.block_on(async {
-            send_msg(&mut stream, packet_as_bytes).await.unwrap();
-            match await_response::<T>(&mut stream, self.cfg.network_cfg.max_buffer_size).await {
+            crate::node::tcp::send_msg(stream, packet_as_bytes)
+                .await
+                .unwrap();
+            match crate::node::tcp::await_response::<T>(
+                stream,
+                self.cfg.network_cfg.max_buffer_size,
+            )
+            .await
+            {
                 Ok(msg) => Ok(msg),
                 Err(_e) => Err(Error::Deserialization),
             }
