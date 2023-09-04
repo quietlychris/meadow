@@ -139,8 +139,8 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
 
             loop {
                 let packet_as_bytes: Vec<u8> = to_allocvec(&packet).unwrap();
-                send_msg(&mut &stream, packet_as_bytes).await.unwrap();
-                let msg = match await_response::<T>(&mut &stream, max_buffer_size).await {
+                send_msg(&stream, packet_as_bytes).await.unwrap();
+                let msg = match await_response::<T>(&stream, max_buffer_size).await {
                     Ok(msg) => msg,
                     Err(e) => {
                         error!("Subscription Error: {}", e);

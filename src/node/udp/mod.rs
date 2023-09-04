@@ -10,35 +10,8 @@ use tracing::*;
 
 use crate::Error;
 
-/// Send a `GenericMsg` of `MsgType` from the Node to the Host
-/* pub async fn send_msg(socket: &mut &UdpSocket, packet_as_bytes: Vec<u8>) -> Result<(), Error> {
-    println!("Checking if UDP socket is writeable");
-    match socket.writable().await {
-        Ok(_) => (),
-        Err(_e) => return Err(Error::AccessSocket),
-    };
-    println!("Yes UDP socket is writeable");
-
-    // Write the request
-    // TO_DO: This should be a loop with a maximum number of attempts
-    for _ in 0..self.{
-        println!("Trying to send");
-        match socket.send(&packet_as_bytes) {
-            Ok(_n) => {
-                // debug!("Node successfully wrote {}-byte request to host",n);
-                break;
-            }
-            Err(e) => {
-                if e.kind() == std::io::ErrorKind::WouldBlock {}
-                continue;
-            }
-        }
-    }
-    Ok(())
-} */
-
 pub async fn await_response<T: Message>(
-    socket: &mut &UdpSocket,
+    socket: &UdpSocket,
     max_buffer_size: usize,
 ) -> Result<Msg<T>, Error> {
     // Read the requested data into a buffer
@@ -62,8 +35,8 @@ pub async fn await_response<T: Message>(
                     Err(_e) => return Err(Error::Deserialization),
                 }
             }
-            Err(e) => {
-                if e.kind() == std::io::ErrorKind::WouldBlock {}
+            Err(_e) => {
+                // if e.kind() == std::io::ErrorKind::WouldBlock {}
                 debug!("Would block");
                 continue;
             }

@@ -88,7 +88,7 @@ pub async fn handshake(stream: TcpStream, topic: String) -> Result<TcpStream, Er
 }
 
 /// Send a `GenericMsg` of `MsgType` from the Node to the Host
-pub async fn send_msg(stream: &mut &TcpStream, packet_as_bytes: Vec<u8>) -> Result<(), Error> {
+pub async fn send_msg(stream: &TcpStream, packet_as_bytes: Vec<u8>) -> Result<(), Error> {
     match stream.writable().await {
         Ok(_) => (),
         Err(_e) => return Err(Error::AccessStream),
@@ -102,8 +102,8 @@ pub async fn send_msg(stream: &mut &TcpStream, packet_as_bytes: Vec<u8>) -> Resu
                 // debug!("Node successfully wrote {}-byte request to host",n);
                 break;
             }
-            Err(e) => {
-                if e.kind() == std::io::ErrorKind::WouldBlock {}
+            Err(_e) => {
+                // if e.kind() == std::io::ErrorKind::WouldBlock {}
                 continue;
             }
         }
@@ -114,7 +114,7 @@ pub async fn send_msg(stream: &mut &TcpStream, packet_as_bytes: Vec<u8>) -> Resu
 /// Set Node to wait for response from Host, with data to be deserialized into `Msg<T>`-type
 // #[tracing::instrument]
 pub async fn await_response<T: Message>(
-    stream: &mut &TcpStream,
+    stream: &TcpStream,
     max_buffer_size: usize,
 ) -> Result<Msg<T>, Error> {
     // Read the requested data into a buffer
@@ -138,8 +138,8 @@ pub async fn await_response<T: Message>(
                     Err(_e) => return Err(Error::Deserialization),
                 }
             }
-            Err(e) => {
-                if e.kind() == std::io::ErrorKind::WouldBlock {}
+            Err(_e) => {
+                // if e.kind() == std::io::ErrorKind::WouldBlock {}
                 debug!("Would block");
                 continue;
             }

@@ -80,7 +80,7 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
 
     #[tracing::instrument]
     pub fn request(&self) -> Result<Msg<T>, Error> {
-        let mut socket = match self.socket.as_ref() {
+        let socket = match self.socket.as_ref() {
             Some(socket) => socket,
             None => return Err(Error::AccessSocket),
         };
@@ -100,7 +100,7 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
 
         self.runtime.block_on(async {
             if let Ok(_n) = self.send_msg(packet_as_bytes).await {
-                match await_response::<T>(&mut socket, self.cfg.network_cfg.max_buffer_size).await {
+                match await_response::<T>(socket, self.cfg.network_cfg.max_buffer_size).await {
                     Ok(msg) => Ok(msg),
                     Err(_e) => Err(Error::Deserialization),
                 }
