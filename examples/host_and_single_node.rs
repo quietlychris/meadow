@@ -16,7 +16,7 @@ struct Pose {
 fn main() -> Result<(), meadow::Error> {
     logging();
 
-    // Configure the Host a
+    // Configure the Host with logging
     let mut host = {
         let date = chrono::Utc::now();
         let stamp = format!(
