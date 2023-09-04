@@ -27,8 +27,8 @@ impl Default for HostConfig {
         let date = Utc::now();
         let stamp = format!(
             "{}_{}_UTC",
-            date.date_naive().to_string(),
-            date.time().format("%H:%M:%S").to_string()
+            date.date_naive(),
+            date.time().format("%H:%M:%S")
         );
         let sled_cfg = sled::Config::default()
             .path(format!("./logs/{}.sled", stamp))

@@ -37,13 +37,13 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
             Err(_e) => return Err(Error::Serialization),
         };
 
-        let mut stream = match self.stream.as_ref() {
+        let stream = match self.stream.as_ref() {
             Some(stream) => stream,
             None => return Err(Error::AccessStream),
         };
 
         self.runtime.block_on(async {
-            crate::node::tcp::send_msg(&mut stream, packet_as_bytes)
+            crate::node::tcp::send_msg(stream, packet_as_bytes)
                 .await
                 .unwrap();
 
@@ -70,8 +70,8 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
 
                         break;
                     }
-                    Err(e) => {
-                        if e.kind() == std::io::ErrorKind::WouldBlock {}
+                    Err(_e) => {
+                        // if e.kind() == std::io::ErrorKind::WouldBlock {}
                         continue;
                     }
                 }
@@ -84,7 +84,7 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
     /// Request data from host on Node's assigned topic
     #[tracing::instrument]
     pub fn request(&self) -> Result<Msg<T>, Error> {
-        let mut stream = match self.stream.as_ref() {
+        let stream = match self.stream.as_ref() {
             Some(stream) => stream,
             None => return Err(Error::AccessStream),
         };
@@ -103,11 +103,11 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
         };
 
         self.runtime.block_on(async {
-            crate::node::tcp::send_msg(&mut stream, packet_as_bytes)
+            crate::node::tcp::send_msg(stream, packet_as_bytes)
                 .await
                 .unwrap();
             match crate::node::tcp::await_response::<T>(
-                &mut stream,
+                stream,
                 self.cfg.network_cfg.max_buffer_size,
             )
             .await

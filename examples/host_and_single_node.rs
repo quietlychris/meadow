@@ -21,8 +21,8 @@ fn main() -> Result<(), meadow::Error> {
         let date = chrono::Utc::now();
         let stamp = format!(
             "{}_{}_UTC",
-            date.date_naive().to_string(),
-            date.time().format("%H:%M:%S").to_string()
+            date.date_naive(),
+            date.time().format("%H:%M:%S")
         );
         let sled_cfg = SledConfig::default()
             .path(format!("./logs/{}", stamp))

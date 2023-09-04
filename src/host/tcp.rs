@@ -119,8 +119,8 @@ pub async fn process_tcp(
                                         *count += 1;
                                         break;
                                     }
-                                    Err(e) => {
-                                        if e.kind() == std::io::ErrorKind::WouldBlock {}
+                                    Err(_e) => {
+                                        // if e.kind() == std::io::ErrorKind::WouldBlock {}
                                         continue;
                                     }
                                 }
@@ -148,8 +148,8 @@ pub async fn process_tcp(
                                 *count += 1;
                                 break;
                             }
-                            Err(e) => {
-                                if e.kind() == std::io::ErrorKind::WouldBlock {}
+                            Err(_e) => {
+                                // if e.kind() == std::io::ErrorKind::WouldBlock {}
                                 continue;
                             }
                         }
