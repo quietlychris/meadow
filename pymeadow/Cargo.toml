@@ -10,4 +10,5 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 pyo3 = "0.19.0"
-meadow = { path = "../", features= ["quic"] }
+# Importing Meadow without QUIC enabled
+meadow = { path = "../" }

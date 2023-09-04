@@ -27,7 +27,10 @@ To get started with `maturin`-based development, follow the documentation [here]
 
 ```sh
 $ cd pymeadow
-$ source .env/bin/activate
+# Create a virtual environment if it doesn't already exist
+$ python3 -m venv .venv
+$ source .venv/bin/activate
+$ pip3 install maturin
 $ maturin develop
 $ python3 test.py
 ```

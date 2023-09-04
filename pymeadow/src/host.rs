@@ -12,7 +12,7 @@ pub struct Host {
 impl Host {
     #[new]
     pub fn py_new() -> PyResult<Host> {
-        if let Ok(mut host) = HostConfig::default().with_quic_config(None).build() {
+        if let Ok(mut host) = HostConfig::default().build() {
             host.start().unwrap();
             Ok(Host { _inner: host })
         } else {
