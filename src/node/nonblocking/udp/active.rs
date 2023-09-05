@@ -1,5 +1,5 @@
-use crate::node::network_config::Udp;
-use crate::node::Interface;
+use crate::node::nonblocking::network_config::Udp;
+use crate::node::nonblocking::Interface;
 use crate::node::Node;
 use crate::Error;
 use crate::{Active, Idle, MsgType};

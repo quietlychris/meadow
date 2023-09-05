@@ -24,7 +24,7 @@ use postcard::from_bytes;
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::msg::{GenericMsg, Message, Msg};
-use crate::node::network_config::Interface;
+use crate::node::nonblocking::network_config::Interface;
 use crate::Error;
 use chrono::{DateTime, Utc};
 

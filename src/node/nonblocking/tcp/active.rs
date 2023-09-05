@@ -9,7 +9,7 @@ use quinn::Connection as QuicConnection;
 use std::result::Result;
 use tracing::*;
 
-use crate::node::network_config::{Interface, Tcp};
+use crate::node::nonblocking::network_config::{Interface, Tcp};
 
 /// Tcp implements the Interface trait
 impl Interface for Tcp {}

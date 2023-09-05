@@ -19,7 +19,7 @@ use postcard::*;
 use std::marker::PhantomData;
 
 use crate::msg::*;
-use crate::node::network_config::Udp;
+use crate::node::nonblocking::network_config::Udp;
 use chrono::Utc;
 
 impl<T: Message + 'static> Node<Udp, Idle, T> {

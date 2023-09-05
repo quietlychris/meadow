@@ -1,6 +1,6 @@
 use crate::error::{Error, Quic::*};
-use crate::node::network_config::Quic;
-use crate::node::Interface;
+use crate::node::nonblocking::network_config::Quic;
+use crate::node::nonblocking::Interface;
 use crate::*;
 
 use chrono::Utc;

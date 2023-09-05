@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 
-use crate::node::private;
+use crate::node::nonblocking::private;
 pub trait Interface: private::Sealed + Default {}
 
 #[derive(Debug, Clone, Default)]

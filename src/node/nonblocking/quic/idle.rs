@@ -2,7 +2,7 @@ extern crate alloc;
 use crate::error::{Error, Quic::*};
 use crate::*;
 
-use crate::node::network_config::Quic;
+use crate::node::nonblocking::network_config::Quic;
 use crate::node::*;
 
 use tokio::net::UdpSocket;
@@ -23,7 +23,7 @@ use std::marker::PhantomData;
 use quinn::Endpoint;
 
 use crate::msg::*;
-use crate::node::quic::generate_client_config_from_certs;
+use crate::node::nonblocking::quic::generate_client_config_from_certs;
 use chrono::Utc;
 
 impl<T: Message> From<Node<Quic, Idle, T>> for Node<Quic, Active, T> {
