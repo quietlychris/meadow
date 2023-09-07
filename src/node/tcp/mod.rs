@@ -65,21 +65,23 @@ pub async fn try_connection(host_addr: SocketAddr) -> Result<TcpStream, Error> {
 /// Run the initial Node <=> Host connection handshake
 pub async fn handshake(stream: TcpStream, topic: String) -> Result<TcpStream, Error> {
     loop {
-        stream.writable().await.unwrap();
-        match stream.try_write(topic.as_bytes()) {
-            Ok(_n) => {
-                debug!("{}: Wrote {} bytes to host", topic, _n);
-                break;
-            }
-            Err(e) => {
-                if e.kind() == std::io::ErrorKind::WouldBlock {
-                } else {
-                    error!("NODE handshake error: {:?}", e);
+        if let Ok(()) = stream.writable().await {
+            match stream.try_write(topic.as_bytes()) {
+                Ok(_n) => {
+                    debug!("{}: Wrote {} bytes to host", topic, _n);
+                    debug!("{}: Successfully connected to host", topic);
+                    break;
+                }
+                Err(e) => {
+                    if e.kind() == std::io::ErrorKind::WouldBlock {
+                    } else {
+                        error!("NODE handshake error: {:?}", e);
+                    }
                 }
             }
-        }
+        };
+        
     }
-    debug!("{}: Successfully connected to host", topic);
     // TO_DO: Is there a better way to do this?
     // Pause after connection to avoid accidentally including published data in initial handshake
     sleep(Duration::from_millis(20)).await;

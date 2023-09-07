@@ -18,6 +18,7 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
     // TO_DO: The error handling in the async blocks need to be improved
     /// Send data to host on Node's assigned topic using `Msg<T>` packet
     #[tracing::instrument]
+    #[inline]
     pub fn publish(&self, val: T) -> Result<(), Error> {
         let data: Vec<u8> = match to_allocvec(&val) {
             Ok(data) => data,
@@ -83,6 +84,7 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
 
     /// Request data from host on Node's assigned topic
     #[tracing::instrument]
+    #[inline]
     pub fn request(&self) -> Result<Msg<T>, Error> {
         let stream = match self.stream.as_ref() {
             Some(stream) => stream,

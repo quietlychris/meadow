@@ -47,6 +47,7 @@ criterion = "0.4"
 rand = "0.8"
 # Make tokio macro available
 tokio = { version = "1", features = ["macros", "signal"] }
+rayon = "1"
 
 [[bench]]
 name = "criterion"

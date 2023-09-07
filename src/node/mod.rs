@@ -82,6 +82,7 @@ pub struct Node<I: Interface + Default, State, T: Message> {
     pub topic: String,
     pub stream: Option<TcpStream>,
     pub socket: Option<UdpSocket>,
+    pub buffer: Vec<u8>,
     #[cfg(feature = "quic")]
     pub endpoint: Option<Endpoint>,
     #[cfg(feature = "quic")]

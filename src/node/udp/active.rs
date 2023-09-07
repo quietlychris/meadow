@@ -28,6 +28,7 @@ impl<T: Message> From<Node<Udp, Idle, T>> for Node<Udp, Active, T> {
             stream: node.stream,
             topic: node.topic,
             socket: node.socket,
+            buffer: node.buffer,
             #[cfg(feature = "quic")]
             endpoint: node.endpoint,
             #[cfg(feature = "quic")]
@@ -40,6 +41,7 @@ impl<T: Message> From<Node<Udp, Idle, T>> for Node<Udp, Active, T> {
 
 impl<T: Message + 'static> Node<Udp, Active, T> {
     #[tracing::instrument]
+    #[inline]
     pub fn publish(&self, val: T) -> Result<(), Error> {
         let data: Vec<u8> = match to_allocvec(&val) {
             Ok(data) => data,
@@ -79,7 +81,8 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
     }
 
     #[tracing::instrument]
-    pub fn request(&self) -> Result<Msg<T>, Error> {
+    #[inline]
+    pub fn request(&mut self) -> Result<Msg<T>, Error> {
         let socket = match self.socket.as_ref() {
             Some(socket) => socket,
             None => return Err(Error::AccessSocket),
@@ -99,9 +102,9 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
         };
 
         self.runtime.block_on(async {
-            if let Ok(_n) = self.send_msg(packet_as_bytes).await {
-                match await_response::<T>(socket, self.cfg.network_cfg.max_buffer_size).await {
-                    Ok(msg) => Ok(msg),
+            if let Ok(_n) = &self.send_msg(packet_as_bytes).await {
+                match &self.await_response(&self.buffer).await {
+                    Ok(msg) => Ok(msg.clone()),
                     Err(_e) => Err(Error::Deserialization),
                 }
             } else {
@@ -110,6 +113,7 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
         })
     }
 
+    #[inline]
     async fn send_msg(&self, packet_as_bytes: Vec<u8>) -> Result<usize, Error> {
         match &self.socket {
             Some(socket) => {
@@ -132,5 +136,49 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
             }
             None => Err(Error::AccessSocket),
         }
+    }
+
+    #[inline]
+    async fn await_response(
+        &self,
+        buffer: &mut Vec<u8>,
+        // max_buffer_size: usize,
+    ) -> Result<Msg<T>, Error> {
+        // Read the requested data into a buffer
+        // TO_DO: Having to re-allocate this each time isn't very efficient
+        // let mut buf = vec![0u8; max_buffer_size];
+        // TO_DO: This can be made cleaner
+
+        match &self.socket {
+            Some(socket) => {
+                loop {
+                    socket.readable().await.unwrap();
+                    match socket.try_recv(buffer) {
+                        Ok(0) => continue,
+                        Ok(n) => {
+                            let bytes = &buffer[..n];
+                            match postcard::from_bytes::<GenericMsg>(bytes) {
+                                Ok(generic) => {
+                                    if let Ok(msg) = TryInto::<Msg<T>>::try_into(generic) {
+                                        return Ok(msg);
+                                    } else {
+                                        return Err(Error::Deserialization);
+                                    }
+                                }
+                                Err(_e) => return Err(Error::Deserialization),
+                            }
+                        }
+                        Err(_e) => {
+                            // if e.kind() == std::io::ErrorKind::WouldBlock {}
+                            debug!("Would block");
+                            continue;
+                        }
+                    }
+                }
+            },
+            None => Err(Error::AccessSocket)
+        }
+
+
     }
 }

@@ -10,7 +10,7 @@ use tracing::*;
 
 use crate::Error;
 
-pub async fn await_response<T: Message>(
+/* pub async fn await_response<T: Message>(
     socket: &UdpSocket,
     max_buffer_size: usize,
 ) -> Result<Msg<T>, Error> {
@@ -42,4 +42,4 @@ pub async fn await_response<T: Message>(
             }
         }
     }
-}
+} */

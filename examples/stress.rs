@@ -2,6 +2,7 @@ use meadow::*;
 use rand::Rng;
 use std::thread;
 use std::time::{Duration, Instant};
+use rayon::par_iter;
 
 fn main() -> Result<(), meadow::Error> {
     let mut host = HostConfig::default()
@@ -13,8 +14,8 @@ fn main() -> Result<(), meadow::Error> {
         .build()?;
     host.start()?;
 
-    let duration = Duration::from_secs(10);
-    let n = 10;
+    let duration = Duration::from_secs(1);
+    let n = 1;
 
     let tcp = thread::spawn(move || {
         run_tcp(n, duration).unwrap();

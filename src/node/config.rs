@@ -48,6 +48,8 @@ where
             None => panic!("Nodes must have an assigned topic to be built"),
         };
 
+        let max_buffer_size = self.network_cfg.max_buffer_size;
+
         Ok(Node::<I, Idle, T> {
             __state: PhantomData::<Idle>,
             __data_type: PhantomData::<T>,
@@ -55,6 +57,7 @@ where
             runtime,
             stream: None,
             socket: None,
+            buffer: Vec::with_capacity(max_buffer_size),
             #[cfg(feature = "quic")]
             endpoint: None,
             #[cfg(feature = "quic")]

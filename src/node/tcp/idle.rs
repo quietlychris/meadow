@@ -28,7 +28,6 @@ use chrono::Utc;
 impl<T: Message> From<Node<Tcp, Idle, T>> for Node<Tcp, Active, T> {
     fn from(node: Node<Tcp, Idle, T>) -> Self {
         Self {
-            //__interface: PhantomData,
             __state: PhantomData,
             __data_type: PhantomData,
             cfg: node.cfg,
@@ -36,6 +35,7 @@ impl<T: Message> From<Node<Tcp, Idle, T>> for Node<Tcp, Active, T> {
             stream: node.stream,
             topic: node.topic,
             socket: node.socket,
+            buffer: node.buffer,
             #[cfg(feature = "quic")]
             endpoint: node.endpoint,
             #[cfg(feature = "quic")]
@@ -49,7 +49,6 @@ impl<T: Message> From<Node<Tcp, Idle, T>> for Node<Tcp, Active, T> {
 impl<T: Message> From<Node<Tcp, Idle, T>> for Node<Tcp, Subscription, T> {
     fn from(node: Node<Tcp, Idle, T>) -> Self {
         Self {
-            //__interface: PhantomData,
             __state: PhantomData,
             __data_type: PhantomData,
             cfg: node.cfg,
@@ -57,6 +56,7 @@ impl<T: Message> From<Node<Tcp, Idle, T>> for Node<Tcp, Subscription, T> {
             stream: node.stream,
             topic: node.topic,
             socket: node.socket,
+            buffer: node.buffer,
             #[cfg(feature = "quic")]
             endpoint: node.endpoint,
             #[cfg(feature = "quic")]

@@ -80,10 +80,9 @@ Under the hood, `meadow` relies on:
 * [`postcard`](https://github.com/jamesmunns/postcard): Efficient `#![no_std]`-compatible, [serde](https://serde.rs/)-based de/serializer designed for embedded or constrained environments 
 
 ## Benchmarks
-Preliminary benchmark data is showing round-trip message times (publish-request-reply) on `locahost` using the `--release`
-compilation profile, on the README's `Coordinate` data (strongly-typed, 8 bytes) to be <50 microseconds.
+Preliminary benchmark data is showing round-trip message times (publish-request-reply) on `locahost` using the `--release` compilation profile, on the README's `Coordinate` data (strongly-typed, 8 bytes) to be <50 microseconds. Statistical benchmarks on different data profiles can be run via [`criterion`](https://github.com/bheisler/criterion.rs) via `cargo bench`.
 
-Statistical benchmarks on different data profiles can be run via [`criterion`](https://github.com/bheisler/criterion.rs) via `cargo bench`.
+If you are doing robotics development, `meadow` is probably fast enough to move your data around (unless you're trying to do something like video streaming, in which case you should probably be using dedicated endpoints). 
 
 ## Stability
 As mentioned above, this library should be considered *experimental*. While the goal is eventually to make this available at a level of maturity, stability, and reliability of other middlewares, `meadow` is not there yet. This library is being used as a dependency for robotics research, with interprocess communication focused on dozens of nodes on `localhost` or a few over a WLAN connection. While `meadow` can work for other use-cases, it has not been extensively tested in those areas. If you are using this library in other areas and come across issues or unexpected behavior, well-formatted bug reports or pull requests addressing those problems are welcomed. 
@@ -95,4 +94,4 @@ The following projects are built with Meadow:
 
 ## License
 
-This library is licensed under the Mozilla Public License, version 2.0 (MPL-2.0)
+This library is licensed under the [Mozilla Public License, version 2.0](https://www.mozilla.org/en-US/MPL/2.0/FAQ/) (MPL-2.0)
