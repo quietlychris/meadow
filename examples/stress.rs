@@ -1,8 +1,8 @@
 use meadow::*;
 use rand::Rng;
+// use rayon::par_iter;
 use std::thread;
 use std::time::{Duration, Instant};
-use rayon::par_iter;
 
 fn main() -> Result<(), meadow::Error> {
     let mut host = HostConfig::default()

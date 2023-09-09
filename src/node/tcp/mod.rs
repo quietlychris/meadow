@@ -80,7 +80,6 @@ pub async fn handshake(stream: TcpStream, topic: String) -> Result<TcpStream, Er
                 }
             }
         };
-        
     }
     // TO_DO: Is there a better way to do this?
     // Pause after connection to avoid accidentally including published data in initial handshake

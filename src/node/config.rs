@@ -50,6 +50,8 @@ where
 
         let max_buffer_size = self.network_cfg.max_buffer_size;
 
+        use std::sync::Mutex;
+
         Ok(Node::<I, Idle, T> {
             __state: PhantomData::<Idle>,
             __data_type: PhantomData::<T>,
@@ -57,7 +59,8 @@ where
             runtime,
             stream: None,
             socket: None,
-            buffer: Vec::with_capacity(max_buffer_size),
+            buffer: Arc::new(TokioMutex::new(vec![0u8; max_buffer_size])),
+            //buffer: Arc::new(Vec::with_capacity(max_buffer_size)),
             #[cfg(feature = "quic")]
             endpoint: None,
             #[cfg(feature = "quic")]

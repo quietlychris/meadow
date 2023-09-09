@@ -72,6 +72,8 @@ mod private {
     impl Sealed for crate::Active {}
 }
 
+use std::sync::Mutex;
+
 /// A named, strongly-typed Node capable of publish/request on Host
 #[derive(Debug)]
 pub struct Node<I: Interface + Default, State, T: Message> {
@@ -82,7 +84,7 @@ pub struct Node<I: Interface + Default, State, T: Message> {
     pub topic: String,
     pub stream: Option<TcpStream>,
     pub socket: Option<UdpSocket>,
-    pub buffer: Vec<u8>,
+    pub buffer: Arc<TokioMutex<Vec<u8>>>,
     #[cfg(feature = "quic")]
     pub endpoint: Option<Endpoint>,
     #[cfg(feature = "quic")]

@@ -4,6 +4,7 @@ use crate::node::Node;
 use crate::Error;
 use crate::{Active, Idle, MsgType};
 use std::marker::PhantomData;
+use std::ops::DerefMut;
 
 use crate::node::udp::*;
 
@@ -82,12 +83,7 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
 
     #[tracing::instrument]
     #[inline]
-    pub fn request(&mut self) -> Result<Msg<T>, Error> {
-        let socket = match self.socket.as_ref() {
-            Some(socket) => socket,
-            None => return Err(Error::AccessSocket),
-        };
-
+    pub fn request(&self) -> Result<Msg<T>, Error> {
         let packet: GenericMsg = GenericMsg {
             msg_type: MsgType::GET,
             timestamp: Utc::now(),
@@ -102,83 +98,82 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
         };
 
         self.runtime.block_on(async {
-            if let Ok(_n) = &self.send_msg(packet_as_bytes).await {
-                match &self.await_response(&self.buffer).await {
-                    Ok(msg) => Ok(msg.clone()),
-                    Err(_e) => Err(Error::Deserialization),
+            if let Some(socket) = &self.socket {
+                if let Ok(_n) =
+                    send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await
+                {
+                    let mut buffer = self.buffer.lock().await;
+                    match await_response(socket, &mut buffer).await {
+                        Ok(msg) => Ok(msg.clone()),
+                        Err(_e) => Err(Error::Deserialization),
+                    }
+                } else {
+                    Err(Error::BadResponse)
                 }
             } else {
-                Err(Error::BadResponse)
+                Err(Error::AccessSocket)
             }
         })
     }
+}
 
-    #[inline]
-    async fn send_msg(&self, packet_as_bytes: Vec<u8>) -> Result<usize, Error> {
-        match &self.socket {
-            Some(socket) => {
-                match socket.writable().await {
-                    Ok(_) => (),
-                    Err(_e) => return Err(Error::AccessSocket),
-                };
+use std::sync::Arc;
+use tokio::sync::Mutex as TokioMutex;
 
-                // Write the request
-                for _ in 0..10 {
-                    match socket
-                        .send_to(&packet_as_bytes, self.cfg.network_cfg.host_addr)
-                        .await
-                    {
-                        Ok(n) => return Ok(n),
-                        Err(_e) => {}
+#[inline]
+pub async fn await_response<T: Message>(
+    socket: &UdpSocket,
+    buf: &mut [u8], //max_buffer_size: usize,
+) -> Result<Msg<T>, Error> {
+    // Read the requested data into a buffer
+    match socket.readable().await {
+        Ok(_) => (),
+        Err(_e) => return Err(Error::AccessSocket),
+    };
+
+    loop {
+        match socket.try_recv(buf) {
+            Ok(0) => continue,
+            Ok(n) => {
+                let bytes = &buf[..n];
+                match postcard::from_bytes::<GenericMsg>(bytes) {
+                    Ok(generic) => {
+                        if let Ok(msg) = TryInto::<Msg<T>>::try_into(generic) {
+                            return Ok(msg);
+                        } else {
+                            return Err(Error::Deserialization);
+                        }
                     }
+                    Err(_e) => return Err(Error::Deserialization),
                 }
-                Err(Error::BadResponse)
             }
-            None => Err(Error::AccessSocket),
+            Err(_e) => {
+                // if e.kind() == std::io::ErrorKind::WouldBlock {println!("Would block");}
+                continue;
+            }
         }
     }
+}
 
-    #[inline]
-    async fn await_response(
-        &self,
-        buffer: &mut Vec<u8>,
-        // max_buffer_size: usize,
-    ) -> Result<Msg<T>, Error> {
-        // Read the requested data into a buffer
-        // TO_DO: Having to re-allocate this each time isn't very efficient
-        // let mut buf = vec![0u8; max_buffer_size];
-        // TO_DO: This can be made cleaner
+use std::net::SocketAddr;
 
-        match &self.socket {
-            Some(socket) => {
-                loop {
-                    socket.readable().await.unwrap();
-                    match socket.try_recv(buffer) {
-                        Ok(0) => continue,
-                        Ok(n) => {
-                            let bytes = &buffer[..n];
-                            match postcard::from_bytes::<GenericMsg>(bytes) {
-                                Ok(generic) => {
-                                    if let Ok(msg) = TryInto::<Msg<T>>::try_into(generic) {
-                                        return Ok(msg);
-                                    } else {
-                                        return Err(Error::Deserialization);
-                                    }
-                                }
-                                Err(_e) => return Err(Error::Deserialization),
-                            }
-                        }
-                        Err(_e) => {
-                            // if e.kind() == std::io::ErrorKind::WouldBlock {}
-                            debug!("Would block");
-                            continue;
-                        }
-                    }
-                }
-            },
-            None => Err(Error::AccessSocket)
+#[inline]
+async fn send_msg(
+    socket: &UdpSocket,
+    packet_as_bytes: Vec<u8>,
+    host_addr: SocketAddr,
+) -> Result<usize, Error> {
+    match socket.writable().await {
+        Ok(_) => (),
+        Err(_e) => return Err(Error::AccessSocket),
+    };
+
+    // Write the request
+    for _ in 0..10 {
+        match socket.send_to(&packet_as_bytes, host_addr).await {
+            Ok(n) => return Ok(n),
+            Err(_e) => {}
         }
-
-
     }
+    Err(Error::BadResponse)
 }
