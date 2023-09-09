@@ -111,7 +111,8 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
         let subscription_data: Arc<TokioMutex<Option<Msg<T>>>> = Arc::new(TokioMutex::new(None));
         let data = Arc::clone(&subscription_data);
 
-        let max_buffer_size = self.cfg.network_cfg.max_buffer_size;
+        let buffer = self.buffer.clone();
+
         let task_subscribe = self.runtime.spawn(async move {
             let stream = match try_connection(addr).await {
                 Ok(stream) => match handshake(stream, topic.clone()).await {
@@ -137,10 +138,11 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
                 data: Vec::new(),
             };
 
+            let mut buffer = buffer.lock().await;
             loop {
                 let packet_as_bytes: Vec<u8> = to_allocvec(&packet).unwrap();
                 send_msg(&stream, packet_as_bytes).await.unwrap();
-                let msg = match await_response::<T>(&stream, max_buffer_size).await {
+                let msg = match await_response::<T>(&stream, &mut buffer).await {
                     Ok(msg) => msg,
                     Err(e) => {
                         error!("Subscription Error: {}", e);

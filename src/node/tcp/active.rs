@@ -1,6 +1,9 @@
 use crate::Error;
 use crate::*;
 
+use std::convert::TryInto;
+use std::ops::DerefMut;
+
 use chrono::Utc;
 
 use postcard::*;
@@ -44,9 +47,7 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
         };
 
         self.runtime.block_on(async {
-            crate::node::tcp::send_msg(stream, packet_as_bytes)
-                .await
-                .unwrap();
+            send_msg(stream, packet_as_bytes).await.unwrap();
 
             // Wait for the publish acknowledgement
             let mut buf = vec![0u8; 1024];
@@ -105,15 +106,9 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
         };
 
         self.runtime.block_on(async {
-            crate::node::tcp::send_msg(stream, packet_as_bytes)
-                .await
-                .unwrap();
-            match crate::node::tcp::await_response::<T>(
-                stream,
-                self.cfg.network_cfg.max_buffer_size,
-            )
-            .await
-            {
+            let mut buffer = self.buffer.lock().await;
+            send_msg(stream, packet_as_bytes).await.unwrap();
+            match await_response::<T>(stream, &mut buffer).await {
                 Ok(msg) => Ok(msg),
                 Err(_e) => Err(Error::Deserialization),
             }

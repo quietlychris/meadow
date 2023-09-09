@@ -4,7 +4,10 @@ use crate::node::Node;
 use crate::Error;
 use crate::{Active, Idle, MsgType};
 use std::marker::PhantomData;
+use std::net::SocketAddr;
 use std::ops::DerefMut;
+use std::sync::Arc;
+use tokio::sync::Mutex as TokioMutex;
 
 use crate::node::udp::*;
 
@@ -117,15 +120,11 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
     }
 }
 
-use std::sync::Arc;
-use tokio::sync::Mutex as TokioMutex;
-
 #[inline]
 pub async fn await_response<T: Message>(
     socket: &UdpSocket,
-    buf: &mut [u8], //max_buffer_size: usize,
+    buf: &mut [u8],
 ) -> Result<Msg<T>, Error> {
-    // Read the requested data into a buffer
     match socket.readable().await {
         Ok(_) => (),
         Err(_e) => return Err(Error::AccessSocket),
@@ -154,8 +153,6 @@ pub async fn await_response<T: Message>(
         }
     }
 }
-
-use std::net::SocketAddr;
 
 #[inline]
 async fn send_msg(

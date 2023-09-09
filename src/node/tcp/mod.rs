@@ -89,6 +89,7 @@ pub async fn handshake(stream: TcpStream, topic: String) -> Result<TcpStream, Er
 }
 
 /// Send a `GenericMsg` of `MsgType` from the Node to the Host
+#[inline]
 pub async fn send_msg(stream: &TcpStream, packet_as_bytes: Vec<u8>) -> Result<(), Error> {
     match stream.writable().await {
         Ok(_) => (),
@@ -114,17 +115,18 @@ pub async fn send_msg(stream: &TcpStream, packet_as_bytes: Vec<u8>) -> Result<()
 
 /// Set Node to wait for response from Host, with data to be deserialized into `Msg<T>`-type
 // #[tracing::instrument]
+#[inline]
 pub async fn await_response<T: Message>(
     stream: &TcpStream,
-    max_buffer_size: usize,
+    buf: &mut [u8], //max_buffer_size: usize,
 ) -> Result<Msg<T>, Error> {
     // Read the requested data into a buffer
     // TO_DO: Having to re-allocate this each time isn't very efficient
-    let mut buf = vec![0u8; max_buffer_size];
+    // let mut buf = vec![0u8; max_buffer_size];
     // TO_DO: This can be made cleaner
     loop {
         stream.readable().await.unwrap();
-        match stream.try_read(&mut buf) {
+        match stream.try_read(buf) {
             Ok(0) => continue,
             Ok(n) => {
                 let bytes = &buf[..n];
