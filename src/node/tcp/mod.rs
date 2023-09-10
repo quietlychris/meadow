@@ -120,9 +120,6 @@ pub async fn await_response<T: Message>(
     stream: &TcpStream,
     buf: &mut [u8], //max_buffer_size: usize,
 ) -> Result<Msg<T>, Error> {
-    // Read the requested data into a buffer
-    // TO_DO: Having to re-allocate this each time isn't very efficient
-    // let mut buf = vec![0u8; max_buffer_size];
     // TO_DO: This can be made cleaner
     loop {
         stream.readable().await.unwrap();

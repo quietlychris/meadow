@@ -105,8 +105,7 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
         let subscription_data: Arc<TokioMutex<Option<Msg<T>>>> = Arc::new(TokioMutex::new(None));
         let data = Arc::clone(&subscription_data);
 
-        let max_buffer_size = self.cfg.network_cfg.max_buffer_size;
-
+        let buffer = self.buffer.clone();
         let task_subscribe = self.runtime.spawn(async move {
             let packet = GenericMsg {
                 msg_type: MsgType::GET,
@@ -116,7 +115,8 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
                 data: Vec::new(),
             };
 
-            let mut buf = vec![0u8; max_buffer_size];
+            let mut buf = buffer.lock().await;
+
             loop {
                 let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
                     Ok(packet) => packet,

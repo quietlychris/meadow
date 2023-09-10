@@ -50,7 +50,8 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
             send_msg(stream, packet_as_bytes).await.unwrap();
 
             // Wait for the publish acknowledgement
-            let mut buf = vec![0u8; 1024];
+            let mut buf = self.buffer.lock().await;
+
             loop {
                 stream.readable().await.unwrap();
                 match stream.try_read(&mut buf) {

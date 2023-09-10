@@ -69,7 +69,7 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
         };
 
         self.runtime.block_on(async {
-            let mut buf = vec![0u8; self.cfg.network_cfg.max_buffer_size];
+            let mut buf = self.buffer.lock().await;
 
             if let Some(connection) = self.connection.clone() {
                 let reply = match connection.open_bi().await {

@@ -106,7 +106,7 @@ pub async fn process_tcp(
                                 Ok(_prev_msg) => {
                                     info!("{:?}", msg.data);
                                     Ok(())
-                                } //"SUCCESS".to_string(),
+                                }
                                 Err(_e) => Err(Error::HostOperation(SetFailure)),
                             }
                         };
