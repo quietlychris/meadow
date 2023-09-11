@@ -118,6 +118,41 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
             }
         })
     }
+
+    #[tracing::instrument]
+    #[inline]
+    pub fn topics(&self) -> Result<Msg<Vec<String>>, Error> {
+        let packet: GenericMsg = GenericMsg {
+            msg_type: MsgType::TOPICS,
+            timestamp: Utc::now(),
+            topic: "".to_string(),
+            data_type: std::any::type_name::<()>().to_string(),
+            data: Vec::new(),
+        };
+
+        let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
+            Ok(packet) => packet,
+            Err(_e) => return Err(Error::Serialization),
+        };
+
+        self.runtime.block_on(async {
+            if let Some(socket) = &self.socket {
+                if let Ok(_n) =
+                    send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await
+                {
+                    let mut buffer = self.buffer.lock().await;
+                    match await_response(socket, &mut buffer).await {
+                        Ok(msg) => Ok(msg.clone()),
+                        Err(_e) => Err(Error::Deserialization),
+                    }
+                } else {
+                    Err(Error::BadResponse)
+                }
+            } else {
+                Err(Error::AccessSocket)
+            }
+        })
+    }
 }
 
 #[inline]

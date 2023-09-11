@@ -115,4 +115,35 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
             }
         })
     }
+
+    #[tracing::instrument]
+    #[inline]
+    pub fn topics(&self) -> Result<Msg<Vec<String>>, Error> {
+        let stream = match self.stream.as_ref() {
+            Some(stream) => stream,
+            None => return Err(Error::AccessStream),
+        };
+
+        let packet: GenericMsg = GenericMsg {
+            msg_type: MsgType::TOPICS,
+            timestamp: Utc::now(),
+            topic: "".to_string(),
+            data_type: std::any::type_name::<()>().to_string(),
+            data: Vec::new(),
+        };
+
+        let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
+            Ok(packet) => packet,
+            Err(_e) => return Err(Error::Serialization),
+        };
+
+        self.runtime.block_on(async {
+            let mut buffer = self.buffer.lock().await;
+            send_msg(stream, packet_as_bytes).await.unwrap();
+            match await_response(stream, &mut buffer).await {
+                Ok(msg) => Ok(msg),
+                Err(_e) => Err(Error::Deserialization),
+            }
+        })
+    }
 }

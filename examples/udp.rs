@@ -19,6 +19,7 @@ fn main() -> Result<(), meadow::Error> {
         node.publish(i as f32)?;
         thread::sleep(Duration::from_millis(50));
         let result = node.request()?;
+        dbg!(node.topics()?);
         dbg!(result);
     }
 

@@ -57,7 +57,8 @@ fn main() -> Result<(), meadow::Error> {
         println!("published {}", i);
         thread::sleep(Duration::from_millis(250));
         let result: Msg<Pose> = node.request().unwrap();
-        println!("Got position: {:?}", result);
+        dbg!(node.topics()?); // .unwrap();
+        println!("Got position: {:?}", result.data);
 
         assert_eq!(pose, result.data);
     }
@@ -96,7 +97,8 @@ fn logging() {
         .with(
             log
                 // Add an `INFO` filter to the stdout logging layer
-                .with_filter(filter::LevelFilter::INFO),
+                .with_filter(filter::LevelFilter::INFO), // .with_filter(filter::LevelFilter::WARN)
+                                                         // .with_filter(filter::LevelFilter::ERROR)
         )
         .init();
 }

@@ -6,7 +6,9 @@ use quinn::Connection as QuicConnection;
 use std::sync::{Arc, Mutex as StdMutex};
 use tokio::sync::Mutex as TokioMutex;
 
+use chrono::Utc;
 use postcard::from_bytes;
+use postcard::to_allocvec;
 use quinn::{Endpoint, RecvStream, SendStream, ServerConfig};
 use std::path::PathBuf;
 use std::{fs, fs::File, io::BufReader};
@@ -80,7 +82,11 @@ pub async fn process_quic(
         // debug!("{:?}", &msg);
         match msg.msg_type {
             MsgType::SET => {
-                let db_result = match db.insert(msg.topic.as_bytes(), bytes) {
+                let tree = db
+                    .open_tree(msg.topic.as_bytes())
+                    .expect("Error opening tree");
+
+                let db_result = match tree.insert(msg.timestamp.to_string(), bytes) {
                     Ok(_prev_msg) => Ok(()), //"SUCCESS".to_string(),
                     Err(_e) => Err(Error::HostOperation(HostOperation::SetFailure)),
                 };
@@ -102,8 +108,12 @@ pub async fn process_quic(
                 }
             }
             MsgType::GET => {
-                let return_bytes = match db.get(&msg.topic).unwrap() {
-                    Some(msg) => msg,
+                let tree = db
+                    .open_tree(msg.topic.as_bytes())
+                    .expect("Error opening tree");
+
+                let return_bytes = match tree.last().unwrap() {
+                    Some(msg) => msg.1,
                     None => {
                         let e: String = format!("Error: no topic \"{}\" exists", &msg.topic);
                         error!("{}", &e);
@@ -118,6 +128,29 @@ pub async fn process_quic(
                     }
                     Err(e) => {
                         error!("{}", e);
+                    }
+                }
+            }
+            MsgType::TOPICS => {
+                let names = db.tree_names();
+                let mut strings = Vec::new();
+                for name in names {
+                    let name = std::str::from_utf8(&name[..]).unwrap();
+                    strings.push(name.to_string());
+                }
+                if let Ok(data) = to_allocvec(&strings) {
+                    let packet: GenericMsg = GenericMsg {
+                        msg_type: MsgType::TOPICS,
+                        timestamp: Utc::now(),
+                        topic: "".to_string(),
+                        data_type: std::any::type_name::<Vec<String>>().to_string(),
+                        data,
+                    };
+
+                    if let Ok(bytes) = to_allocvec(&packet) {
+                        if let Err(e) = tx.write(&bytes).await {
+                            error!("Error sending data back on QUIC/TOPICS: {:?}", e);
+                        }
                     }
                 }
             }

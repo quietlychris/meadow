@@ -14,6 +14,7 @@ impl<T> Message for T where T: Serialize + DeserializeOwned + Debug + Sync + Sen
 pub enum MsgType {
     SET,
     GET,
+    TOPICS,
 }
 
 /// Message format containing a strongly-typed data payload and associated metadata

@@ -1,3 +1,4 @@
+use tokio::io::AsyncWriteExt;
 // Tokio for async
 use tokio::net::TcpStream;
 use tokio::sync::Mutex; // as TokioMutex;
@@ -8,6 +9,7 @@ use postcard::*;
 // Multi-threading primitives
 use std::sync::Arc;
 // Misc other imports
+use chrono::Utc;
 
 use crate::error::{Error, HostOperation::*};
 use crate::*;
@@ -94,6 +96,8 @@ pub async fn process_tcp(
                     }
                 };
 
+                info!("{:?}", msg.msg_type);
+
                 match msg.msg_type {
                     MsgType::SET => {
                         // println!("received {} bytes, to be assigned to: {}", n, &msg.name);
@@ -127,7 +131,7 @@ pub async fn process_tcp(
                             }
                         }
                     }
-                    MsgType::GET => loop {
+                    MsgType::GET => {
                         let tree = db
                             .open_tree(msg.topic.as_bytes())
                             .expect("Error opening tree");
@@ -141,19 +145,40 @@ pub async fn process_tcp(
                                 e.as_bytes().into()
                             }
                         };
-
-                        match stream.try_write(&return_bytes) {
-                            Ok(_n) => {
+                        if let Ok(()) = stream.writable().await {
+                            if let Err(e) = stream.try_write(&return_bytes) {
+                                error!("Error sending data back on TCP/TOPICS: {:?}", e);
+                            } else {
                                 let mut count = count.lock().await; //.unwrap();
                                 *count += 1;
-                                break;
-                            }
-                            Err(_e) => {
-                                // if e.kind() == std::io::ErrorKind::WouldBlock {}
-                                continue;
                             }
                         }
-                    },
+                    }
+                    MsgType::TOPICS => {
+                        let names = db.tree_names();
+                        let mut strings = Vec::new();
+                        for name in names {
+                            let name = std::str::from_utf8(&name[..]).unwrap();
+                            strings.push(name.to_string());
+                        }
+                        if let Ok(data) = to_allocvec(&strings) {
+                            let packet: GenericMsg = GenericMsg {
+                                msg_type: MsgType::TOPICS,
+                                timestamp: Utc::now(),
+                                topic: "".to_string(),
+                                data_type: std::any::type_name::<Vec<String>>().to_string(),
+                                data,
+                            };
+
+                            if let Ok(bytes) = to_allocvec(&packet) {
+                                if let Ok(()) = stream.writable().await {
+                                    if let Err(e) = stream.try_write(&bytes) {
+                                        error!("Error sending data back on TCP/TOPICS: {:?}", e);
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
             Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {

@@ -8,6 +8,7 @@ use postcard::*;
 // Multi-threading primitives
 use std::sync::Arc;
 // Misc other imports
+use chrono::Utc;
 
 use crate::*;
 
@@ -75,6 +76,29 @@ pub async fn process_udp(
                                 error!("Error sending data back on UDP/GET: {}", e)
                             };
                         };
+                    }
+                    MsgType::TOPICS => {
+                        let names = db.tree_names();
+                        let mut strings = Vec::new();
+                        for name in names {
+                            let name = std::str::from_utf8(&name[..]).unwrap();
+                            strings.push(name.to_string());
+                        }
+                        if let Ok(data) = to_allocvec(&strings) {
+                            let packet: GenericMsg = GenericMsg {
+                                msg_type: MsgType::TOPICS,
+                                timestamp: Utc::now(),
+                                topic: "".to_string(),
+                                data_type: std::any::type_name::<Vec<String>>().to_string(),
+                                data,
+                            };
+
+                            if let Ok(bytes) = to_allocvec(&packet) {
+                                if let Err(e) = socket.try_send_to(&bytes, return_addr) {
+                                    error!("Error sending data back on UDP/TOPICS: {:?}", e);
+                                }
+                            }
+                        }
                     }
                 }
             }

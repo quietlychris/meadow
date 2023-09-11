@@ -43,6 +43,7 @@ fn main() -> Result<(), meadow::Error> {
         println!("published {}", i);
         let value = node.request().unwrap();
         println!("QUIC request received with value {:?}", value);
+        dbg!(node.topics()?);
         thread::sleep(Duration::from_millis(100));
         println!("Received reply: {:?}", reader.get_subscribed_data());
     }
