@@ -2,7 +2,7 @@ extern crate alloc;
 use crate::error::{Error, Quic::*};
 use crate::*;
 
-use crate::node::nonblocking::network_config::Quic;
+use crate::node::network_config::Quic;
 use crate::node::*;
 
 use tokio::net::UdpSocket;

@@ -3,7 +3,7 @@
 // use crate::Quic;
 use crate::error::Error;
 use crate::msg::Message;
-use crate::node::nonblocking::network_config::Quic;
+use crate::node::network_config::Quic;
 use crate::node::Subscription;
 use crate::Node;
 

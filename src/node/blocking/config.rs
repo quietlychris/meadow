@@ -1,11 +1,10 @@
 use crate::Error;
 use std::result::Result;
-use std::sync::Arc;
-use tokio::sync::Mutex as TokioMutex;
+use std::sync::{Mutex, Arc};
 
 use crate::node::network_config::*;
-use crate::node::nonblocking::{Active, Idle, Message, Node};
-use crate::node::nonblocking::{Interface, NetworkConfig};
+use crate::node::blocking::{Active, Idle, Message, Node};
+use crate::node::blocking::{Interface, NetworkConfig};
 use std::default::Default;
 use std::marker::PhantomData;
 
@@ -38,10 +37,6 @@ where
 
     /// Construct a Node from the specified configuration
     pub fn build(self) -> Result<Node<I, Idle, T>, Error> {
-        let runtime = match tokio::runtime::Runtime::new() {
-            Ok(runtime) => runtime,
-            Err(_e) => return Err(Error::RuntimeCreation),
-        };
 
         let topic = match &self.topic {
             Some(topic) => topic.to_owned(),
@@ -52,7 +47,6 @@ where
             __state: PhantomData::<Idle>,
             __data_type: PhantomData::<T>,
             cfg: self,
-            runtime,
             stream: None,
             socket: None,
             #[cfg(feature = "quic")]
@@ -60,7 +54,7 @@ where
             #[cfg(feature = "quic")]
             connection: None,
             topic,
-            subscription_data: Arc::new(TokioMutex::new(None)),
+            subscription_data: Arc::new(Mutex::new(None)),
             task_subscribe: None,
         })
     }

@@ -1,15 +1,14 @@
 mod config;
-mod network_config;
 #[cfg(feature = "quic")]
 mod quic;
 pub mod tcp;
 pub mod udp;
 
-pub use crate::node::nonblocking::config::*;
-pub use crate::node::nonblocking::network_config::NetworkConfig;
+pub use crate::node::network_config::NetworkConfig;
 #[cfg(feature = "quic")]
-pub use crate::node::nonblocking::network_config::Quic;
-pub use crate::node::nonblocking::network_config::{Tcp, Udp};
+pub use crate::node::network_config::Quic;
+pub use crate::node::network_config::{Tcp, Udp};
+pub use crate::node::nonblocking::config::*;
 #[cfg(feature = "quic")]
 pub use crate::node::nonblocking::quic::*;
 pub use crate::node::tcp::*;
@@ -34,7 +33,7 @@ use alloc::vec::Vec;
 use postcard::*;
 
 use crate::msg::*;
-use crate::node::nonblocking::network_config::Interface;
+use crate::node::network_config::Interface;
 use crate::Error;
 use chrono::{DateTime, Utc};
 
@@ -59,18 +58,6 @@ pub struct Active;
 /// State marker for a Node with an active topic subscription
 #[derive(Debug)]
 pub struct Subscription;
-
-mod private {
-    pub trait Sealed {}
-    impl Sealed for crate::Udp {}
-    impl Sealed for crate::Tcp {}
-    #[cfg(feature = "quic")]
-    impl Sealed for crate::node::nonblocking::network_config::Quic {}
-    // impl Sealed for crate::Quic {}
-
-    impl Sealed for crate::Idle {}
-    impl Sealed for crate::Active {}
-}
 
 /// A named, strongly-typed Node capable of publish/request on Host
 #[derive(Debug)]
