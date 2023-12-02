@@ -15,7 +15,10 @@ fn main() -> Result<(), meadow::Error> {
         .unwrap()
         .activate()?;
 
-    thread::spawn(|| {});
+    let subscriber = NodeConfig::<Udp, f32>::new("num")
+        .build()
+        .unwrap()
+        .subscribe(Duration::from_millis(100))?;
 
     for i in 0..10 {
         node.publish(i as f32)?;
@@ -23,6 +26,7 @@ fn main() -> Result<(), meadow::Error> {
         let result = node.request()?;
         dbg!(node.topics()?);
         dbg!(result);
+        dbg!(subscriber.get_subscribed_data());
     }
 
     host.stop()?;

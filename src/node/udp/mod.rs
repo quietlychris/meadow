@@ -1,6 +1,6 @@
 mod active;
 mod idle;
-// mod subscription
+mod subscription;
 
 use crate::msg::{GenericMsg, Message, Msg};
 use std::convert::TryInto;
