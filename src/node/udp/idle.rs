@@ -39,16 +39,6 @@ impl<T: Message + 'static> Node<Udp, Idle, T> {
     }
 
     pub fn subscribe(mut self, rate: Duration) -> Result<Node<Udp, Subscription, T>, Error> {
-        /*         match self.runtime.block_on(async move {
-            match UdpSocket::bind("[::]:0").await {
-                Ok(socket) => Ok(socket),
-                Err(_e) => Err(Error::AccessSocket),
-            }
-        }) {
-            Ok(socket) => self.socket = Some(socket),
-            Err(e) => return Err(e),
-        }; */
-
         let topic = self.topic.clone();
         let subscription_data: Arc<TokioMutex<Option<Msg<T>>>> = Arc::new(TokioMutex::new(None));
         let data = Arc::clone(&subscription_data);
@@ -56,6 +46,7 @@ impl<T: Message + 'static> Node<Udp, Idle, T> {
         let buffer = self.buffer.clone();
 
         let task_subscribe = self.runtime.spawn(async move {
+            dbg!("in task_subscribe()");
             let packet = GenericMsg {
                 msg_type: MsgType::GET,
                 timestamp: Utc::now(),
@@ -64,60 +55,42 @@ impl<T: Message + 'static> Node<Udp, Idle, T> {
                 data: Vec::new(),
             };
             let buffer = buffer.clone();
+            let socket = UdpSocket::bind("[::]:0").await.unwrap();
+            let mut buffer = buffer.lock().await;
 
-            if let Ok(socket) = UdpSocket::bind("[::]:0").await {
-                if let Ok(packet_as_bytes) = to_allocvec(&packet) {
-                    loop {
-                        // if let Some(socket) = &socket {
-                        if let Ok(_n) = send_msg(&socket, packet_as_bytes.clone(), addr).await {
-                            let mut buffer = buffer.lock().await;
-                            if let Ok(msg) = udp::await_response::<T>(&socket, &mut buffer).await {
-                                let delta = Utc::now() - msg.timestamp;
-                                // println!("The time difference between msg tx/rx is: {} us",delta);
-                                if delta <= chrono::Duration::zero() {
-                                    // println!("Data is not newer, skipping to next subscription iteration");
-                                    continue;
-                                }
-
-                                let mut data = data.lock().await;
-
-                                *data = Some(msg);
-                            }
-                        }
-                        sleep(rate).await;
-
-                        // }
+            for i in 0..10000 {
+                println!("LOOPED {}",i);
+                let packet_as_bytes = to_allocvec(&packet).unwrap();
+                
+                error!("about to send msg #{}",i);
+                match send_msg(&socket, packet_as_bytes.clone(), addr).await {
+                    Ok(n) => {dbg!(n);},
+                    Err(e) => {
+                        let e = e.to_string();
+                        dbg!(e);
                     }
+                };
+
+                let msg = match udp::await_response::<T>(&socket, &mut buffer).await {
+                    Ok(msg) => msg,
+                    Err(e) => {
+                        panic!("Subscription Error: {}", e);
+                        // continue;
+                    }
+                };
+                dbg!(&msg);
+                let delta = Utc::now() - msg.timestamp;
+                // println!("The time difference between msg tx/rx is: {} us",delta);
+                if delta <= chrono::Duration::zero() {
+                    println!("Data is not newer, skipping to next subscription iteration");
+                    // continue;
                 }
-            };
 
-            /*             if let Ok(packet_as_bytes) = to_allocvec(&packet) {
-                loop {
-                    let mut buffer = buffer.lock().await;
+                let mut data = data.lock().await;
 
-                    let msg = if let Some(socket) = &self.socket {
-                        if let Ok(_n) =
-                            send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await
-                        {
-                            let mut buffer = self.buffer.lock().await;
-                            if let Ok(msg) = udp::await_response::<T>(socket, &mut buffer).await {
-                                let delta = Utc::now() - msg.timestamp;
-                                // println!("The time difference between msg tx/rx is: {} us",delta);
-                                if delta <= chrono::Duration::zero() {
-                                    // println!("Data is not newer, skipping to next subscription iteration");
-                                    continue;
-                                }
-
-                                let mut data = data.lock().await;
-
-                                *data = Some(msg);
-                            }
-                        }
-                    };
-
-                    sleep(rate).await;
-                }
-            } */
+                *data = Some(msg);
+                sleep(rate).await;
+            }
         });
 
         self.task_subscribe = Some(task_subscribe);
