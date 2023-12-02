@@ -9,18 +9,20 @@ use tokio::net::UdpSocket;
 use tracing::*;
 
 use crate::Error;
+use std::net::SocketAddr;
 
-/* pub async fn await_response<T: Message>(
+#[inline]
+pub async fn await_response<T: Message>(
     socket: &UdpSocket,
-    max_buffer_size: usize,
+    buf: &mut [u8],
 ) -> Result<Msg<T>, Error> {
-    // Read the requested data into a buffer
-    // TO_DO: Having to re-allocate this each time isn't very efficient
-    let mut buf = vec![0u8; max_buffer_size];
-    // TO_DO: This can be made cleaner
+    match socket.readable().await {
+        Ok(_) => (),
+        Err(_e) => return Err(Error::AccessSocket),
+    };
+
     loop {
-        socket.readable().await.unwrap();
-        match socket.try_recv(&mut buf) {
+        match socket.try_recv(buf) {
             Ok(0) => continue,
             Ok(n) => {
                 let bytes = &buf[..n];
@@ -36,10 +38,30 @@ use crate::Error;
                 }
             }
             Err(_e) => {
-                // if e.kind() == std::io::ErrorKind::WouldBlock {}
-                debug!("Would block");
+                // if e.kind() == std::io::ErrorKind::WouldBlock {println!("Would block");}
                 continue;
             }
         }
     }
-} */
+}
+
+#[inline]
+async fn send_msg(
+    socket: &UdpSocket,
+    packet_as_bytes: Vec<u8>,
+    host_addr: SocketAddr,
+) -> Result<usize, Error> {
+    match socket.writable().await {
+        Ok(_) => (),
+        Err(_e) => return Err(Error::AccessSocket),
+    };
+
+    // Write the request
+    for _ in 0..10 {
+        match socket.send_to(&packet_as_bytes, host_addr).await {
+            Ok(n) => return Ok(n),
+            Err(_e) => {}
+        }
+    }
+    Err(Error::BadResponse)
+}

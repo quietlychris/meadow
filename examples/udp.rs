@@ -15,6 +15,8 @@ fn main() -> Result<(), meadow::Error> {
         .unwrap()
         .activate()?;
 
+    thread::spawn(|| {});
+
     for i in 0..10 {
         node.publish(i as f32)?;
         thread::sleep(Duration::from_millis(50));
