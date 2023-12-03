@@ -16,7 +16,6 @@ pub async fn await_response<T: Message>(
     socket: &UdpSocket,
     buf: &mut [u8],
 ) -> Result<Msg<T>, Error> {
-    
     match socket.readable().await {
         Ok(_) => (),
         Err(_e) => return Err(Error::AccessSocket),
