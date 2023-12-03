@@ -54,23 +54,24 @@ impl<T: Message + 'static> Node<Udp, Idle, T> {
                 data_type: std::any::type_name::<T>().to_string(),
                 data: Vec::new(),
             };
-            let buffer = buffer.clone();
             let socket = UdpSocket::bind("[::]:0").await.unwrap();
-            let mut buffer = buffer.lock().await;
 
             for i in 0..10000 {
+                //let mut buffer = buffer.lock().await;
+
+                let mut buffer = vec![0u8; 10_000];
                 println!("LOOPED {}",i);
                 let packet_as_bytes = to_allocvec(&packet).unwrap();
                 
-                error!("about to send msg #{}",i);
-                match send_msg(&socket, packet_as_bytes.clone(), addr).await {
+                println!("about to send msg #{}",i);
+                match udp::send_msg(&socket, packet_as_bytes.clone(), addr).await {
                     Ok(n) => {dbg!(n);},
                     Err(e) => {
                         let e = e.to_string();
                         dbg!(e);
                     }
                 };
-
+                println!("sent msg #{}",i);
                 let msg = match udp::await_response::<T>(&socket, &mut buffer).await {
                     Ok(msg) => msg,
                     Err(e) => {
@@ -78,7 +79,7 @@ impl<T: Message + 'static> Node<Udp, Idle, T> {
                         // continue;
                     }
                 };
-                dbg!(&msg);
+                println!("received reply #{}: {:?}",i,msg);
                 let delta = Utc::now() - msg.timestamp;
                 // println!("The time difference between msg tx/rx is: {} us",delta);
                 if delta <= chrono::Duration::zero() {

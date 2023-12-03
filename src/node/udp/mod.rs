@@ -16,12 +16,13 @@ pub async fn await_response<T: Message>(
     socket: &UdpSocket,
     buf: &mut [u8],
 ) -> Result<Msg<T>, Error> {
+    
     match socket.readable().await {
         Ok(_) => (),
         Err(_e) => return Err(Error::AccessSocket),
     };
 
-    loop {
+    for i in 0..10 {
         match socket.try_recv(buf) {
             Ok(0) => continue,
             Ok(n) => {
@@ -43,6 +44,7 @@ pub async fn await_response<T: Message>(
             }
         }
     }
+    Err(Error::BadResponse)
 }
 
 #[inline]
