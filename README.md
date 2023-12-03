@@ -70,8 +70,10 @@ meadow currently supports the following messaging patterns:
 | Protocol | Publish   | Request    | Subscribe | Encryption |
 |----------|-----------|------------|-----------|------------|
 | TCP      | **X**     | **X**      | **X**     |            |
-| UDP      | **X**     | **X**      |           |            |
+| UDP      | **X**     | **X**      | **X**     |            |
 | QUIC     | **X**     | **X**      | **X**     | **X**      |
+
+Meadow's subscriber functionality currently works a bit differently than many other middlewares; rather than having the most recent data on the subscribed topic pushed to it by the Host upon receive, the Node will spawn a background task that requests and caches data from the subscribed topic in order to be available locally on-demand rather than on-request.
 
 ## Key Dependencies
 Under the hood, `meadow` relies on:

@@ -207,3 +207,35 @@ fn simple_udp() {
         assert_eq!(x, result.data);
     }
 }
+
+#[test]
+fn udp_subscription() {
+    let mut host = HostConfig::default().build().unwrap();
+    host.start().unwrap();
+    println!("Started host");
+
+    let node = NodeConfig::<Udp, f32>::new("num")
+        .build()
+        .unwrap()
+        .activate()
+        .unwrap();
+    let subscriber = NodeConfig::<Udp, f32>::new("num")
+        .build()
+        .unwrap()
+        .subscribe(Duration::from_millis(1))
+        .unwrap();
+
+    for i in 0..10 {
+        let x = i as f32;
+
+        match node.publish(x) {
+            Ok(_) => (),
+            Err(e) => {
+                dbg!(e);
+            }
+        };
+        thread::sleep(Duration::from_millis(5));
+        let result = subscriber.get_subscribed_data().unwrap();
+        assert_eq!(x, result.data);
+    }
+}

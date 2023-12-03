@@ -1,18 +1,16 @@
-impl<T: Message> From<Node<Udp, Idle, T>> for Node<Udp, Subscription, T> {
-    fn from(node: Node<Udp, Idle, T>) -> Self {
-        Self {
-            //__interface: PhantomData,
-            __state: PhantomData,
-            __data_type: PhantomData,
-            cfg: node.cfg,
-            runtime: node.runtime,
-            stream: node.stream,
-            name: node.name,
-            topic: node.topic,
-            socket: node.socket,
-            endpoint: node.endpoint,
-            subscription_data: node.subscription_data,
-            task_subscribe: None,
-        }
+use crate::*;
+use std::ops::Deref;
+
+impl<T: Message + 'static> Node<Udp, Subscription, T> {
+    // Should actually return a <T>
+    pub fn get_subscribed_data(&self) -> Result<Msg<T>, crate::Error> {
+        self.runtime.block_on(async {
+            let data = self.subscription_data.lock().await.clone();
+            if let Some(msg) = data {
+                Ok(msg)
+            } else {
+                Err(Error::NoSubscriptionValue)
+            }
+        })
     }
 }
