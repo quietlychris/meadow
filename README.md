@@ -70,7 +70,7 @@ meadow currently supports the following messaging patterns:
 | Protocol | Publish   | Request    | Subscribe | Encryption |
 |----------|-----------|------------|-----------|------------|
 | TCP      | **X**     | **X**      | **X**     |            |
-| UDP      | **X**     | **X**      |           |            |
+| UDP      | **X**     | **X**      | **X**     |            |
 | QUIC     | **X**     | **X**      | **X**     | **X**      |
 
 ## Key Dependencies

@@ -43,7 +43,6 @@ impl<T: Message + 'static> Node<Udp, Idle, T> {
         let subscription_data: Arc<TokioMutex<Option<Msg<T>>>> = Arc::new(TokioMutex::new(None));
         let data = Arc::clone(&subscription_data);
         let addr = self.cfg.network_cfg.host_addr;
-        let buffer = self.buffer.clone();
 
         let task_subscribe = self.runtime.spawn(async move {
             dbg!("in task_subscribe()");

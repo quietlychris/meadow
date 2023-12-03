@@ -23,14 +23,14 @@ pub async fn await_response<T: Message>(
     };
     info!("readable!");
 
-    for i in 0..10 {
+    for _ in 0..10 {
         match socket.recv(buf).await {
             Ok(0) => {
                 info!("await_response received zero bytes");
                 continue;
-            },
+            }
             Ok(n) => {
-                info!("await_response received {} bytes",n);
+                info!("await_response received {} bytes", n);
                 let bytes = &buf[..n];
                 match postcard::from_bytes::<GenericMsg>(bytes) {
                     Ok(generic) => {
@@ -44,8 +44,9 @@ pub async fn await_response<T: Message>(
                 }
             }
             Err(e) => {
-                
-                if e.kind() == std::io::ErrorKind::WouldBlock {error!("Would block");}
+                if e.kind() == std::io::ErrorKind::WouldBlock {
+                    error!("Would block");
+                }
                 continue;
             }
         }

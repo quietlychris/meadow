@@ -3,7 +3,6 @@ use std::thread;
 use std::time::Duration;
 // For logging
 use std::{fs::File, sync::Arc};
-use tracing::*;
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::{filter, prelude::*};
@@ -44,7 +43,7 @@ fn main() -> Result<(), meadow::Error> {
     for i in 1..5 {
         node.publish(i as f32)?;
         thread::sleep(Duration::from_millis(10));
-        let result = node.request()?;
+        let _result = node.request()?;
         //dbg!(node.topics()?);
         // dbg!(result);
         dbg!(subscriber.get_subscribed_data()?);
