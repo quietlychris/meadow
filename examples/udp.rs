@@ -74,6 +74,7 @@ fn logging() {
         .compact()
         .with_ansi(false)
         .with_line_number(true)
+        .with_target(false)
         .with_writer(Arc::new(file));
 
     tracing_subscriber::registry()
