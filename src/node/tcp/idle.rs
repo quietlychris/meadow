@@ -114,6 +114,7 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
         let buffer = self.buffer.clone();
 
         let task_subscribe = self.runtime.spawn(async move {
+            // TO_DO: This flow control for error handling needs to be re-evaluated
             let stream = match try_connection(addr).await {
                 Ok(stream) => match handshake(stream, topic.clone()).await {
                     Ok(stream) => Ok(stream),
@@ -140,25 +141,33 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
 
             let mut buffer = buffer.lock().await;
             loop {
-                let packet_as_bytes: Vec<u8> = to_allocvec(&packet).unwrap();
-                send_msg(&stream, packet_as_bytes).await.unwrap();
-                let msg = match await_response::<T>(&stream, &mut buffer).await {
-                    Ok(msg) => msg,
-                    Err(e) => {
-                        error!("Subscription Error: {}", e);
-                        continue;
+                if let Ok(packet_as_bytes) = to_allocvec(&packet) {
+                    match send_msg(&stream, packet_as_bytes).await {
+                        Ok(()) => {
+                            let msg = match await_response::<T>(&stream, &mut buffer).await {
+                                Ok(msg) => msg,
+                                Err(e) => {
+                                    error!("Subscription Error: {}", e);
+                                    continue;
+                                }
+                            };
+                            let delta = Utc::now() - msg.timestamp;
+                            // println!("The time difference between msg tx/rx is: {} us",delta);
+                            if delta <= chrono::Duration::zero() {
+                                // println!("Data is not newer, skipping to next subscription iteration");
+                                continue;
+                            }
+
+                            let mut data = data.lock().await;
+
+                            *data = Some(msg);
+                        }
+                        Err(e) => {
+                            error!("{}", e);
+                        }
                     }
-                };
-                let delta = Utc::now() - msg.timestamp;
-                // println!("The time difference between msg tx/rx is: {} us",delta);
-                if delta <= chrono::Duration::zero() {
-                    // println!("Data is not newer, skipping to next subscription iteration");
-                    continue;
                 }
 
-                let mut data = data.lock().await;
-
-                *data = Some(msg);
                 sleep(rate).await;
             }
         });

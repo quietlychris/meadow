@@ -5,6 +5,8 @@ use crate::*;
 use crate::node::network_config::Quic;
 use crate::node::*;
 
+use std::path::PathBuf;
+
 use tokio::net::UdpSocket;
 use tokio::sync::Mutex as TokioMutex;
 use tokio::time::{sleep, Duration};
@@ -69,6 +71,7 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
     //#[tracing::instrument(skip_all)]
     pub fn activate(mut self) -> Result<Node<Quic, Active, T>, Error> {
         debug!("Attempting QUIC connection");
+
         self.create_connection();
 
         Ok(Node::<Quic, Active, T>::from(self))
@@ -76,9 +79,10 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
 
     fn create_connection(&mut self) {
         let host_addr = self.cfg.network_cfg.host_addr;
+        let cert_path = self.cfg.network_cfg.cert_path.clone();
         if let Ok((endpoint, connection)) = self.runtime.block_on(async move {
             // QUIC, needs to be done inside of a tokio context
-            let client_cfg = generate_client_config_from_certs();
+            let client_cfg = generate_client_config_from_certs(cert_path).unwrap();
             let client_addr = "0.0.0.0:0".parse::<SocketAddr>().unwrap();
             let mut endpoint = Endpoint::client(client_addr).unwrap();
             endpoint.set_default_client_config(client_cfg);

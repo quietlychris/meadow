@@ -89,8 +89,12 @@ impl Host {
                 let (max_buffer_size_udp, _max_name_size_udp) =
                     (udp_cfg.max_buffer_size, udp_cfg.max_name_size);
                 let task_listen_udp = self.runtime.spawn(async move {
-                    let socket = UdpSocket::bind(addr).await.unwrap();
-                    process_udp(socket, db, counter, max_buffer_size_udp).await;
+                    match UdpSocket::bind(addr).await {
+                        Ok(socket) => process_udp(socket, db, counter, max_buffer_size_udp).await,
+                        Err(e) => {
+                            error!("{}", e);
+                        }
+                    }
                 });
                 self.task_listen_udp = Some(task_listen_udp);
             }
@@ -118,37 +122,39 @@ impl Host {
                 let connections = Arc::clone(&connections);
 
                 let task_listen_tcp = self.runtime.spawn(async move {
-                    let listener = TcpListener::bind(addr).await.unwrap();
-                    let connections = Arc::clone(&connections.clone());
-
-                    loop {
-                        let (stream, stream_addr) = listener.accept().await.unwrap();
-                        let (stream, name) = match crate::host::tcp::handshake(
-                            stream,
-                            max_buffer_size_tcp,
-                            max_name_size_tcp,
-                        )
-                        .await
-                        {
-                            Ok((stream, name)) => (stream, name),
-                            Err(_e) => continue,
-                        };
-                        debug!("Host received connection from {:?}", &name);
-
-                        let counter = counter.clone();
+                    if let Ok(listener) = TcpListener::bind(addr).await {
                         let connections = Arc::clone(&connections.clone());
-                        let db = db.clone();
 
-                        let handle = tokio::spawn(async move {
-                            process_tcp(stream, db, counter, max_buffer_size_tcp).await;
-                        });
-                        let connection = Connection {
-                            handle,
-                            stream_addr,
-                            name,
-                        };
+                        loop {
+                            if let Ok((stream, stream_addr)) = listener.accept().await {
+                                let (stream, name) = match crate::host::tcp::handshake(
+                                    stream,
+                                    max_buffer_size_tcp,
+                                    max_name_size_tcp,
+                                )
+                                .await
+                                {
+                                    Ok((stream, name)) => (stream, name),
+                                    Err(_e) => continue,
+                                };
+                                debug!("Host received connection from {:?}", &name);
 
-                        connections.lock().unwrap().push(connection);
+                                let counter = counter.clone();
+                                let connections = Arc::clone(&connections.clone());
+                                let db = db.clone();
+
+                                let handle = tokio::spawn(async move {
+                                    process_tcp(stream, db, counter, max_buffer_size_tcp).await;
+                                });
+                                let connection = Connection {
+                                    handle,
+                                    stream_addr,
+                                    name,
+                                };
+
+                                connections.lock().unwrap().push(connection);
+                            }
+                        }
                     }
                 });
 
@@ -266,8 +272,9 @@ impl Host {
             let names = db.tree_names();
             let mut strings = Vec::new();
             for name in names {
-                let name = std::str::from_utf8(&name[..]).unwrap();
-                strings.push(name.to_string());
+                if let Ok(name) = std::str::from_utf8(&name[..]) {
+                    strings.push(name.to_string());
+                }
             }
 
             strings

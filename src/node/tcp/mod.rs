@@ -122,7 +122,9 @@ pub async fn await_response<T: Message>(
 ) -> Result<Msg<T>, Error> {
     // TO_DO: This can be made cleaner
     loop {
-        stream.readable().await.unwrap();
+        if let Err(e) = stream.readable().await {
+            error!("{}", e);
+        }
         match stream.try_read(buf) {
             Ok(0) => continue,
             Ok(n) => {

@@ -29,9 +29,3 @@ impl Display for HostOperation {
         }
     }
 }
-
-impl HostOperation {
-    pub fn as_bytes(&self) -> Vec<u8> {
-        postcard::to_allocvec(&self).unwrap()
-    }
-}
