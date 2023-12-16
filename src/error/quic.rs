@@ -16,6 +16,7 @@ pub enum Quic {
     ReadKeys,
     FindCerts,
     ReadCerts,
+    Configuration,
 }
 
 #[cfg(feature = "quic")]
@@ -35,6 +36,7 @@ impl std::error::Error for Quic {
             ReadKeys => None,
             FindCerts => None,
             ReadCerts => None,
+            Configuration => None,
         }
     }
 }
@@ -56,6 +58,7 @@ impl Display for Quic {
             ReadKeys => write!(f, "Error reading .pem key file"),
             FindCerts => write!(f, "Unable to find .pem certificates"),
             ReadCerts => write!(f, "Error reading .pem certificates"),
+            Configuration => write!(f, "Error configuring server with certificate"),
         }
     }
 }

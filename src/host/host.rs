@@ -24,7 +24,10 @@ use std::net::SocketAddr;
 use std::result::Result;
 
 #[cfg(feature = "quic")]
+use crate::error::Quic::*;
+#[cfg(feature = "quic")]
 use crate::host::quic::*;
+
 use crate::host::tcp::*;
 use crate::host::udp::*;
 use crate::Error;
@@ -152,6 +155,7 @@ impl Host {
                                     name,
                                 };
 
+                                // TO_DO: We should re-evaluate how connections are stored
                                 connections.lock().unwrap().push(connection);
                             }
                         }
@@ -179,67 +183,84 @@ impl Host {
                 };
 
                 let (certs, key) =
-                    read_certs_from_file(&cfg_quic.cert_path, &cfg_quic.key_path).unwrap();
+                    match read_certs_from_file(&cfg_quic.cert_path, &cfg_quic.key_path) {
+                        Ok((certs, key)) => (certs, key),
+                        Err(e) => {
+                            error!("{}", e);
+                            return Err(Error::Quic(ReadCerts));
+                        }
+                    };
+
                 debug!("Successfully read in QUIC certs");
 
                 let (max_buffer_size_quic, _max_name_size_quic) = (
                     cfg_quic.network_cfg.max_buffer_size,
                     cfg_quic.network_cfg.max_name_size,
                 );
-                let server_config = ServerConfig::with_single_cert(certs, key).unwrap();
+                let server_config = match ServerConfig::with_single_cert(certs, key) {
+                    Ok(server_config) => server_config,
+                    Err(e) => {
+                        error!("{}", e);
+                        return Err(Error::Quic(Configuration));
+                    }
+                };
 
                 let task_listen_quic = self.runtime.spawn(async move {
-                    let endpoint = Endpoint::server(server_config, addr).unwrap();
-                    debug!(
-                        "Waiting for incoming QUIC connection on {:?}",
-                        endpoint.local_addr()
-                    );
-                    let connections = Arc::clone(&connections.clone());
-
-                    loop {
-                        let counter = counter.clone();
-                        if let Some(conn) = endpoint.accept().await {
-                            let connection = conn.await.unwrap();
-                            let db = db.clone();
-                            let remote_addr = connection.remote_address();
-
-                            debug!(
-                                "Received QUIC connection from {:?}",
-                                &connection.remote_address()
-                            );
-                            let handle = tokio::spawn(async move {
-                                loop {
+                    if let Ok(endpoint) = Endpoint::server(server_config, addr) {
+                        debug!(
+                            "Waiting for incoming QUIC connection on {:?}",
+                            endpoint.local_addr()
+                        );
+                        let connections = Arc::clone(&connections.clone());
+                        loop {
+                            let counter = counter.clone();
+                            if let Some(conn) = endpoint.accept().await {
+                                if let Ok(connection) = conn.await {
                                     let db = db.clone();
-                                    // TO_DO: Instead of having these buffers, is there a way that we can just use sled 
-                                    // to hold our buffer space instead, removing the additional allocation?
-                                    let mut buf = vec![0u8; max_buffer_size_quic];
-                                    let counter = counter.clone();
-                                    match connection.accept_bi().await {
-                                        Ok((send, recv)) => {
-                                            debug!("Host successfully received bi-directional stream from {}",connection.remote_address());
-                                            tokio::spawn(async move {
-                                                process_quic(
-                                                    (send, recv),
-                                                    db.clone(),
-                                                    &mut buf,
-                                                    counter.clone(),
-                                                )
-                                                .await;
-                                            });
-                                        }
-                                        Err(_e) => {}
-                                    }
-                                }
-                                });
-                                let connection = Connection {
-                                    handle,
-                                    stream_addr: remote_addr,
-                                    name: "TO_DO: temp".to_string(),
-                                };
+                                    let remote_addr = connection.remote_address();
 
-                                connections.lock().unwrap().push(connection);
+                                    debug!(
+                                        "Received QUIC connection from {:?}",
+                                        &connection.remote_address()
+                                    );
+
+                                    let handle = tokio::spawn(async move {
+                                        loop {
+                                            let db = db.clone();
+                                            // TO_DO: Instead of having these buffers, is there a way that we can just use sled 
+                                            // to hold our buffer space instead, removing the additional allocation?
+                                            let mut buf = vec![0u8; max_buffer_size_quic];
+                                            let counter = counter.clone();
+                                            match connection.accept_bi().await {
+                                                Ok((send, recv)) => {
+                                                    debug!("Host successfully received bi-directional stream from {}",connection.remote_address());
+                                                    tokio::spawn(async move {
+                                                        process_quic(
+                                                            (send, recv),
+                                                            db.clone(),
+                                                            &mut buf,
+                                                            counter.clone(),
+                                                        )
+                                                        .await;
+                                                    });
+                                                }
+                                                Err(_e) => {}
+                                            }
+                                        }
+                                        });
+                                        let connection = Connection {
+                                            handle,
+                                            stream_addr: remote_addr,
+                                            name: "TO_DO: temp".to_string(),
+                                        };
+
+                                        connections.lock().unwrap().push(connection);
+                                }
+
+                            }
                         }
                     }
+
                 });
 
                 self.task_listen_quic = Some(task_listen_quic);
@@ -267,6 +288,7 @@ impl Host {
         }
     }
 
+    /// Create a vector of topics based on UTF-8 Sled tree names
     pub fn topics(&self) -> Vec<String> {
         if let Some(db) = self.store.clone() {
             let names = db.tree_names();

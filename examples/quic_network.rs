@@ -10,6 +10,7 @@ use meadow::node::Quic;
 
 #[cfg(feature = "quic")]
 fn main() -> Result<(), meadow::Error> {
+    use meadow::host::quic::QuicCertGenConfig;
     use meadow::*;
     use std::thread;
     use std::time::Duration;
@@ -17,7 +18,7 @@ fn main() -> Result<(), meadow::Error> {
 
     logging();
 
-    generate_certs()?;
+    generate_certs(QuicCertGenConfig::default());
     let mut host: Host = HostConfig::default()
         .with_tcp_config(None)
         .with_udp_config(None)
