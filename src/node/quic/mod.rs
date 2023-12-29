@@ -13,7 +13,8 @@ use crate::Error;
 use quinn::ClientConfig;
 use rustls::Certificate;
 
-// TO_DO: The error handling in this is a mess
+use tracing::*;
+
 pub fn generate_client_config_from_certs(
     cert_path: Option<PathBuf>,
 ) -> Result<ClientConfig, Error> {
@@ -27,6 +28,9 @@ pub fn generate_client_config_from_certs(
                 .map(rustls::Certificate)
                 .collect();
             for cert in server_certs {
+                if let Err(e) = certs.add(&cert) {
+                    error!("Error adding certificate: {:?}", e);
+                }
                 certs.add(&cert).unwrap();
             }
 

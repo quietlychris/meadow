@@ -72,37 +72,48 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
     pub fn activate(mut self) -> Result<Node<Quic, Active, T>, Error> {
         debug!("Attempting QUIC connection");
 
-        self.create_connection();
+        self.create_connection()?;
 
         Ok(Node::<Quic, Active, T>::from(self))
     }
 
-    fn create_connection(&mut self) {
+    fn create_connection(&mut self) -> Result<(), Error> {
         let host_addr = self.cfg.network_cfg.host_addr;
         let cert_path = self.cfg.network_cfg.cert_path.clone();
         if let Ok((endpoint, connection)) = self.runtime.block_on(async move {
             // QUIC, needs to be done inside of a tokio context
-            let client_cfg = generate_client_config_from_certs(cert_path).unwrap();
-            let client_addr = "0.0.0.0:0".parse::<SocketAddr>().unwrap();
-            let mut endpoint = Endpoint::client(client_addr).unwrap();
-            endpoint.set_default_client_config(client_cfg);
-            match endpoint.connect(host_addr, "localhost") {
-                Ok(connecting) => match connecting.await {
-                    Ok(connection) => Ok((endpoint, connection)),
-                    Err(_) => Err(Error::Quic(EndpointConnect)),
-                },
-                Err(_) => Err(Error::Quic(EndpointConnect)),
+            if let Ok(client_cfg) = generate_client_config_from_certs(cert_path) {
+                if let Ok(client_addr) = "0.0.0.0:0".parse::<SocketAddr>() {
+                    if let Ok(mut endpoint) = Endpoint::client(client_addr) {
+                        endpoint.set_default_client_config(client_cfg);
+                        match endpoint.connect(host_addr, "localhost") {
+                            Ok(connecting) => match connecting.await {
+                                Ok(connection) => Ok((endpoint, connection)),
+                                Err(_) => Err(Error::Quic(EndpointConnect)),
+                            },
+                            Err(_) => Err(Error::Quic(EndpointConnect)),
+                        }
+                    } else {
+                        Err(Error::Quic(EndpointCreation))
+                    }
+                } else {
+                    Err(Error::Quic(QuicIssue))
+                }
+            } else {
+                Err(Error::Quic(QuicIssue))
             }
         }) {
             debug!("{:?}", &endpoint.local_addr());
             self.endpoint = Some(endpoint);
             self.connection = Some(connection);
         };
+
+        Ok(())
     }
 
     #[tracing::instrument(skip_all)]
     pub fn subscribe(mut self, rate: Duration) -> Result<Node<Quic, Subscription, T>, Error> {
-        self.create_connection();
+        self.create_connection()?;
         let connection = self.connection.clone();
         let topic = self.topic.clone();
 
