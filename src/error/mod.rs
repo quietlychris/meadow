@@ -41,6 +41,8 @@ pub enum Error {
     BadResponse,
     // Error sending packet from UdpSocket
     UdpSend,
+    // Error sending packet from TcpStream
+    TcpSend,
     // `TcpStream` connection attempt failure
     StreamConnection,
     // Error during Host <=> Node handshake
@@ -76,6 +78,7 @@ impl std::error::Error for Error {
             AccessSocket => None,
             BadResponse => None,
             UdpSend => None,
+            TcpSend => None,
             StreamConnection => None,
             Handshake => None,
             HostOperation(_) => None,
@@ -103,6 +106,7 @@ impl Display for Error {
             AccessSocket => write!(f, "Error accessing an owned TcpStream"),
             BadResponse => write!(f, "Node received bad response from Host"),
             UdpSend => write!(f, "Error sending packet from UdpSocket"),
+            TcpSend => write!(f, "Error sending packet from TcpStream"),
             StreamConnection => write!(f, "Error creating TcpStream"),
             Handshake => write!(f, "Error during Host <=> Node handshake"),
             HostOperation(ref err) => err.fmt(f),

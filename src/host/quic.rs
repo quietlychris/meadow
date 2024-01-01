@@ -1,4 +1,7 @@
-use crate::error::{Error, HostOperation, Quic::*};
+use crate::error::{
+    Error, HostOperation,
+    Quic::{self, *},
+};
 use crate::*;
 use futures_util::lock::Mutex;
 use futures_util::StreamExt;
@@ -13,6 +16,34 @@ use quinn::{Endpoint, RecvStream, SendStream, ServerConfig};
 use std::path::PathBuf;
 use std::{fs, fs::File, io::BufReader};
 use tracing::*;
+
+/// Configuration struct for generating QUIC private key and certificates
+#[derive(Debug, Clone)]
+pub struct QuicCertGenConfig {
+    subject_alt_names: Vec<String>,
+    cert_pem_path: PathBuf,
+    priv_key_pem_path: PathBuf,
+}
+
+impl Default for QuicCertGenConfig {
+    fn default() -> QuicCertGenConfig {
+        QuicCertGenConfig {
+            subject_alt_names: vec!["localhost".into()],
+            cert_pem_path: "target/cert.pem".into(),
+            priv_key_pem_path: "target/priv_key.pem".into(),
+        }
+    }
+}
+
+pub fn generate_certs(config: QuicCertGenConfig) {
+    let cert = rcgen::generate_simple_self_signed(config.subject_alt_names)
+        .expect("Error generating self-signed certificate");
+    let cert_pem = cert.serialize_pem().expect("Error serialzing ");
+    fs::write(config.cert_pem_path, cert_pem).expect("Error writing certificate to file");
+
+    let priv_key_pem = cert.serialize_private_key_pem();
+    fs::write(config.priv_key_pem_path, priv_key_pem).expect("Error writing private key to file");
+}
 
 pub fn read_certs_from_file(
     cert_path: impl Into<PathBuf>,
@@ -44,33 +75,24 @@ pub fn read_certs_from_file(
     };
 
     assert_eq!(keys.len(), 1);
-    let key = rustls::PrivateKey(keys.remove(0));
+    if keys.len() == 1 {
+        let key = rustls::PrivateKey(keys.remove(0));
 
-    Ok((certs, key))
-}
-
-pub fn generate_certs() -> Result<(), crate::Error> {
-    let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()])
-        .expect("Error generating self-signed certificate");
-    let cert_pem = cert.serialize_pem().unwrap();
-    fs::write("target/cert.pem", cert_pem).expect("Error writing certificate to file");
-
-    let priv_key_pem = cert.serialize_private_key_pem();
-    fs::write("target/priv_key.pem", priv_key_pem).expect("Error writing private key to file");
-
-    Ok(())
+        Ok((certs, key))
+    } else {
+        Err(Error::Quic(ReadKeys))
+    }
 }
 
 pub async fn process_quic(
     stream: (SendStream, RecvStream),
     db: sled::Db,
-    buf: &mut [u8], // TO_DO: Clippy suggests this hould be &mut [u8] but that might need to change to Vec<u8>
+    buf: &mut [u8],
     count: Arc<TokioMutex<usize>>,
 ) {
     let (mut tx, mut rx) = stream;
-    // let mut buf = vec![0u8; max_buffer_size];
 
-    if let Some(n) = rx.read(buf).await.unwrap() {
+    if let Ok(Some(n)) = rx.read(buf).await {
         let bytes = &buf[..n];
         let msg: GenericMsg = match from_bytes(bytes) {
             Ok(msg) => msg,
@@ -95,7 +117,7 @@ pub async fn process_quic(
                     loop {
                         match tx.write(&bytes).await {
                             Ok(_n) => {
-                                let mut count = count.lock().await; //.unwrap();
+                                let mut count = count.lock().await;
                                 *count += 1;
                                 break;
                             }
@@ -112,9 +134,9 @@ pub async fn process_quic(
                     .open_tree(msg.topic.as_bytes())
                     .expect("Error opening tree");
 
-                let return_bytes = match tree.last().unwrap() {
-                    Some(msg) => msg.1,
-                    None => {
+                let return_bytes = match tree.last() {
+                    Ok(Some(msg)) => msg.1,
+                    _ => {
                         let e: String = format!("Error: no topic \"{}\" exists", &msg.topic);
                         error!("{}", &e);
                         e.as_bytes().into()
@@ -135,8 +157,9 @@ pub async fn process_quic(
                 let names = db.tree_names();
                 let mut strings = Vec::new();
                 for name in names {
-                    let name = std::str::from_utf8(&name[..]).unwrap();
-                    strings.push(name.to_string());
+                    if let Ok(name) = std::str::from_utf8(&name[..]) {
+                        strings.push(name.to_string());
+                    }
                 }
                 if let Ok(data) = to_allocvec(&strings) {
                     let packet: GenericMsg = GenericMsg {

@@ -16,8 +16,10 @@ static INIT: Once = Once::new();
 
 #[cfg(feature = "quic")]
 pub fn initialize() {
+    use meadow::host::quic::QuicCertGenConfig;
+
     INIT.call_once(|| {
-        generate_certs().unwrap();
+        generate_certs(QuicCertGenConfig::default());
     });
 }
 

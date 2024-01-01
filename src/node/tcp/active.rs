@@ -47,35 +47,36 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
         };
 
         self.runtime.block_on(async {
-            send_msg(stream, packet_as_bytes).await.unwrap();
+            if let Ok(()) = send_msg(stream, packet_as_bytes).await {
+                // Wait for the publish acknowledgement
+                let mut buf = self.buffer.lock().await;
 
-            // Wait for the publish acknowledgement
-            let mut buf = self.buffer.lock().await;
+                loop {
+                    if let Ok(()) = stream.readable().await {
+                        match stream.try_read(&mut buf) {
+                            Ok(0) => continue,
+                            Ok(n) => {
+                                let bytes = &buf[..n];
+                                // TO_DO: This error handling is not great
+                                match from_bytes::<Result<(), Error>>(bytes) {
+                                    Err(e) => {
+                                        error!("{:?}", e);
+                                    }
+                                    Ok(result) => match result {
+                                        Ok(()) => (),
+                                        Err(e) => {
+                                            error!("{:?}", e);
+                                        }
+                                    },
+                                };
 
-            loop {
-                stream.readable().await.unwrap();
-                match stream.try_read(&mut buf) {
-                    Ok(0) => continue,
-                    Ok(n) => {
-                        let bytes = &buf[..n];
-                        // TO_DO: This error handling is not great
-                        match from_bytes::<Result<(), Error>>(bytes) {
-                            Err(e) => {
-                                error!("{:?}", e);
+                                break;
                             }
-                            Ok(result) => match result {
-                                Ok(()) => (),
-                                Err(e) => {
-                                    error!("{:?}", e);
-                                }
-                            },
-                        };
-
-                        break;
-                    }
-                    Err(_e) => {
-                        // if e.kind() == std::io::ErrorKind::WouldBlock {}
-                        continue;
+                            Err(_e) => {
+                                // if e.kind() == std::io::ErrorKind::WouldBlock {}
+                                continue;
+                            }
+                        }
                     }
                 }
             }
@@ -108,10 +109,13 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
 
         self.runtime.block_on(async {
             let mut buffer = self.buffer.lock().await;
-            send_msg(stream, packet_as_bytes).await.unwrap();
-            match await_response::<T>(stream, &mut buffer).await {
-                Ok(msg) => Ok(msg),
-                Err(_e) => Err(Error::Deserialization),
+            if let Ok(()) = send_msg(stream, packet_as_bytes).await {
+                match await_response::<T>(stream, &mut buffer).await {
+                    Ok(msg) => Ok(msg),
+                    Err(_e) => Err(Error::Deserialization),
+                }
+            } else {
+                Err(Error::TcpSend)
             }
         })
     }
@@ -139,10 +143,13 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
 
         self.runtime.block_on(async {
             let mut buffer = self.buffer.lock().await;
-            send_msg(stream, packet_as_bytes).await.unwrap();
-            match await_response(stream, &mut buffer).await {
-                Ok(msg) => Ok(msg),
-                Err(_e) => Err(Error::Deserialization),
+            if let Ok(()) = send_msg(stream, packet_as_bytes).await {
+                match await_response(stream, &mut buffer).await {
+                    Ok(msg) => Ok(msg),
+                    Err(_e) => Err(Error::Deserialization),
+                }
+            } else {
+                Err(Error::TcpSend)
             }
         })
     }

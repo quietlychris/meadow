@@ -28,7 +28,9 @@ pub async fn handshake(
     debug!("Starting handshake");
     let mut _name: String = String::with_capacity(max_name_size);
     let mut count = 0;
-    stream.readable().await.unwrap();
+    if let Err(e) = stream.readable().await {
+        error!("{}", e);
+    }
     loop {
         debug!("In handshake loop");
         match stream.try_read_buf(&mut buf) {
@@ -77,12 +79,16 @@ pub async fn process_tcp(
 ) {
     let mut buf = vec![0u8; max_buffer_size];
     loop {
-        stream.readable().await.unwrap();
+        if let Err(e) = stream.readable().await {
+            error!("{}", e);
+        }
         // dbg!(&count);
         match stream.try_read(&mut buf) {
             Ok(0) => break, // TO_DO: break or continue?
             Ok(n) => {
-                stream.writable().await.unwrap();
+                if let Err(e) = stream.writable().await {
+                    error!("{}", e);
+                }
 
                 let bytes = &buf[..n];
                 let msg: Msg<&[u8]> = match from_bytes(bytes) {
@@ -119,7 +125,7 @@ pub async fn process_tcp(
                             loop {
                                 match stream.try_write(&bytes) {
                                     Ok(_n) => {
-                                        let mut count = count.lock().await; //.unwrap();
+                                        let mut count = count.lock().await;
                                         *count += 1;
                                         break;
                                     }
@@ -136,21 +142,24 @@ pub async fn process_tcp(
                             .open_tree(msg.topic.as_bytes())
                             .expect("Error opening tree");
 
-                        let return_bytes = match tree.last().unwrap() {
-                            Some(msg) => msg.1,
-                            None => {
-                                let e: String =
-                                    format!("Error: no topic \"{}\" exists", &msg.topic);
-                                error!("{}", &e);
-                                e.as_bytes().into()
-                            }
-                        };
-                        if let Ok(()) = stream.writable().await {
-                            if let Err(e) = stream.try_write(&return_bytes) {
-                                error!("Error sending data back on TCP/TOPICS: {:?}", e);
-                            } else {
-                                let mut count = count.lock().await; //.unwrap();
-                                *count += 1;
+                        if let Ok(topic) = tree.last() {
+                            let return_bytes = match topic {
+                                Some(msg) => msg.1,
+                                None => {
+                                    let e: String =
+                                        format!("Error: no topic \"{}\" exists", &msg.topic);
+                                    error!("{}", &e);
+                                    e.as_bytes().into()
+                                }
+                            };
+
+                            if let Ok(()) = stream.writable().await {
+                                if let Err(e) = stream.try_write(&return_bytes) {
+                                    error!("Error sending data back on TCP/TOPICS: {:?}", e);
+                                } else {
+                                    let mut count = count.lock().await;
+                                    *count += 1;
+                                }
                             }
                         }
                     }
@@ -158,8 +167,14 @@ pub async fn process_tcp(
                         let names = db.tree_names();
                         let mut strings = Vec::new();
                         for name in names {
-                            let name = std::str::from_utf8(&name[..]).unwrap();
-                            strings.push(name.to_string());
+                            match std::str::from_utf8(&name[..]) {
+                                Ok(name) => {
+                                    strings.push(name.to_string());
+                                }
+                                Err(_e) => {
+                                    error!("Error converting topic name {:?} to UTF-8 bytes", name);
+                                }
+                            }
                         }
                         if let Ok(data) = to_allocvec(&strings) {
                             let packet: GenericMsg = GenericMsg {

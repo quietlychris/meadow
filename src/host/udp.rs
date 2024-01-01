@@ -49,7 +49,7 @@ pub async fn process_udp(
                         let _db_result =
                             match tree.insert(msg.timestamp.to_string().as_bytes(), bytes) {
                                 Ok(_prev_msg) => {
-                                    let mut count = count.lock().await; //.unwrap();
+                                    let mut count = count.lock().await;
                                     *count += 1;
                                     "SUCCESS".to_string()
                                 }
@@ -61,28 +61,36 @@ pub async fn process_udp(
                             .open_tree(msg.topic.as_bytes())
                             .expect("Error opening tree");
 
-                        let return_bytes = match tree.last().unwrap() {
-                            Some(msg) => msg.1,
-                            None => {
-                                let e: String =
-                                    format!("Error: no topic \"{}\" exists", &msg.topic);
-                                error!("{}", &e);
-                                e.as_bytes().into()
-                            }
-                        };
-
-                        if let Ok(()) = socket.writable().await {
-                            if let Err(e) = socket.try_send_to(&return_bytes, return_addr) {
-                                error!("Error sending data back on UDP/GET: {}", e)
+                        if let Ok(topic) = tree.last() {
+                            let return_bytes = match topic {
+                                Some(msg) => msg.1,
+                                None => {
+                                    let e: String =
+                                        format!("Error: no topic \"{}\" exists", &msg.topic);
+                                    error!("{}", &e);
+                                    e.as_bytes().into()
+                                }
                             };
-                        };
+
+                            if let Ok(()) = socket.writable().await {
+                                if let Err(e) = socket.try_send_to(&return_bytes, return_addr) {
+                                    error!("Error sending data back on UDP/GET: {}", e)
+                                };
+                            };
+                        }
                     }
                     MsgType::TOPICS => {
                         let names = db.tree_names();
                         let mut strings = Vec::new();
                         for name in names {
-                            let name = std::str::from_utf8(&name[..]).unwrap();
-                            strings.push(name.to_string());
+                            match std::str::from_utf8(&name[..]) {
+                                Ok(name) => {
+                                    strings.push(name.to_string());
+                                }
+                                Err(_e) => {
+                                    error!("Error converting topic name {:?} to UTF-8 bytes", name);
+                                }
+                            }
                         }
                         if let Ok(data) = to_allocvec(&strings) {
                             let packet: GenericMsg = GenericMsg {

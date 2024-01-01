@@ -39,8 +39,14 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
                 match connection.open_bi().await {
                     Ok((mut send, _recv)) => {
                         debug!("Node succesfully opened stream from connection");
-                        send.write_all(&packet_as_bytes).await.unwrap();
-                        send.finish().await.unwrap(); // TO_DO: This can cause a panic
+
+                        if let Ok(()) = send.write_all(&packet_as_bytes).await {
+                            if let Ok(()) = send.finish().await {
+                                debug!("Node successfully wrote packet to stream");
+                            }
+                        } else {
+                            error!("Error writing packet to stream");
+                        }
                     }
                     Err(e) => {
                         warn!("{:?}", e);
@@ -75,8 +81,13 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
                 let reply = match connection.open_bi().await {
                     Ok((mut send, mut recv)) => {
                         debug!("Node succesfully opened stream from connection");
-                        send.write_all(&packet_as_bytes).await.unwrap();
-                        send.finish().await.unwrap();
+                        if let Ok(()) = send.write_all(&packet_as_bytes).await {
+                            if let Ok(()) = send.finish().await {
+                                debug!("Node successfully wrote packet to stream");
+                            }
+                        } else {
+                            error!("Error writing packet to stream");
+                        }
 
                         match recv.read(&mut buf).await {
                             //Ok(0) => Err(Error::QuicIssue),
@@ -133,8 +144,13 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
                 let reply = match connection.open_bi().await {
                     Ok((mut send, mut recv)) => {
                         debug!("Node succesfully opened stream from connection");
-                        send.write_all(&packet_as_bytes).await.unwrap();
-                        send.finish().await.unwrap();
+                        if let Ok(()) = send.write_all(&packet_as_bytes).await {
+                            if let Ok(()) = send.finish().await {
+                                debug!("Node successfully wrote packet to stream");
+                            }
+                        } else {
+                            error!("Error writing packet to stream");
+                        }
 
                         match recv.read(&mut buf).await {
                             //Ok(0) => Err(Error::QuicIssue),

@@ -114,52 +114,51 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
         let buffer = self.buffer.clone();
 
         let task_subscribe = self.runtime.spawn(async move {
-            let stream = match try_connection(addr).await {
-                Ok(stream) => match handshake(stream, topic.clone()).await {
-                    Ok(stream) => Ok(stream),
-                    Err(e) => {
-                        error!("{:?}", e);
-                        Err(Error::Handshake)
+            if let Ok(stream) = try_connection(addr).await {
+                if let Ok(stream) = handshake(stream, topic.clone()).await {
+                    debug!("Successfully subscribed to Host");
+
+                    let packet = GenericMsg {
+                        msg_type: MsgType::GET,
+                        timestamp: Utc::now(),
+                        topic: topic.clone(),
+                        data_type: std::any::type_name::<T>().to_string(),
+                        data: Vec::new(),
+                    };
+
+                    let mut buffer = buffer.lock().await;
+                    loop {
+                        if let Ok(packet_as_bytes) = to_allocvec(&packet) {
+                            match send_msg(&stream, packet_as_bytes).await {
+                                Ok(()) => {
+                                    let msg = match await_response::<T>(&stream, &mut buffer).await
+                                    {
+                                        Ok(msg) => msg,
+                                        Err(e) => {
+                                            error!("Subscription Error: {}", e);
+                                            continue;
+                                        }
+                                    };
+                                    let delta = Utc::now() - msg.timestamp;
+                                    // println!("The time difference between msg tx/rx is: {} us",delta);
+                                    if delta <= chrono::Duration::zero() {
+                                        // println!("Data is not newer, skipping to next subscription iteration");
+                                        continue;
+                                    }
+
+                                    let mut data = data.lock().await;
+
+                                    *data = Some(msg);
+                                }
+                                Err(e) => {
+                                    error!("{}", e);
+                                }
+                            }
+                        }
+
+                        sleep(rate).await;
                     }
-                },
-                Err(e) => {
-                    error!("{:?}", e);
-                    Err(Error::StreamConnection)
                 }
-            }
-            .unwrap();
-            debug!("Successfully subscribed to Host");
-
-            let packet = GenericMsg {
-                msg_type: MsgType::GET,
-                timestamp: Utc::now(),
-                topic: topic.clone(),
-                data_type: std::any::type_name::<T>().to_string(),
-                data: Vec::new(),
-            };
-
-            let mut buffer = buffer.lock().await;
-            loop {
-                let packet_as_bytes: Vec<u8> = to_allocvec(&packet).unwrap();
-                send_msg(&stream, packet_as_bytes).await.unwrap();
-                let msg = match await_response::<T>(&stream, &mut buffer).await {
-                    Ok(msg) => msg,
-                    Err(e) => {
-                        error!("Subscription Error: {}", e);
-                        continue;
-                    }
-                };
-                let delta = Utc::now() - msg.timestamp;
-                // println!("The time difference between msg tx/rx is: {} us",delta);
-                if delta <= chrono::Duration::zero() {
-                    // println!("Data is not newer, skipping to next subscription iteration");
-                    continue;
-                }
-
-                let mut data = data.lock().await;
-
-                *data = Some(msg);
-                sleep(rate).await;
             }
         });
         self.task_subscribe = Some(task_subscribe);
