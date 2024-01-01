@@ -21,6 +21,7 @@ default = []
 quic = ["quinn", "rustls", "rustls-pemfile", "rcgen", "futures-util"]
 
 [dependencies]
+thiserror = "1.0"
 # de/serialization and message sending
 serde = {version = "1", default-features = false, features = ["derive"]}
 postcard = {version = "1", features = ["alloc"]}

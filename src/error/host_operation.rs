@@ -1,6 +1,8 @@
 use core::fmt::{Display, Formatter};
 use serde::*;
 
+use thiserror::Error;
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum HostOperation {
     SetFailure,
