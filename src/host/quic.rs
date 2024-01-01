@@ -87,13 +87,12 @@ pub fn read_certs_from_file(
 pub async fn process_quic(
     stream: (SendStream, RecvStream),
     db: sled::Db,
-    buf: &mut [u8], // TO_DO: Clippy suggests this hould be &mut [u8] but that might need to change to Vec<u8>
+    buf: &mut [u8],
     count: Arc<TokioMutex<usize>>,
 ) {
     let (mut tx, mut rx) = stream;
-    // let mut buf = vec![0u8; max_buffer_size];
 
-    if let Some(n) = rx.read(buf).await.unwrap() {
+    if let Ok(Some(n)) = rx.read(buf).await {
         let bytes = &buf[..n];
         let msg: GenericMsg = match from_bytes(bytes) {
             Ok(msg) => msg,
@@ -118,7 +117,7 @@ pub async fn process_quic(
                     loop {
                         match tx.write(&bytes).await {
                             Ok(_n) => {
-                                let mut count = count.lock().await; //.unwrap();
+                                let mut count = count.lock().await;
                                 *count += 1;
                                 break;
                             }
@@ -135,9 +134,9 @@ pub async fn process_quic(
                     .open_tree(msg.topic.as_bytes())
                     .expect("Error opening tree");
 
-                let return_bytes = match tree.last().unwrap() {
-                    Some(msg) => msg.1,
-                    None => {
+                let return_bytes = match tree.last() {
+                    Ok(Some(msg)) => msg.1,
+                    _ => {
                         let e: String = format!("Error: no topic \"{}\" exists", &msg.topic);
                         error!("{}", &e);
                         e.as_bytes().into()
@@ -158,8 +157,9 @@ pub async fn process_quic(
                 let names = db.tree_names();
                 let mut strings = Vec::new();
                 for name in names {
-                    let name = std::str::from_utf8(&name[..]).unwrap();
-                    strings.push(name.to_string());
+                    if let Ok(name) = std::str::from_utf8(&name[..]) {
+                        strings.push(name.to_string());
+                    }
                 }
                 if let Ok(data) = to_allocvec(&strings) {
                     let packet: GenericMsg = GenericMsg {
