@@ -115,9 +115,9 @@ pub async fn process_tcp(
                             match tree.insert(msg.timestamp.to_string().as_bytes(), bytes) {
                                 Ok(_prev_msg) => {
                                     info!("{:?}", msg.data);
-                                    Ok(())
+                                    crate::error::HostOperation::SUCCESS
                                 }
-                                Err(_e) => Err(Error::HostOperation(SetFailure)),
+                                Err(_e) => crate::error::HostOperation::FAILURE,
                             }
                         };
 

@@ -1,5 +1,5 @@
-use crate::Error;
 use crate::*;
+use crate::{error::HostOperation, Error};
 
 use std::convert::TryInto;
 use std::ops::DerefMut;
@@ -58,17 +58,19 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
                             Ok(n) => {
                                 let bytes = &buf[..n];
                                 // TO_DO: This error handling is not great
-                                match from_bytes::<Result<(), Error>>(bytes) {
+                                /*                                 match from_bytes::<HostOperation>(bytes) {
                                     Err(e) => {
                                         error!("{:?}", e);
                                     }
-                                    Ok(result) => match result {
-                                        Ok(()) => (),
-                                        Err(e) => {
-                                            error!("{:?}", e);
-                                        }
-                                    },
-                                };
+                                    Ok(result) => {
+                                        if let result
+                                    }
+                                }; */
+                                if let Ok(HostOperation::FAILURE) =
+                                    from_bytes::<HostOperation>(bytes)
+                                {
+                                    error!("Host-side error on publish");
+                                }
 
                                 break;
                             }

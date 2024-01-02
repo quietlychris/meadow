@@ -13,7 +13,7 @@ use thiserror::Error;
 
 // TO_DO: These should be categorized into subgroups
 /// This is the error type used by meadow
-#[derive(Clone, Debug, Error, Serialize, Deserialize)]
+#[derive(Debug, Error)]
 // #[cfg_attr(feature = "use-defmt", derive(defmt::Format))]
 pub enum Error {
     // No subscription value exists
@@ -66,11 +66,14 @@ pub enum Error {
     Handshake,
     // Result of Host-side message operation
     #[error("Result of Host-side message operation")]
-    HostOperation(crate::error::host_operation::HostOperation),
+    HostOperation(crate::error::host_operation::HostError),
     // General issue with QUIC setup (TO_DO: make specific error instances)
     #[cfg(feature = "quic")]
     #[error("generic quic error")]
     Quic(crate::error::quic::Quic),
+
+    #[error("")]
+    Writable(#[from] std::io::Error),
 }
 
 #[cfg(feature = "quic")]
@@ -80,11 +83,11 @@ impl From<crate::error::quic::Quic> for Error {
     }
 }
 
-impl Error {
+/* impl Error {
     pub fn as_bytes(&self) -> Vec<u8> {
         postcard::to_allocvec(&self).unwrap()
     }
-}
+} */
 
 /// This is the Result type used by meadow.
 pub type Result<T> = ::core::result::Result<T, Error>;

@@ -109,8 +109,8 @@ pub async fn process_quic(
                     .expect("Error opening tree");
 
                 let db_result = match tree.insert(msg.timestamp.to_string(), bytes) {
-                    Ok(_prev_msg) => Ok(()), //"SUCCESS".to_string(),
-                    Err(_e) => Err(Error::HostOperation(HostOperation::SetFailure)),
+                    Ok(_prev_msg) => crate::error::HostOperation::SUCCESS, //"SUCCESS".to_string(),
+                    Err(_e) => crate::error::HostOperation::FAILURE,
                 };
 
                 if let Ok(bytes) = postcard::to_allocvec(&db_result) {

@@ -4,11 +4,17 @@ use serde::*;
 use thiserror::Error;
 
 #[derive(Clone, Debug, Error, Eq, PartialEq, Serialize, Deserialize)]
-pub enum HostOperation {
+pub enum HostError {
     #[error("Unsuccessful Host-side SET operation")]
     SetFailure,
     #[error("Unsuccessful Host-side SET operation")]
     GetFailure,
     #[error("Unsuccessful Host connection")]
     ConnectionError,
+}
+
+#[derive(Deserialize, Serialize)]
+pub enum HostOperation {
+    SUCCESS,
+    FAILURE,
 }

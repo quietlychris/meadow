@@ -19,6 +19,7 @@ pub fn generate_client_config_from_certs(
     cert_path: Option<PathBuf>,
 ) -> Result<ClientConfig, Error> {
     let mut certs = rustls::RootCertStore::empty();
+
     if let Some(path) = cert_path {
         if let Ok(f) = File::open(path) {
             let mut cert_chain_reader = BufReader::new(f);
