@@ -16,10 +16,7 @@ impl Interface for Quic {}
 impl<T: Message + 'static> Node<Quic, Active, T> {
     #[tracing::instrument(skip(self))]
     pub fn publish(&self, val: T) -> Result<(), Error> {
-        let data: Vec<u8> = match to_allocvec(&val) {
-            Ok(data) => data,
-            Err(_e) => return Err(Error::Serialization),
-        };
+        let data: Vec<u8> = to_allocvec(&val)?;
 
         let generic = GenericMsg {
             msg_type: MsgType::SET,
@@ -29,10 +26,7 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
             data,
         };
 
-        let packet_as_bytes: Vec<u8> = match to_allocvec(&generic) {
-            Ok(packet) => packet,
-            Err(_e) => return Err(Error::Serialization),
-        };
+        let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
 
         if let Some(connection) = &self.connection {
             self.runtime.block_on(async {
@@ -69,10 +63,7 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
             data: Vec::new(),
         };
 
-        let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
-            Ok(packet) => packet,
-            Err(_e) => return Err(Error::Serialization),
-        };
+        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
 
         self.runtime.block_on(async {
             let mut buf = self.buffer.lock().await;
@@ -126,10 +117,7 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
             data: Vec::new(),
         };
 
-        let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
-            Ok(packet) => packet,
-            Err(_e) => return Err(Error::Serialization),
-        };
+        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
 
         self.runtime.block_on(async {
             let mut buf = self.buffer.lock().await;

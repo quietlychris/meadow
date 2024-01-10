@@ -47,10 +47,7 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
     #[tracing::instrument]
     #[inline]
     pub fn publish(&self, val: T) -> Result<(), Error> {
-        let data: Vec<u8> = match to_allocvec(&val) {
-            Ok(data) => data,
-            Err(_e) => return Err(Error::Serialization),
-        };
+        let data: Vec<u8> = to_allocvec(&val)?;
 
         let generic = GenericMsg {
             msg_type: MsgType::SET,
@@ -60,10 +57,7 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
             data,
         };
 
-        let packet_as_bytes: Vec<u8> = match to_allocvec(&generic) {
-            Ok(packet) => packet,
-            Err(_e) => return Err(Error::Serialization),
-        };
+        let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
 
         let socket = match self.socket.as_ref() {
             Some(socket) => socket,

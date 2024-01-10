@@ -37,10 +37,8 @@ pub enum Error {
     // Unable to create a Tokio runtime
     #[error("Unable to create a Tokio runtime")]
     RuntimeCreation,
-    // Error serializing data to bytes
-    #[error("Error serializing data to bytes")]
-    Serialization,
-    #[error("Postcard related error")]
+    // Error with Postcard de/serialization
+    #[error("Error with Postcard de/serialization")]
     Postcard(#[from] postcard::Error),
     // Error accessing an owned TcpStream
     #[error("Error accessing an owned TcpStream")]

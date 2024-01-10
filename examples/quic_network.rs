@@ -61,8 +61,8 @@ fn main() {
 
 #[cfg(feature = "quic")]
 fn logging() {
-    use tracing_subscriber::{filter, prelude::*};
     use std::{fs::File, sync::Arc};
+    use tracing_subscriber::{filter, prelude::*};
 
     // A layer that logs events to a file.
     let file = File::create("logs/debug.log");
