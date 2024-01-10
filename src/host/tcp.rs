@@ -22,50 +22,19 @@ pub async fn handshake(
     stream: TcpStream,
     max_buffer_size: usize,
     max_name_size: usize,
-) -> Result<(TcpStream, String), crate::Error> {
+) -> Result<(TcpStream, String), Error> {
     // Handshake
     let mut buf = vec![0u8; max_buffer_size];
-    debug!("Starting handshake");
+    // debug!("Starting handshake");
     let mut _name: String = String::with_capacity(max_name_size);
-    let mut count = 0;
-    if let Err(e) = stream.readable().await {
-        error!("{}", e);
-    }
-    loop {
-        debug!("In handshake loop");
-        match stream.try_read_buf(&mut buf) {
-            Ok(n) => {
-                _name = match std::str::from_utf8(&buf[..n]) {
-                    Ok(name) => {
-                        debug!("Received connection from {}", &name);
-                        name.to_owned()
-                    }
-                    Err(e) => {
-                        error!(
-                            "Error occurred during handshake on host-side: {} on byte string: {:?}",
-                            e,
-                            &buf[..n]
-                        );
-                        return Err(crate::Error::Handshake);
-                    }
-                };
-                break;
-            }
-            Err(e) => {
-                if e.kind() == std::io::ErrorKind::WouldBlock {
-                    count += 1;
-                    if count > 20 {
-                        error!("Host Handshake not unblocking!");
-                        return Err(crate::Error::Handshake);
-                    }
-                } else {
-                    error!("{:?}", e);
-                }
-            }
-        }
-    }
-    debug!("Returning from handshake: ({:?}, {})", &stream, &_name);
-    Ok((stream, _name))
+
+    stream.readable().await?;
+
+    let n = stream.try_read_buf(&mut buf)?;
+    let name = std::str::from_utf8(&buf[..n])?.to_string();
+
+    // debug!("Returning from handshake: ({:?}, {})", &stream, &_name);
+    Ok((stream, name))
 }
 
 /// Host process for handling incoming connections from Nodes

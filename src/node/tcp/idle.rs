@@ -74,31 +74,18 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
         let addr = self.cfg.network_cfg.host_addr;
         let topic = self.topic.clone();
 
-        let stream = self.runtime.block_on(async move {
-            match try_connection(addr).await {
-                Ok(stream) => match handshake(stream, topic).await {
-                    Ok(stream) => Ok(stream),
-                    Err(e) => {
-                        error!("{:?}", e);
-                        Err(Error::Handshake)
-                    }
-                },
-                Err(e) => {
-                    error!("{:?}", e);
-                    Err(Error::StreamConnection)
-                }
-            }
+        let stream: Result<TcpStream, Error> = self.runtime.block_on(async move {
+            let stream = try_connection(addr).await?;
+            let stream = handshake(stream, topic).await?;
+            Ok(stream)
         });
-        match stream {
-            Ok(stream) => {
-                debug!(
-                    "Established Node<=>Host TCP stream: {:?}",
-                    stream.local_addr()
-                );
-                self.stream = Some(stream)
-            }
-            Err(e) => return Err(e),
-        };
+        if let Ok(stream) = stream {
+            debug!(
+                "Established Node<=>Host TCP stream: {:?}",
+                stream.local_addr()
+            );
+            self.stream = Some(stream);
+        }
 
         Ok(Node::<Tcp, Active, T>::from(self))
     }

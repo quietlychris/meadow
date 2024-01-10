@@ -9,6 +9,7 @@ pub use crate::error::quic::*;
 
 use core::fmt::{Display, Formatter};
 use serde::*;
+use std::str::Utf8Error;
 use thiserror::Error;
 
 // TO_DO: These should be categorized into subgroups
@@ -37,6 +38,9 @@ pub enum Error {
     // Error with Postcard de/serialization
     #[error("Error with Postcard de/serialization")]
     Postcard(#[from] postcard::Error),
+    // Error with Postcard de/serialization
+    #[error("Error with Postcard de/serialization")]
+    Utf8(#[from] Utf8Error),
     // Error accessing an owned TcpStream
     #[error("Error accessing an owned TcpStream")]
     AccessStream,
@@ -55,9 +59,6 @@ pub enum Error {
     // `TcpStream` connection attempt failure
     #[error("TcpStream connection attempt failure")]
     StreamConnection,
-    // Error during Host <=> Node handshake
-    #[error("Error during Host <=> Node handshake")]
-    Handshake,
     // Result of Host-side message operation
     #[error("Result of Host-side message operation")]
     HostOperation(crate::error::host_operation::HostError),
@@ -66,7 +67,7 @@ pub enum Error {
     #[error("generic quic error")]
     Quic(crate::error::quic::Quic),
     #[error("")]
-    Writable(#[from] std::io::Error),
+    Io(#[from] std::io::Error),
 }
 
 #[cfg(feature = "quic")]
