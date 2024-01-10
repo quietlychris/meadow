@@ -51,7 +51,7 @@ pub struct Host {
     pub task_listen_udp: Option<JoinHandle<()>>,
     #[cfg(feature = "quic")]
     pub task_listen_quic: Option<JoinHandle<()>>,
-    pub store: Option<sled::Db>,
+    pub store: sled::Db,
     pub reply_count: Arc<Mutex<usize>>,
 }
 
@@ -61,13 +61,7 @@ impl Host {
     pub fn start(&mut self) -> Result<(), crate::Error> {
         let connections = self.connections.clone();
 
-        let db = match self.store.clone() {
-            Some(db) => db,
-            None => {
-                error!("Must open a sled database to start the Host");
-                return Err(Error::NoSled);
-            }
-        };
+        let db = self.store.clone();
         let counter = self.reply_count.clone();
 
         // Start up the UDP process
@@ -274,14 +268,13 @@ impl Host {
     /// This also makes sure that temporary sled::Db's built are also dropped
     /// following the shutdown of a Host
     #[tracing::instrument]
-    pub fn stop(mut self) -> Result<(), crate::Error> {
+    pub fn stop(&self) -> Result<(), crate::Error> {
         match self.connections.lock() {
             Ok(connections) => {
                 for conn in &*connections {
                     debug!("Aborting connection: {}", conn.name);
                     conn.handle.abort();
                 }
-                self.store = None;
                 Ok(())
             }
             Err(_) => Err(crate::Error::LockFailure),
@@ -290,19 +283,16 @@ impl Host {
 
     /// Create a vector of topics based on UTF-8 Sled tree names
     pub fn topics(&self) -> Vec<String> {
-        if let Some(db) = self.store.clone() {
-            let names = db.tree_names();
-            let mut strings = Vec::new();
-            for name in names {
-                if let Ok(name) = std::str::from_utf8(&name[..]) {
-                    strings.push(name.to_string());
-                }
+        let db = self.store.clone();
+        let names = db.tree_names();
+        let mut strings = Vec::new();
+        for name in names {
+            if let Ok(name) = std::str::from_utf8(&name[..]) {
+                strings.push(name.to_string());
             }
-
-            strings
-        } else {
-            Vec::new()
         }
+
+        strings
     }
 
     /// Print information about all Host connections

@@ -22,18 +22,15 @@ pub enum Error {
     // Couldn't achieve lock on shared resource
     #[error("Couldn't achieve lock on shared resource")]
     LockFailure,
-    // The Host's sled key-value store was not found
-    #[error("The Host's sled key-value store was not found")]
-    NoSled,
     // Couldn't parse the provided IP into a SocketAddr
     #[error("Couldn't parse the provided IP into a SocketAddr")]
     IpParsing,
     // Unable to produce IP address from specified interface
     #[error("Unable to produce IP address from specified interface")]
     InvalidInterface,
-    // Unable to open sled key-value store
-    #[error("Unable to open sled key-value store")]
-    OpeningSled,
+    // Error with sled database
+    #[error("Error with sled database")]
+    Sled(#[from] sled::Error),
     // Unable to create a Tokio runtime
     #[error("Unable to create a Tokio runtime")]
     RuntimeCreation,

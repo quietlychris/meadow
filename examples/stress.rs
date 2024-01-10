@@ -37,11 +37,9 @@ fn main() -> Result<(), meadow::Error> {
 
     let topics = host.topics();
     for topic in &topics {
-        if let Some(ref db) = host.store {
-            let db = db.clone();
-            let tree = db.open_tree(topic.as_bytes()).unwrap();
-            println!("Topic {} has {} stored values", topic, tree.len());
-        }
+        let db = host.store.clone();
+        let tree = db.open_tree(topic.as_bytes()).unwrap();
+        println!("Topic {} has {} stored values", topic, tree.len());
     }
 
     Ok(())
