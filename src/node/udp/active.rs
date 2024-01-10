@@ -95,10 +95,7 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
             data: Vec::new(),
         };
 
-        let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
-            Ok(packet) => packet,
-            Err(_e) => return Err(Error::Serialization),
-        };
+        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
 
         self.runtime.block_on(async {
             if let Some(socket) = &self.socket {
@@ -106,10 +103,8 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
                     send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await
                 {
                     let mut buffer = self.buffer.lock().await;
-                    match await_response(socket, &mut buffer).await {
-                        Ok(msg) => Ok(msg.clone()),
-                        Err(_e) => Err(Error::Deserialization),
-                    }
+                    let msg = await_response(socket, &mut buffer).await?;
+                    Ok(msg)
                 } else {
                     Err(Error::BadResponse)
                 }
@@ -130,10 +125,7 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
             data: Vec::new(),
         };
 
-        let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
-            Ok(packet) => packet,
-            Err(_e) => return Err(Error::Serialization),
-        };
+        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
 
         self.runtime.block_on(async {
             if let Some(socket) = &self.socket {
@@ -141,10 +133,8 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
                     send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await
                 {
                     let mut buffer = self.buffer.lock().await;
-                    match await_response(socket, &mut buffer).await {
-                        Ok(msg) => Ok(msg.clone()),
-                        Err(_e) => Err(Error::Deserialization),
-                    }
+                    let msg = await_response(socket, &mut buffer).await?;
+                    Ok(msg)
                 } else {
                     Err(Error::BadResponse)
                 }

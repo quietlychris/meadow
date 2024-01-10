@@ -16,9 +16,14 @@ fn main() {
 
     // See if clippy has any complaints.
     // - Type complexity must be ignored because we use huge templates for queries
-    cmd!(sh, "cargo clippy --package meadow --all-targets --all-features -- -D warnings -A clippy::type_complexity -W clippy::doc_markdown")
+    #[cfg(not(feature = "quic"))]
+    cmd!(sh, "cargo clippy --package meadow --all-targets -- -D warnings -A clippy::type_complexity -W clippy::doc_markdown")
         .run()
         .expect("Please fix clippy errors in output above.");
+    #[cfg(feature = "quic")]
+    cmd!(sh, "cargo clippy --package meadow --all-targets --all-features -- -D warnings -A clippy::type_complexity -W clippy::doc_markdown")
+    .run()
+    .expect("Please fix clippy errors in output above.");
 
     sh.set_var("RUSTDOCFLAGS", "-D warnings");
     // Check the documentation format is valid

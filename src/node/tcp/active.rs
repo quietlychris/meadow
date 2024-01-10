@@ -104,18 +104,17 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
             data: Vec::new(),
         };
 
-        let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
+        /*         let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
             Ok(packet) => packet,
             Err(_e) => return Err(Error::Serialization),
-        };
+        }; */
+        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
 
         self.runtime.block_on(async {
             let mut buffer = self.buffer.lock().await;
             if let Ok(()) = send_msg(stream, packet_as_bytes).await {
-                match await_response::<T>(stream, &mut buffer).await {
-                    Ok(msg) => Ok(msg),
-                    Err(_e) => Err(Error::Deserialization),
-                }
+                let msg = await_response::<T>(stream, &mut buffer).await?;
+                Ok(msg)
             } else {
                 Err(Error::TcpSend)
             }
@@ -138,18 +137,13 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
             data: Vec::new(),
         };
 
-        let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
-            Ok(packet) => packet,
-            Err(_e) => return Err(Error::Serialization),
-        };
+        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
 
         self.runtime.block_on(async {
             let mut buffer = self.buffer.lock().await;
             if let Ok(()) = send_msg(stream, packet_as_bytes).await {
-                match await_response(stream, &mut buffer).await {
-                    Ok(msg) => Ok(msg),
-                    Err(_e) => Err(Error::Deserialization),
-                }
+                let msg = await_response::<Vec<String>>(stream, &mut buffer).await?;
+                Ok(msg)
             } else {
                 Err(Error::TcpSend)
             }

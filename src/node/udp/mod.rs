@@ -32,7 +32,10 @@ pub async fn await_response<T: Message>(
             Ok(n) => {
                 info!("await_response received {} bytes", n);
                 let bytes = &buf[..n];
-                match postcard::from_bytes::<GenericMsg>(bytes) {
+                let generic = postcard::from_bytes::<GenericMsg>(bytes)?;
+                let msg: Msg<T> = generic.try_into()?;
+                return Ok(msg);
+                /*                 match postcard::from_bytes::<GenericMsg>(bytes) {
                     Ok(generic) => {
                         if let Ok(msg) = TryInto::<Msg<T>>::try_into(generic) {
                             return Ok(msg);
@@ -41,7 +44,7 @@ pub async fn await_response<T: Message>(
                         }
                     }
                     Err(_e) => return Err(Error::Deserialization),
-                }
+                } */
             }
             Err(e) => {
                 if e.kind() == std::io::ErrorKind::WouldBlock {

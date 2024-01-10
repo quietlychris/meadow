@@ -130,16 +130,9 @@ pub async fn await_response<T: Message>(
             Ok(0) => continue,
             Ok(n) => {
                 let bytes = &buf[..n];
-                match from_bytes::<GenericMsg>(bytes) {
-                    Ok(generic) => {
-                        if let Ok(msg) = TryInto::<Msg<T>>::try_into(generic) {
-                            return Ok(msg);
-                        } else {
-                            return Err(Error::Deserialization);
-                        }
-                    }
-                    Err(_e) => return Err(Error::Deserialization),
-                }
+                let generic = from_bytes::<GenericMsg>(bytes)?;
+                let specialized: Msg<T> = generic.try_into()?;
+                return Ok(specialized);
             }
             Err(_e) => {
                 // if e.kind() == std::io::ErrorKind::WouldBlock {}

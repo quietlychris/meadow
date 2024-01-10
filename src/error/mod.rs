@@ -40,9 +40,8 @@ pub enum Error {
     // Error serializing data to bytes
     #[error("Error serializing data to bytes")]
     Serialization,
-    // Error deserializing data from bytes
-    #[error("Error deserializing data from bytes")]
-    Deserialization,
+    #[error("Postcard related error")]
+    Postcard(#[from] postcard::Error),
     // Error accessing an owned TcpStream
     #[error("Error accessing an owned TcpStream")]
     AccessStream,
@@ -71,7 +70,6 @@ pub enum Error {
     #[cfg(feature = "quic")]
     #[error("generic quic error")]
     Quic(crate::error::quic::Quic),
-
     #[error("")]
     Writable(#[from] std::io::Error),
 }

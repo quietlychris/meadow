@@ -1,10 +1,5 @@
-use std::{fs::File, sync::Arc};
-use tracing::*;
-use tracing_subscriber::{filter, prelude::*};
-
 #[cfg(feature = "quic")]
 use meadow::host::quic::generate_certs;
-
 #[cfg(feature = "quic")]
 use meadow::node::Quic;
 
@@ -64,7 +59,11 @@ fn main() {
     panic!("Must enable the \"quic\" feature to run");
 }
 
+#[cfg(feature = "quic")]
 fn logging() {
+    use tracing_subscriber::{filter, prelude::*};
+    use std::{fs::File, sync::Arc};
+
     // A layer that logs events to a file.
     let file = File::create("logs/debug.log");
     let file = match file {

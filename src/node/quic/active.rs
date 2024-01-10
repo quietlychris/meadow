@@ -93,12 +93,8 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
                             //Ok(0) => Err(Error::QuicIssue),
                             Ok(Some(n)) => {
                                 let bytes = &buf[..n];
-
-                                // let msg: Result<GenericMsg, postcard::Error> = from_bytes::<T>(bytes);
-                                match from_bytes::<GenericMsg>(bytes) {
-                                    Ok(reply) => Ok(reply),
-                                    Err(_) => Err(Error::Deserialization),
-                                }
+                                let reply = from_bytes::<GenericMsg>(bytes)?;
+                                Ok(reply)
                             }
                             _ => {
                                 // // if e.kind() == std::io::ErrorKind::WouldBlock {}
@@ -110,10 +106,8 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
                 };
 
                 if let Ok(msg) = reply {
-                    match from_bytes::<T>(&msg.data) {
-                        Ok(data) => Ok(data),
-                        Err(_e) => Err(Error::Deserialization),
-                    }
+                    let data = from_bytes::<T>(&msg.data)?;
+                    Ok(data)
                 } else {
                     Err(Error::Quic(BadGenericMsg))
                 }
@@ -156,12 +150,8 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
                             //Ok(0) => Err(Error::QuicIssue),
                             Ok(Some(n)) => {
                                 let bytes = &buf[..n];
-
-                                // let msg: Result<GenericMsg, postcard::Error> = from_bytes::<T>(bytes);
-                                match from_bytes::<GenericMsg>(bytes) {
-                                    Ok(reply) => Ok(reply),
-                                    Err(_) => Err(Error::Deserialization),
-                                }
+                                let reply = from_bytes::<GenericMsg>(bytes)?;
+                                Ok(reply)
                             }
                             _ => {
                                 // // if e.kind() == std::io::ErrorKind::WouldBlock {}
@@ -173,10 +163,8 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
                 };
 
                 if let Ok(msg) = reply {
-                    match from_bytes(&msg.data) {
-                        Ok(data) => Ok(data),
-                        Err(_e) => Err(Error::Deserialization),
-                    }
+                    let data = from_bytes(&msg.data)?;
+                    Ok(data)
                 } else {
                     Err(Error::Quic(BadGenericMsg))
                 }
