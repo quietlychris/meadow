@@ -32,8 +32,6 @@ pub enum Error {
     AccessStream,
     #[error("Error accessing an owned UdpSocket")]
     AccessSocket,
-    #[error("Node received bad response from Host")]
-    BadResponse,
     #[error("TcpStream connection attempt failure")]
     StreamConnection,
     #[error("Result of Host-side message operation")]

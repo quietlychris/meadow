@@ -41,44 +41,32 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
         };
 
         self.runtime.block_on(async {
-            if let Ok(()) = send_msg(stream, packet_as_bytes).await {
-                // Wait for the publish acknowledgement
-                let mut buf = self.buffer.lock().await;
+            // Send the publish message
+            send_msg(stream, packet_as_bytes).await?;
 
-                loop {
-                    if let Ok(()) = stream.readable().await {
-                        match stream.try_read(&mut buf) {
-                            Ok(0) => continue,
-                            Ok(n) => {
-                                let bytes = &buf[..n];
-                                // TO_DO: This error handling is not great
-                                /*                                 match from_bytes::<HostOperation>(bytes) {
-                                    Err(e) => {
-                                        error!("{:?}", e);
-                                    }
-                                    Ok(result) => {
-                                        if let result
-                                    }
-                                }; */
-                                if let Ok(HostOperation::FAILURE) =
-                                    from_bytes::<HostOperation>(bytes)
-                                {
-                                    error!("Host-side error on publish");
-                                }
+            // Wait for the publish acknowledgement
+            let mut buf = self.buffer.lock().await;
+            loop {
+                if let Ok(()) = stream.readable().await {
+                    match stream.try_read(&mut buf) {
+                        Ok(0) => continue,
+                        Ok(n) => {
+                            let bytes = &buf[..n];
+                            if let Ok(HostOperation::FAILURE) = from_bytes::<HostOperation>(bytes) {
+                                error!("Host-side error on publish");
+                            }
 
-                                break;
-                            }
-                            Err(_e) => {
-                                // if e.kind() == std::io::ErrorKind::WouldBlock {}
-                                continue;
-                            }
+                            break;
+                        }
+                        Err(_e) => {
+                            // if e.kind() == std::io::ErrorKind::WouldBlock {}
+                            continue;
                         }
                     }
                 }
             }
-        });
-
-        Ok(())
+            Ok(())
+        })
     }
 
     /// Request data from host on Node's assigned topic
@@ -98,10 +86,6 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
             data: Vec::new(),
         };
 
-        /*         let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
-            Ok(packet) => packet,
-            Err(_e) => return Err(Error::Serialization),
-        }; */
         let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
 
         self.runtime.block_on(async {
@@ -109,13 +93,6 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
             send_msg(stream, packet_as_bytes).await?;
             let msg = await_response::<T>(stream, &mut buffer).await?;
             Ok(msg)
-
-            /*             if let Ok(()) = send_msg(stream, packet_as_bytes).await? {
-                let msg = await_response::<T>(stream, &mut buffer).await?;
-                Ok(msg)
-            } else {
-                Err(Error::TcpSend)
-            } */
         })
     }
 
