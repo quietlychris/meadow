@@ -106,12 +106,16 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
 
         self.runtime.block_on(async {
             let mut buffer = self.buffer.lock().await;
-            if let Ok(()) = send_msg(stream, packet_as_bytes).await {
+            send_msg(stream, packet_as_bytes).await?;
+            let msg = await_response::<T>(stream, &mut buffer).await?;
+            Ok(msg)
+
+            /*             if let Ok(()) = send_msg(stream, packet_as_bytes).await? {
                 let msg = await_response::<T>(stream, &mut buffer).await?;
                 Ok(msg)
             } else {
                 Err(Error::TcpSend)
-            }
+            } */
         })
     }
 
@@ -135,12 +139,9 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
 
         self.runtime.block_on(async {
             let mut buffer = self.buffer.lock().await;
-            if let Ok(()) = send_msg(stream, packet_as_bytes).await {
-                let msg = await_response::<Vec<String>>(stream, &mut buffer).await?;
-                Ok(msg)
-            } else {
-                Err(Error::TcpSend)
-            }
+            send_msg(stream, packet_as_bytes).await?;
+            let msg = await_response::<Vec<String>>(stream, &mut buffer).await?;
+            Ok(msg)
         })
     }
 }

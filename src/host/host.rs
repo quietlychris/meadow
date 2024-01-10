@@ -20,7 +20,8 @@ use tracing::*;
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 // Misc other imports
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
+
 use std::result::Result;
 
 #[cfg(feature = "quic")]
@@ -73,11 +74,7 @@ impl Host {
                     Err(_e) => return Err(Error::InvalidInterface),
                 };
 
-                let raw_addr = ip + ":" + &udp_cfg.socket_num.to_string();
-                let addr: SocketAddr = match raw_addr.parse() {
-                    Ok(addr) => addr,
-                    Err(_e) => return Err(crate::Error::IpParsing),
-                };
+                let addr = SocketAddr::new(IpAddr::V4(ip), udp_cfg.socket_num);
 
                 let db = db.clone();
                 let counter = counter.clone();
@@ -105,12 +102,8 @@ impl Host {
                     Ok(ip) => ip,
                     Err(_e) => return Err(Error::InvalidInterface),
                 };
-                // TO_DO: This should probably be several parsing steps for IP, socket_num, and SocketAddr
-                let raw_addr = ip + ":" + &tcp_cfg.socket_num.to_string();
-                let addr: SocketAddr = match raw_addr.parse() {
-                    Ok(addr) => addr,
-                    Err(_e) => return Err(Error::IpParsing),
-                };
+
+                let addr = SocketAddr::new(IpAddr::V4(ip), tcp_cfg.socket_num);
 
                 let (max_buffer_size_tcp, max_name_size_tcp) =
                     (tcp_cfg.max_buffer_size, tcp_cfg.max_name_size);
@@ -164,20 +157,15 @@ impl Host {
         #[cfg(feature = "quic")]
         match &self.cfg.quic_cfg {
             None => warn!("Host has no QUIC configuration"),
-            Some(cfg_quic) => {
-                let ip = match crate::get_ip(&cfg_quic.network_cfg.interface) {
+            Some(quic_cfg) => {
+                let ip = match crate::get_ip(&quic_cfg.network_cfg.interface) {
                     Ok(ip) => ip,
                     Err(_e) => return Err(Error::InvalidInterface),
                 };
-                // TO_DO: This should probably be several parsing steps for IP, socket_num, and SocketAddr
-                let raw_addr = ip + ":" + &cfg_quic.network_cfg.socket_num.to_string();
-                let addr: SocketAddr = match raw_addr.parse() {
-                    Ok(addr) => addr,
-                    Err(_e) => return Err(Error::IpParsing),
-                };
 
+                let addr = SocketAddr::new(IpAddr::V4(ip), quic_cfg.network_cfg.socket_num);
                 let (certs, key) =
-                    match read_certs_from_file(&cfg_quic.cert_path, &cfg_quic.key_path) {
+                    match read_certs_from_file(&quic_cfg.cert_path, &quic_cfg.key_path) {
                         Ok((certs, key)) => (certs, key),
                         Err(e) => {
                             error!("{}", e);
@@ -188,8 +176,8 @@ impl Host {
                 debug!("Successfully read in QUIC certs");
 
                 let (max_buffer_size_quic, _max_name_size_quic) = (
-                    cfg_quic.network_cfg.max_buffer_size,
-                    cfg_quic.network_cfg.max_name_size,
+                    quic_cfg.network_cfg.max_buffer_size,
+                    quic_cfg.network_cfg.max_name_size,
                 );
                 let server_config = match ServerConfig::with_single_cert(certs, key) {
                     Ok(server_config) => server_config,

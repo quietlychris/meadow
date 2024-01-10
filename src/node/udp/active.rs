@@ -65,16 +65,10 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
         };
 
         self.runtime.block_on(async {
-            match socket
+            socket
                 .send_to(&packet_as_bytes, self.cfg.network_cfg.host_addr)
-                .await
-            {
-                Ok(_len) => Ok(()),
-                Err(e) => {
-                    error!("{:?}", e);
-                    Err(Error::UdpSend)
-                }
-            }
+                .await?;
+            Ok(())
         })
     }
 
