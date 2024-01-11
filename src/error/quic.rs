@@ -34,7 +34,11 @@ pub enum Quic {
     #[error("Error configuring server with certificate")]
     Configuration,
     #[error(transparent)]
-    QuinnConnect(#[from] quinn::ConnectError),
+    ConnectError(#[from] quinn::ConnectError),
     #[error(transparent)]
-    QuinnConnection(#[from] quinn::ConnectionError),
+    ConnectionError(#[from] quinn::ConnectionError),
+    #[error(transparent)]
+    WriteError(#[from] quinn::WriteError),
+    #[error(transparent)]
+    ReadError(#[from] quinn::ReadError),
 }

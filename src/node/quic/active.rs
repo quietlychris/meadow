@@ -123,41 +123,25 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
             let mut buf = self.buffer.lock().await;
 
             if let Some(connection) = self.connection.clone() {
-                let reply = match connection.open_bi().await {
-                    Ok((mut send, mut recv)) => {
-                        debug!("Node succesfully opened stream from connection");
-                        if let Ok(()) = send.write_all(&packet_as_bytes).await {
-                            if let Ok(()) = send.finish().await {
-                                debug!("Node successfully wrote packet to stream");
-                            }
-                        } else {
-                            error!("Error writing packet to stream");
-                        }
 
-                        match recv.read(&mut buf).await {
-                            //Ok(0) => Err(Error::QuicIssue),
-                            Ok(Some(n)) => {
-                                let bytes = &buf[..n];
-                                let reply = from_bytes::<GenericMsg>(bytes)?;
-                                Ok(reply)
-                            }
-                            _ => {
-                                // // if e.kind() == std::io::ErrorKind::WouldBlock {}
-                                Err(Error::Quic(RecvRead))
-                            }
-                        }
-                    }
-                    _ => Err(Error::Quic(OpenBi)),
-                };
+                let (mut send, mut recv) = connection.open_bi().await.map_err(ConnectionError)?;
+                debug!("Node succesfully opened stream from connection");
+                send.write_all(&packet_as_bytes).await.map_err(WriteError)?;
+                send.finish().await.map_err(WriteError)?;
 
-                if let Ok(msg) = reply {
-                    let data = from_bytes(&msg.data)?;
-                    Ok(data)
-                } else {
-                    Err(Error::Quic(BadGenericMsg))
+                if let Some(n) = recv.read(&mut buf).await.map_err(ReadError)? {
+                    let bytes = &buf[..n];
+                    let reply = from_bytes::<GenericMsg>(bytes)?;
+                    let topics = from_bytes::<Vec<String>>(&reply.data)?;
+                    Ok(topics)
                 }
-            } else {
-                Err(Error::Quic(Connection))
+                else {
+                    Ok(Vec::new())
+                }
+
+            }
+            else {
+                Ok(Vec::new())
             }
         })
     }

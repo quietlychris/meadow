@@ -92,9 +92,9 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
             // TO_DO: This shouldn't just be "localhost"
             let connection = endpoint
                 .connect(host_addr, "localhost")
-                .map_err(QuinnConnect)?
+                .map_err(ConnectError)?
                 .await
-                .map_err(QuinnConnection)?;
+                .map_err(ConnectionError)?;
 
             debug!("{:?}", &endpoint.local_addr());
 
