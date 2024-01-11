@@ -115,6 +115,7 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
         let data = Arc::clone(&subscription_data);
 
         let buffer = self.buffer.clone();
+
         let task_subscribe = self.runtime.spawn(async move {
             let packet = GenericMsg {
                 msg_type: MsgType::GET,
@@ -128,62 +129,53 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
 
             loop {
                 let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
-                    Ok(packet) => packet,
+                    Ok(bytes) => bytes,
                     _ => continue,
                 };
-
                 if let Some(connection) = connection.clone() {
-                    match connection.open_bi().await {
-                        Ok((mut send, mut recv)) => {
-                            if let Ok(()) = send.write_all(&packet_as_bytes).await {
-                                if let Ok(()) = send.finish().await {
-                                    debug!("Node successfully wrote packet to stream");
-                                }
-                            } else {
-                                error!("Error writing packet to stream");
-                            }
-
-                            match recv.read(&mut buf).await {
-                                //Ok(0) => Err(Error::QuicIssue),
-                                Ok(Some(n)) => {
-                                    let bytes = &buf[..n];
-
-                                    match from_bytes::<Msg<T>>(bytes) {
-                                        Ok(msg) => {
-                                            {
-
-                                                if let Some(data) = data.lock().await.as_ref() {
-                                                    debug!("Timestamp: {}", data.timestamp);
-                                                    let delta =
-                                                        data.timestamp - msg.timestamp;
-                                                    debug!("The time difference between QUIC subscription msg tx/rx is: {} us",delta);
-                                                    if delta <= chrono::Duration::zero() {
-                                                        // println!("Data is not newer, skipping to next subscription iteration");
-                                                        continue;
-                                                    }
-                                                }
-                                            }
-
-                                            debug!("QUIC Subscriber received new data");
-                                            let mut data = data.lock().await;
-                                            *data = Some(msg);
-                                            sleep(rate).await;
-
-                                        }
-                                        Err(_) => continue,
-                                    }
-                                }
-                                _ => {
-                                    // // if e.kind() == std::io::ErrorKind::WouldBlock {}
-                                    continue;
-                                }
-                            }
-                        }
+                    let (mut send, mut recv) = match connection.open_bi().await {
+                        Ok((send, recv)) => (send, recv),
                         _ => continue,
                     };
+
+                    if let Err(e) = send.write_all(&packet_as_bytes).await {
+                        error!("Unable to write packet: {:?}", e);
+                        continue;
+                    };
+                    if let Err(e) = send.finish().await {
+                        error!("Unable to finish packet send: {:?}", e);
+                    };
+
+                    if let Ok(Some(n)) = recv.read(&mut buf).await {
+                        let bytes = &buf[..n];
+
+                        let msg = match from_bytes::<Msg<T>>(bytes) {
+                            Ok(msg) => msg,
+                            _ => continue,
+                        };
+
+                        if let Some(data) = data.lock().await.as_ref() {
+                            debug!("Timestamp: {}", data.timestamp);
+                            let delta = data.timestamp - msg.timestamp;
+                            debug!(
+                                "The time difference between QUIC subscription msg tx/rx is: {} us",
+                                delta
+                            );
+                            if delta <= chrono::Duration::zero() {
+                                // println!("Data is not newer, skipping to next subscription iteration");
+                                continue;
+                            }
+                        }
+
+                        debug!("QUIC Subscriber received new data");
+                        let mut data = data.lock().await;
+                        *data = Some(msg);
+                        sleep(rate).await;
+                    }
                 }
             }
         });
+
         self.task_subscribe = Some(task_subscribe);
 
         let mut subscription_node = Node::<Quic, Subscription, T>::from(self);

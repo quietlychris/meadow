@@ -123,7 +123,6 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
             let mut buf = self.buffer.lock().await;
 
             if let Some(connection) = self.connection.clone() {
-
                 let (mut send, mut recv) = connection.open_bi().await.map_err(ConnectionError)?;
                 debug!("Node succesfully opened stream from connection");
                 send.write_all(&packet_as_bytes).await.map_err(WriteError)?;
@@ -134,13 +133,10 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
                     let reply = from_bytes::<GenericMsg>(bytes)?;
                     let topics = from_bytes::<Vec<String>>(&reply.data)?;
                     Ok(topics)
-                }
-                else {
+                } else {
                     Ok(Vec::new())
                 }
-
-            }
-            else {
+            } else {
                 Ok(Vec::new())
             }
         })
