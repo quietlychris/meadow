@@ -4,7 +4,7 @@ use serde::*;
 use thiserror::Error;
 
 #[cfg(feature = "quic")]
-#[derive(Clone, Debug, Error, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Error, Eq, PartialEq)]
 pub enum Quic {
     #[error("Generic Quic Issue")]
     QuicIssue,
@@ -29,15 +29,12 @@ pub enum Quic {
     FindCerts,
     #[error("Error reading .pem certificates")]
     ReadCerts,
+    #[error("No certificate path was provided")]
+    NoProvidedCertPath,
     #[error("Error configuring server with certificate")]
     Configuration,
-    #[error("Error creating endpoint from configuration parameters")]
-    EndpointCreation,
-}
-
-#[cfg(feature = "quic")]
-impl Quic {
-    pub fn as_bytes(&self) -> Vec<u8> {
-        postcard::to_allocvec(&self).unwrap()
-    }
+    #[error(transparent)]
+    QuinnConnect(#[from] quinn::ConnectError),
+    #[error(transparent)]
+    QuinnConnection(#[from] quinn::ConnectionError),
 }

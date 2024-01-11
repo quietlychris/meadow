@@ -20,26 +20,24 @@ pub fn generate_client_config_from_certs(
 ) -> Result<ClientConfig, Error> {
     let mut certs = rustls::RootCertStore::empty();
 
-    if let Some(path) = cert_path {
-        if let Ok(f) = File::open(path) {
-            let mut cert_chain_reader = BufReader::new(f);
-            let server_certs: Vec<Certificate> = rustls_pemfile::certs(&mut cert_chain_reader)
-                .unwrap()
-                .into_iter()
-                .map(rustls::Certificate)
-                .collect();
-            for cert in server_certs {
-                if let Err(e) = certs.add(&cert) {
-                    error!("Error adding certificate: {:?}", e);
-                }
-                certs.add(&cert).unwrap();
-            }
+    let path = match cert_path {
+        Some(path) => path,
+        None => return Err(Error::Quic(NoProvidedCertPath)),
+    };
 
-            Ok(ClientConfig::with_root_certificates(certs))
-        } else {
-            Err(Error::Quic(FindCerts))
+    let f = File::open(path)?;
+    let mut cert_chain_reader = BufReader::new(f);
+    let server_certs: Vec<Certificate> = rustls_pemfile::certs(&mut cert_chain_reader)
+        .unwrap()
+        .into_iter()
+        .map(rustls::Certificate)
+        .collect();
+    for cert in server_certs {
+        if let Err(e) = certs.add(&cert) {
+            error!("Error adding certificate: {:?}", e);
         }
-    } else {
-        Err(Error::Quic(ReadCerts))
+        certs.add(&cert).unwrap();
     }
+
+    Ok(ClientConfig::with_root_certificates(certs))
 }

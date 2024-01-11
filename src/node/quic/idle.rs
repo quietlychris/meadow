@@ -13,7 +13,7 @@ use tokio::time::{sleep, Duration};
 
 use tracing::*;
 
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::result::Result;
 use std::sync::Arc;
 
@@ -80,34 +80,28 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
     fn create_connection(&mut self) -> Result<(), Error> {
         let host_addr = self.cfg.network_cfg.host_addr;
         let cert_path = self.cfg.network_cfg.cert_path.clone();
-        if let Ok((endpoint, connection)) = self.runtime.block_on(async move {
-            // QUIC, needs to be done inside of a tokio context
-            if let Ok(client_cfg) = generate_client_config_from_certs(cert_path) {
-                if let Ok(client_addr) = "0.0.0.0:0".parse::<SocketAddr>() {
-                    if let Ok(mut endpoint) = Endpoint::client(client_addr) {
-                        endpoint.set_default_client_config(client_cfg);
-                        match endpoint.connect(host_addr, "localhost") {
-                            Ok(connecting) => match connecting.await {
-                                Ok(connection) => Ok((endpoint, connection)),
-                                Err(_) => Err(Error::Quic(EndpointConnect)),
-                            },
-                            Err(_) => Err(Error::Quic(EndpointConnect)),
-                        }
-                    } else {
-                        Err(Error::Quic(EndpointCreation))
-                    }
-                } else {
-                    Err(Error::Quic(QuicIssue))
-                }
-            } else {
-                Err(Error::Quic(QuicIssue))
-            }
-        }) {
-            debug!("{:?}", &endpoint.local_addr());
-            self.endpoint = Some(endpoint);
-            self.connection = Some(connection);
-        };
 
+        let (endpoint, connection) = self.runtime.block_on(async move {
+            // QUIC, needs to be done inside of a tokio context
+            let client_cfg = generate_client_config_from_certs(cert_path)?;
+            let client_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
+
+            let mut endpoint = Endpoint::client(client_addr)?;
+            endpoint.set_default_client_config(client_cfg);
+
+            // TO_DO: This shouldn't just be "localhost"
+            let connection = endpoint
+                .connect(host_addr, "localhost")
+                .map_err(QuinnConnect)?
+                .await
+                .map_err(QuinnConnection)?;
+
+            debug!("{:?}", &endpoint.local_addr());
+
+            Ok::<(Endpoint, quinn::Connection), Error>((endpoint, connection))
+        })?;
+        self.endpoint = Some(endpoint);
+        self.connection = Some(connection);
         Ok(())
     }
 

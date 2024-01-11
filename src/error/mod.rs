@@ -20,13 +20,13 @@ pub enum Error {
     LockFailure,
     #[error("Unable to produce IP address from specified interface")]
     InvalidInterface,
-    #[error("Error with sled database")]
+    #[error(transparent)]
     Sled(#[from] sled::Error),
     #[error("Unable to create a Tokio runtime")]
     RuntimeCreation,
-    #[error("Error with Postcard de/serialization")]
+    #[error(transparent)]
     Postcard(#[from] postcard::Error),
-    #[error("Converting from Utf8")]
+    #[error(transparent)]
     Utf8(#[from] Utf8Error),
     #[error("Error accessing an owned TcpStream")]
     AccessStream,
@@ -34,21 +34,21 @@ pub enum Error {
     AccessSocket,
     #[error("TcpStream connection attempt failure")]
     StreamConnection,
-    #[error("Result of Host-side message operation")]
+    #[error(transparent)]
     HostOperation(crate::error::host_operation::HostError),
     #[cfg(feature = "quic")]
-    #[error("generic quic error")]
-    Quic(crate::error::quic::Quic),
+    #[error(transparent)]
+    Quic(#[from] crate::error::quic::Quic),
     #[error("")]
     Io(#[from] std::io::Error),
 }
 
-#[cfg(feature = "quic")]
-impl From<crate::error::quic::Quic> for Error {
-    fn from(err: crate::error::quic::Quic) -> Error {
+/* #[cfg(feature = "quic")]
+impl From<crate::Error::Quic::Quic> for Error {
+    fn from(err: crate::Error::Quic::Quic) -> Error {
         crate::Error::Quic(err)
     }
-}
+} */
 
 /* impl Error {
     pub fn as_bytes(&self) -> Vec<u8> {

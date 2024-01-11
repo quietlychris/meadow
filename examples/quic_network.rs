@@ -48,7 +48,6 @@ fn main() -> Result<(), meadow::Error> {
         "The size of an a meadow Host before shutdown is: {}",
         std::mem::size_of_val(&host)
     );
-    host.stop()?;
 
     Ok(())
 }
