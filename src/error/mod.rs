@@ -43,18 +43,5 @@ pub enum Error {
     Io(#[from] std::io::Error),
 }
 
-/* #[cfg(feature = "quic")]
-impl From<crate::Error::Quic::Quic> for Error {
-    fn from(err: crate::Error::Quic::Quic) -> Error {
-        crate::Error::Quic(err)
-    }
-} */
-
-/* impl Error {
-    pub fn as_bytes(&self) -> Vec<u8> {
-        postcard::to_allocvec(&self).unwrap()
-    }
-} */
-
 /// This is the Result type used by meadow.
 pub type Result<T> = ::core::result::Result<T, Error>;

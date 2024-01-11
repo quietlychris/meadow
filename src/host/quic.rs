@@ -49,35 +49,21 @@ pub fn read_certs_from_file(
     cert_path: impl Into<PathBuf>,
     key_path: impl Into<PathBuf>,
 ) -> Result<(Vec<rustls::Certificate>, rustls::PrivateKey), crate::Error> {
-    let cert_file = match File::open::<PathBuf>(cert_path.into()) {
-        Ok(file) => file,
-        Err(_) => return Err(Error::Quic(FindCerts)),
-    };
+    let cert_file = File::open::<PathBuf>(cert_path.into())?;
 
     let mut cert_chain_reader = BufReader::new(cert_file);
-    let certs = match rustls_pemfile::certs(&mut cert_chain_reader) {
-        Ok(certs) => certs,
-        Err(_) => return Err(Error::Quic(ReadCerts)),
-    };
+    let certs = rustls_pemfile::certs(&mut cert_chain_reader)?;
 
     let certs = certs.into_iter().map(rustls::Certificate).collect();
 
-    let key_file = match File::open(key_path.into()) {
-        Ok(file) => file,
-        Err(_) => return Err(Error::Quic(FindKeys)),
-    };
+    let key_file = File::open(key_path.into())?;
 
     let mut key_reader = BufReader::new(key_file);
     // Since our private key file starts with "BEGIN PRIVATE KEY"
-    let mut keys = match rustls_pemfile::pkcs8_private_keys(&mut key_reader) {
-        Ok(keys) => keys,
-        Err(_) => return Err(Error::Quic(ReadKeys)),
-    };
+    let mut keys = rustls_pemfile::pkcs8_private_keys(&mut key_reader)?;
 
-    assert_eq!(keys.len(), 1);
     if keys.len() == 1 {
         let key = rustls::PrivateKey(keys.remove(0));
-
         Ok((certs, key))
     } else {
         Err(Error::Quic(ReadKeys))

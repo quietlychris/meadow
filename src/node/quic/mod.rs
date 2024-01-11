@@ -35,8 +35,8 @@ pub fn generate_client_config_from_certs(
     for cert in server_certs {
         if let Err(e) = certs.add(&cert) {
             error!("Error adding certificate: {:?}", e);
+            return Err(Error::Quic(Webpki));
         }
-        certs.add(&cert).unwrap();
     }
 
     Ok(ClientConfig::with_root_certificates(certs))

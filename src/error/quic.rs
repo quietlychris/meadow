@@ -21,14 +21,10 @@ pub enum Quic {
     AccessEndpoint,
     #[error("Unable to establish Connection to remote Endpoint")]
     EndpointConnect,
-    #[error("Unable to find .pem key file")]
-    FindKeys,
+    // #[error("Unable to find .pem key file")]
+    // FindKeys,
     #[error("Error reading .pem key file")]
     ReadKeys,
-    #[error("Unable to find .pem certificates")]
-    FindCerts,
-    #[error("Error reading .pem certificates")]
-    ReadCerts,
     #[error("No certificate path was provided")]
     NoProvidedCertPath,
     #[error("Error configuring server with certificate")]
@@ -41,4 +37,6 @@ pub enum Quic {
     WriteError(#[from] quinn::WriteError),
     #[error(transparent)]
     ReadError(#[from] quinn::ReadError),
+    #[error("Rustls-based webpki error around adding certificate to RootCertStore")]
+    Webpki,
 }

@@ -164,14 +164,7 @@ impl Host {
                 };
 
                 let addr = SocketAddr::new(IpAddr::V4(ip), quic_cfg.network_cfg.socket_num);
-                let (certs, key) =
-                    match read_certs_from_file(&quic_cfg.cert_path, &quic_cfg.key_path) {
-                        Ok((certs, key)) => (certs, key),
-                        Err(e) => {
-                            error!("{}", e);
-                            return Err(Error::Quic(ReadCerts));
-                        }
-                    };
+                let (certs, key) = read_certs_from_file(&quic_cfg.cert_path, &quic_cfg.key_path)?;
 
                 debug!("Successfully read in QUIC certs");
 
