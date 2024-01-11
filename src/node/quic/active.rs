@@ -3,6 +3,9 @@ use crate::node::network_config::Quic;
 use crate::node::Interface;
 use crate::*;
 
+use crate::msg::{GenericMsg, Message, Msg};
+use std::convert::TryInto;
+
 use chrono::Utc;
 
 use postcard::*;
@@ -54,7 +57,7 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
         }
     }
 
-    pub fn request(&self) -> Result<T, Error> {
+    pub fn request(&self) -> Result<Msg<T>, Error> {
         let packet = GenericMsg {
             msg_type: MsgType::GET,
             timestamp: Utc::now(),
@@ -65,7 +68,33 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
 
         let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
 
+
         self.runtime.block_on(async {
+            let mut buf = self.buffer.lock().await;
+
+            if let Some(connection) = self.connection.clone() {
+                let (mut send, mut recv) = connection.open_bi().await.map_err(ConnectionError)?;
+                debug!("Node succesfully opened stream from connection");
+                send.write_all(&packet_as_bytes).await.map_err(WriteError)?;
+                send.finish().await.map_err(WriteError)?;
+
+                if let Some(n) = recv.read(&mut buf).await.map_err(ReadError)? {
+                    let bytes = &buf[..n];
+                    let generic = from_bytes::<GenericMsg>(bytes)?;
+                    let msg = generic.try_into()?;
+
+                    Ok(msg)
+                }
+                else {
+                    Err(Error::Quic(Connection))
+                }
+            }
+            else {
+                Err(Error::Quic(Connection))
+            }
+        })
+
+/*         self.runtime.block_on(async {
             let mut buf = self.buffer.lock().await;
 
             if let Some(connection) = self.connection.clone() {
@@ -84,8 +113,8 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
                             //Ok(0) => Err(Error::QuicIssue),
                             Ok(Some(n)) => {
                                 let bytes = &buf[..n];
-                                let reply = from_bytes::<GenericMsg>(bytes)?;
-                                Ok(reply)
+                                let reply = from_bytes::<Msg<T>>(bytes)?;
+                                return Ok(reply)
                             }
                             _ => {
                                 // // if e.kind() == std::io::ErrorKind::WouldBlock {}
@@ -105,7 +134,7 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
             } else {
                 Err(Error::Quic(Connection))
             }
-        })
+        }) */
     }
 
     pub fn topics(&self) -> Result<Vec<String>, Error> {
@@ -123,6 +152,7 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
             let mut buf = self.buffer.lock().await;
 
             if let Some(connection) = self.connection.clone() {
+
                 let (mut send, mut recv) = connection.open_bi().await.map_err(ConnectionError)?;
                 debug!("Node succesfully opened stream from connection");
                 send.write_all(&packet_as_bytes).await.map_err(WriteError)?;
@@ -133,10 +163,13 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
                     let reply = from_bytes::<GenericMsg>(bytes)?;
                     let topics = from_bytes::<Vec<String>>(&reply.data)?;
                     Ok(topics)
-                } else {
+                }
+                else {
                     Ok(Vec::new())
                 }
-            } else {
+
+            }
+            else {
                 Ok(Vec::new())
             }
         })

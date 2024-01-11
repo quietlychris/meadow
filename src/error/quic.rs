@@ -12,8 +12,8 @@ pub enum Quic {
     BadGenericMsg,
     #[error("Error opening bidirectional stream from connection")]
     OpenBi,
-    #[error("Error reading bytes from stream receiver")]
-    RecvRead,
+    // #[error("Error reading bytes from stream receiver")]
+    // RecvRead,
     #[error("Error acquiring owned connection")]
     Connection,
     // Error accessing an owned Endpoint
