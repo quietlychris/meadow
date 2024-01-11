@@ -4,7 +4,7 @@ use serde::*;
 use thiserror::Error;
 
 #[cfg(feature = "quic")]
-#[derive(Clone, Debug, Error, Eq, PartialEq)]
+#[derive(Clone, Debug, Error, PartialEq)]
 pub enum Quic {
     #[error("Generic Quic Issue")]
     QuicIssue,
@@ -21,14 +21,10 @@ pub enum Quic {
     AccessEndpoint,
     #[error("Unable to establish Connection to remote Endpoint")]
     EndpointConnect,
-    // #[error("Unable to find .pem key file")]
-    // FindKeys,
     #[error("Error reading .pem key file")]
     ReadKeys,
     #[error("No certificate path was provided")]
     NoProvidedCertPath,
-    #[error("Error configuring server with certificate")]
-    Configuration,
     #[error(transparent)]
     ConnectError(#[from] quinn::ConnectError),
     #[error(transparent)]
@@ -39,4 +35,6 @@ pub enum Quic {
     ReadError(#[from] quinn::ReadError),
     #[error("Rustls-based webpki error around adding certificate to RootCertStore")]
     Webpki,
+    #[error(transparent)]
+    RustlsError(#[from] rustls::Error),
 }

@@ -172,13 +172,8 @@ impl Host {
                     quic_cfg.network_cfg.max_buffer_size,
                     quic_cfg.network_cfg.max_name_size,
                 );
-                let server_config = match ServerConfig::with_single_cert(certs, key) {
-                    Ok(server_config) => server_config,
-                    Err(e) => {
-                        error!("{}", e);
-                        return Err(Error::Quic(Configuration));
-                    }
-                };
+                let server_config =
+                    ServerConfig::with_single_cert(certs, key).map_err(RustlsError)?;
 
                 let task_listen_quic = self.runtime.spawn(async move {
                     if let Ok(endpoint) = Endpoint::server(server_config, addr) {
