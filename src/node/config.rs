@@ -85,12 +85,10 @@ where
                 };
                 let handle = runtime.handle().clone();
                 (Some(runtime), handle)
+            } else if let Some(rt_handle) = self.runtime_cfg.rt_handle.clone() {
+                (None, rt_handle)
             } else {
-                if let Some(rt_handle) = self.runtime_cfg.rt_handle.clone() {
-                    (None, rt_handle)
-                } else {
-                    return Err(Error::RuntimeCreation);
-                }
+                return Err(Error::RuntimeCreation);
             }
         };
 
