@@ -79,7 +79,10 @@ where
     pub fn build(self) -> Result<Node<I, Idle, T>, Error> {
         let (runtime, rt_handle) = {
             if self.runtime_cfg.owned_runtime {
-                let runtime = match tokio::runtime::Runtime::new() {
+                let runtime = match tokio::runtime::Builder::new_multi_thread()
+                    .enable_all()
+                    .build()
+                {
                     Ok(runtime) => runtime,
                     Err(_e) => return Err(Error::RuntimeCreation),
                 };
