@@ -3,6 +3,9 @@ use crate::node::network_config::Quic;
 use crate::node::Interface;
 use crate::*;
 
+use crate::msg::{GenericMsg, Message, Msg};
+use std::convert::TryInto;
+
 use chrono::Utc;
 
 use postcard::*;
@@ -16,10 +19,7 @@ impl Interface for Quic {}
 impl<T: Message + 'static> Node<Quic, Active, T> {
     #[tracing::instrument(skip(self))]
     pub fn publish(&self, val: T) -> Result<(), Error> {
-        let data: Vec<u8> = match to_allocvec(&val) {
-            Ok(data) => data,
-            Err(_e) => return Err(Error::Serialization),
-        };
+        let data: Vec<u8> = to_allocvec(&val)?;
 
         let generic = GenericMsg {
             msg_type: MsgType::SET,
@@ -29,10 +29,7 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
             data,
         };
 
-        let packet_as_bytes: Vec<u8> = match to_allocvec(&generic) {
-            Ok(packet) => packet,
-            Err(_e) => return Err(Error::Serialization),
-        };
+        let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
 
         if let Some(connection) = &self.connection {
             self.runtime.block_on(async {
@@ -60,7 +57,7 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
         }
     }
 
-    pub fn request(&self) -> Result<T, Error> {
+    pub fn request(&self) -> Result<Msg<T>, Error> {
         let packet = GenericMsg {
             msg_type: MsgType::GET,
             timestamp: Utc::now(),
@@ -69,53 +66,29 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
             data: Vec::new(),
         };
 
-        let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
-            Ok(packet) => packet,
-            Err(_e) => return Err(Error::Serialization),
-        };
+        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
 
         self.runtime.block_on(async {
             let mut buf = self.buffer.lock().await;
 
             if let Some(connection) = self.connection.clone() {
-                let reply = match connection.open_bi().await {
-                    Ok((mut send, mut recv)) => {
-                        debug!("Node succesfully opened stream from connection");
-                        if let Ok(()) = send.write_all(&packet_as_bytes).await {
-                            if let Ok(()) = send.finish().await {
-                                debug!("Node successfully wrote packet to stream");
-                            }
-                        } else {
-                            error!("Error writing packet to stream");
+                let (mut send, mut recv) = connection.open_bi().await.map_err(ConnectionError)?;
+                debug!("Node succesfully opened stream from connection");
+                send.write_all(&packet_as_bytes).await.map_err(WriteError)?;
+                send.finish().await.map_err(WriteError)?;
+
+                loop {
+                    match recv.read(&mut buf).await.map_err(ReadError)? {
+                        Some(0) => continue,
+                        Some(n) => {
+                            let bytes = &buf[..n];
+                            let generic = from_bytes::<GenericMsg>(bytes)?;
+                            let msg = generic.try_into()?;
+
+                            return Ok(msg);
                         }
-
-                        match recv.read(&mut buf).await {
-                            //Ok(0) => Err(Error::QuicIssue),
-                            Ok(Some(n)) => {
-                                let bytes = &buf[..n];
-
-                                // let msg: Result<GenericMsg, postcard::Error> = from_bytes::<T>(bytes);
-                                match from_bytes::<GenericMsg>(bytes) {
-                                    Ok(reply) => Ok(reply),
-                                    Err(_) => Err(Error::Deserialization),
-                                }
-                            }
-                            _ => {
-                                // // if e.kind() == std::io::ErrorKind::WouldBlock {}
-                                Err(Error::Quic(RecvRead))
-                            }
-                        }
+                        None => continue,
                     }
-                    _ => Err(Error::Quic(OpenBi)),
-                };
-
-                if let Ok(msg) = reply {
-                    match from_bytes::<T>(&msg.data) {
-                        Ok(data) => Ok(data),
-                        Err(_e) => Err(Error::Deserialization),
-                    }
-                } else {
-                    Err(Error::Quic(BadGenericMsg))
                 }
             } else {
                 Err(Error::Quic(Connection))
@@ -132,56 +105,27 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
             data: Vec::new(),
         };
 
-        let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
-            Ok(packet) => packet,
-            Err(_e) => return Err(Error::Serialization),
-        };
+        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
 
         self.runtime.block_on(async {
             let mut buf = self.buffer.lock().await;
 
             if let Some(connection) = self.connection.clone() {
-                let reply = match connection.open_bi().await {
-                    Ok((mut send, mut recv)) => {
-                        debug!("Node succesfully opened stream from connection");
-                        if let Ok(()) = send.write_all(&packet_as_bytes).await {
-                            if let Ok(()) = send.finish().await {
-                                debug!("Node successfully wrote packet to stream");
-                            }
-                        } else {
-                            error!("Error writing packet to stream");
-                        }
+                let (mut send, mut recv) = connection.open_bi().await.map_err(ConnectionError)?;
+                debug!("Node succesfully opened stream from connection");
+                send.write_all(&packet_as_bytes).await.map_err(WriteError)?;
+                send.finish().await.map_err(WriteError)?;
 
-                        match recv.read(&mut buf).await {
-                            //Ok(0) => Err(Error::QuicIssue),
-                            Ok(Some(n)) => {
-                                let bytes = &buf[..n];
-
-                                // let msg: Result<GenericMsg, postcard::Error> = from_bytes::<T>(bytes);
-                                match from_bytes::<GenericMsg>(bytes) {
-                                    Ok(reply) => Ok(reply),
-                                    Err(_) => Err(Error::Deserialization),
-                                }
-                            }
-                            _ => {
-                                // // if e.kind() == std::io::ErrorKind::WouldBlock {}
-                                Err(Error::Quic(RecvRead))
-                            }
-                        }
-                    }
-                    _ => Err(Error::Quic(OpenBi)),
-                };
-
-                if let Ok(msg) = reply {
-                    match from_bytes(&msg.data) {
-                        Ok(data) => Ok(data),
-                        Err(_e) => Err(Error::Deserialization),
-                    }
+                if let Some(n) = recv.read(&mut buf).await.map_err(ReadError)? {
+                    let bytes = &buf[..n];
+                    let reply = from_bytes::<GenericMsg>(bytes)?;
+                    let topics = from_bytes::<Vec<String>>(&reply.data)?;
+                    Ok(topics)
                 } else {
-                    Err(Error::Quic(BadGenericMsg))
+                    Ok(Vec::new())
                 }
             } else {
-                Err(Error::Quic(Connection))
+                Ok(Vec::new())
             }
         })
     }

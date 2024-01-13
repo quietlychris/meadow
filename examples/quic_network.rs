@@ -1,12 +1,5 @@
-use std::{fs::File, sync::Arc};
-use tracing::*;
-use tracing_subscriber::{filter, prelude::*};
-
 #[cfg(feature = "quic")]
 use meadow::host::quic::generate_certs;
-
-#[cfg(feature = "quic")]
-use meadow::node::Quic;
 
 #[cfg(feature = "quic")]
 fn main() -> Result<(), meadow::Error> {
@@ -28,21 +21,18 @@ fn main() -> Result<(), meadow::Error> {
     debug!("Host should be running in the background");
 
     // Get the writer up and running
-    let node = NodeConfig::<Quic, String>::new("pose")
-        .build()?
-        .activate()?;
+    let node = NodeConfig::<Quic, usize>::new("pose").build()?.activate()?;
 
     // Create a subscription node with a query rate of 10 Hz
-    let reader = NodeConfig::<Quic, String>::new("pose")
+    let reader = NodeConfig::<Quic, usize>::new("pose")
         .build()?
         .subscribe(Duration::from_millis(50))?;
 
     for i in 0..5 {
-        let msg = format!("Hello #{}", i);
-        node.publish(msg)?;
-        //debug!("Published message #{}", i);
-        println!("published {}", i);
-        let value = node.request().unwrap();
+        node.publish(i)?;
+        println!("Published {}", i);
+        let value = node.request()?;
+        assert_eq!(i, value.data);
         println!("QUIC request received with value {:?}", value);
         dbg!(node.topics()?);
         thread::sleep(Duration::from_millis(100));
@@ -53,7 +43,6 @@ fn main() -> Result<(), meadow::Error> {
         "The size of an a meadow Host before shutdown is: {}",
         std::mem::size_of_val(&host)
     );
-    host.stop()?;
 
     Ok(())
 }
@@ -64,7 +53,11 @@ fn main() {
     panic!("Must enable the \"quic\" feature to run");
 }
 
+#[cfg(feature = "quic")]
 fn logging() {
+    use std::{fs::File, sync::Arc};
+    use tracing_subscriber::{filter, prelude::*};
+
     // A layer that logs events to a file.
     let file = File::create("logs/debug.log");
     let file = match file {

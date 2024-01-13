@@ -1,8 +1,8 @@
 use crate::Error;
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr};
 
 /// Get the IP address on a network interface for this computer
-pub fn get_ip(interface_name: &str) -> Result<String, Error> {
+pub fn get_ip(interface_name: &str) -> Result<Ipv4Addr, Error> {
     let interface = match pnet_datalink::interfaces()
         .into_iter()
         .find(|iface| iface.name == interface_name)
@@ -19,7 +19,7 @@ pub fn get_ip(interface_name: &str) -> Result<String, Error> {
             IpAddr::V4(ip) => ip,
             _ => unreachable!(),
         }) {
-        Some(name) => name.to_string(),
+        Some(name) => name,
         None => return Err(Error::InvalidInterface),
     };
 

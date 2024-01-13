@@ -20,7 +20,8 @@ use tracing::*;
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 // Misc other imports
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
+
 use std::result::Result;
 
 #[cfg(feature = "quic")]
@@ -51,7 +52,7 @@ pub struct Host {
     pub task_listen_udp: Option<JoinHandle<()>>,
     #[cfg(feature = "quic")]
     pub task_listen_quic: Option<JoinHandle<()>>,
-    pub store: Option<sled::Db>,
+    pub store: sled::Db,
     pub reply_count: Arc<Mutex<usize>>,
 }
 
@@ -61,13 +62,7 @@ impl Host {
     pub fn start(&mut self) -> Result<(), crate::Error> {
         let connections = self.connections.clone();
 
-        let db = match self.store.clone() {
-            Some(db) => db,
-            None => {
-                error!("Must open a sled database to start the Host");
-                return Err(Error::NoSled);
-            }
-        };
+        let db = self.store.clone();
         let counter = self.reply_count.clone();
 
         // Start up the UDP process
@@ -79,11 +74,7 @@ impl Host {
                     Err(_e) => return Err(Error::InvalidInterface),
                 };
 
-                let raw_addr = ip + ":" + &udp_cfg.socket_num.to_string();
-                let addr: SocketAddr = match raw_addr.parse() {
-                    Ok(addr) => addr,
-                    Err(_e) => return Err(crate::Error::IpParsing),
-                };
+                let addr = SocketAddr::new(IpAddr::V4(ip), udp_cfg.socket_num);
 
                 let db = db.clone();
                 let counter = counter.clone();
@@ -111,12 +102,8 @@ impl Host {
                     Ok(ip) => ip,
                     Err(_e) => return Err(Error::InvalidInterface),
                 };
-                // TO_DO: This should probably be several parsing steps for IP, socket_num, and SocketAddr
-                let raw_addr = ip + ":" + &tcp_cfg.socket_num.to_string();
-                let addr: SocketAddr = match raw_addr.parse() {
-                    Ok(addr) => addr,
-                    Err(_e) => return Err(Error::IpParsing),
-                };
+
+                let addr = SocketAddr::new(IpAddr::V4(ip), tcp_cfg.socket_num);
 
                 let (max_buffer_size_tcp, max_name_size_tcp) =
                     (tcp_cfg.max_buffer_size, tcp_cfg.max_name_size);
@@ -170,40 +157,23 @@ impl Host {
         #[cfg(feature = "quic")]
         match &self.cfg.quic_cfg {
             None => warn!("Host has no QUIC configuration"),
-            Some(cfg_quic) => {
-                let ip = match crate::get_ip(&cfg_quic.network_cfg.interface) {
+            Some(quic_cfg) => {
+                let ip = match crate::get_ip(&quic_cfg.network_cfg.interface) {
                     Ok(ip) => ip,
                     Err(_e) => return Err(Error::InvalidInterface),
                 };
-                // TO_DO: This should probably be several parsing steps for IP, socket_num, and SocketAddr
-                let raw_addr = ip + ":" + &cfg_quic.network_cfg.socket_num.to_string();
-                let addr: SocketAddr = match raw_addr.parse() {
-                    Ok(addr) => addr,
-                    Err(_e) => return Err(Error::IpParsing),
-                };
 
-                let (certs, key) =
-                    match read_certs_from_file(&cfg_quic.cert_path, &cfg_quic.key_path) {
-                        Ok((certs, key)) => (certs, key),
-                        Err(e) => {
-                            error!("{}", e);
-                            return Err(Error::Quic(ReadCerts));
-                        }
-                    };
+                let addr = SocketAddr::new(IpAddr::V4(ip), quic_cfg.network_cfg.socket_num);
+                let (certs, key) = read_certs_from_file(&quic_cfg.cert_path, &quic_cfg.key_path)?;
 
                 debug!("Successfully read in QUIC certs");
 
                 let (max_buffer_size_quic, _max_name_size_quic) = (
-                    cfg_quic.network_cfg.max_buffer_size,
-                    cfg_quic.network_cfg.max_name_size,
+                    quic_cfg.network_cfg.max_buffer_size,
+                    quic_cfg.network_cfg.max_name_size,
                 );
-                let server_config = match ServerConfig::with_single_cert(certs, key) {
-                    Ok(server_config) => server_config,
-                    Err(e) => {
-                        error!("{}", e);
-                        return Err(Error::Quic(Configuration));
-                    }
-                };
+                let server_config =
+                    ServerConfig::with_single_cert(certs, key).map_err(RustlsError)?;
 
                 let task_listen_quic = self.runtime.spawn(async move {
                     if let Ok(endpoint) = Endpoint::server(server_config, addr) {
@@ -274,14 +244,13 @@ impl Host {
     /// This also makes sure that temporary sled::Db's built are also dropped
     /// following the shutdown of a Host
     #[tracing::instrument]
-    pub fn stop(mut self) -> Result<(), crate::Error> {
+    pub fn stop(&self) -> Result<(), crate::Error> {
         match self.connections.lock() {
             Ok(connections) => {
                 for conn in &*connections {
                     debug!("Aborting connection: {}", conn.name);
                     conn.handle.abort();
                 }
-                self.store = None;
                 Ok(())
             }
             Err(_) => Err(crate::Error::LockFailure),
@@ -290,25 +259,21 @@ impl Host {
 
     /// Create a vector of topics based on UTF-8 Sled tree names
     pub fn topics(&self) -> Vec<String> {
-        if let Some(db) = self.store.clone() {
-            let names = db.tree_names();
-            let mut strings = Vec::new();
-            for name in names {
-                if let Ok(name) = std::str::from_utf8(&name[..]) {
-                    strings.push(name.to_string());
-                }
+        let db = self.store.clone();
+        let names = db.tree_names();
+        let mut strings = Vec::new();
+        for name in names {
+            if let Ok(name) = std::str::from_utf8(&name[..]) {
+                strings.push(name.to_string());
             }
-
-            strings
-        } else {
-            Vec::new()
         }
+
+        strings
     }
 
     /// Print information about all Host connections
     #[no_mangle]
     pub fn print_connections(&mut self) -> Result<(), crate::Error> {
-        println!("Connections:");
         match self.connections.lock() {
             Ok(connections) => {
                 for conn in &*connections {

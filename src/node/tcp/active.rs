@@ -1,5 +1,5 @@
-use crate::Error;
 use crate::*;
+use crate::{error::HostOperation, Error};
 
 use std::convert::TryInto;
 use std::ops::DerefMut;
@@ -23,10 +23,7 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
     #[tracing::instrument]
     #[inline]
     pub fn publish(&self, val: T) -> Result<(), Error> {
-        let data: Vec<u8> = match to_allocvec(&val) {
-            Ok(data) => data,
-            Err(_e) => return Err(Error::Serialization),
-        };
+        let data: Vec<u8> = to_allocvec(&val)?;
 
         let generic = GenericMsg {
             msg_type: MsgType::SET,
@@ -36,10 +33,7 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
             data,
         };
 
-        let packet_as_bytes: Vec<u8> = match to_allocvec(&generic) {
-            Ok(packet) => packet,
-            Err(_e) => return Err(Error::Serialization),
-        };
+        let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
 
         let stream = match self.stream.as_ref() {
             Some(stream) => stream,
@@ -47,42 +41,32 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
         };
 
         self.runtime.block_on(async {
-            if let Ok(()) = send_msg(stream, packet_as_bytes).await {
-                // Wait for the publish acknowledgement
-                let mut buf = self.buffer.lock().await;
+            // Send the publish message
+            send_msg(stream, packet_as_bytes).await?;
 
-                loop {
-                    if let Ok(()) = stream.readable().await {
-                        match stream.try_read(&mut buf) {
-                            Ok(0) => continue,
-                            Ok(n) => {
-                                let bytes = &buf[..n];
-                                // TO_DO: This error handling is not great
-                                match from_bytes::<Result<(), Error>>(bytes) {
-                                    Err(e) => {
-                                        error!("{:?}", e);
-                                    }
-                                    Ok(result) => match result {
-                                        Ok(()) => (),
-                                        Err(e) => {
-                                            error!("{:?}", e);
-                                        }
-                                    },
-                                };
+            // Wait for the publish acknowledgement
+            let mut buf = self.buffer.lock().await;
+            loop {
+                if let Ok(()) = stream.readable().await {
+                    match stream.try_read(&mut buf) {
+                        Ok(0) => continue,
+                        Ok(n) => {
+                            let bytes = &buf[..n];
+                            if let Ok(HostOperation::FAILURE) = from_bytes::<HostOperation>(bytes) {
+                                error!("Host-side error on publish");
+                            }
 
-                                break;
-                            }
-                            Err(_e) => {
-                                // if e.kind() == std::io::ErrorKind::WouldBlock {}
-                                continue;
-                            }
+                            break;
+                        }
+                        Err(_e) => {
+                            // if e.kind() == std::io::ErrorKind::WouldBlock {}
+                            continue;
                         }
                     }
                 }
             }
-        });
-
-        Ok(())
+            Ok(())
+        })
     }
 
     /// Request data from host on Node's assigned topic
@@ -102,21 +86,13 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
             data: Vec::new(),
         };
 
-        let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
-            Ok(packet) => packet,
-            Err(_e) => return Err(Error::Serialization),
-        };
+        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
 
         self.runtime.block_on(async {
             let mut buffer = self.buffer.lock().await;
-            if let Ok(()) = send_msg(stream, packet_as_bytes).await {
-                match await_response::<T>(stream, &mut buffer).await {
-                    Ok(msg) => Ok(msg),
-                    Err(_e) => Err(Error::Deserialization),
-                }
-            } else {
-                Err(Error::TcpSend)
-            }
+            send_msg(stream, packet_as_bytes).await?;
+            let msg = await_response::<T>(stream, &mut buffer).await?;
+            Ok(msg)
         })
     }
 
@@ -136,21 +112,13 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
             data: Vec::new(),
         };
 
-        let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
-            Ok(packet) => packet,
-            Err(_e) => return Err(Error::Serialization),
-        };
+        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
 
         self.runtime.block_on(async {
             let mut buffer = self.buffer.lock().await;
-            if let Ok(()) = send_msg(stream, packet_as_bytes).await {
-                match await_response(stream, &mut buffer).await {
-                    Ok(msg) => Ok(msg),
-                    Err(_e) => Err(Error::Deserialization),
-                }
-            } else {
-                Err(Error::TcpSend)
-            }
+            send_msg(stream, packet_as_bytes).await?;
+            let msg = await_response::<Vec<String>>(stream, &mut buffer).await?;
+            Ok(msg)
         })
     }
 }

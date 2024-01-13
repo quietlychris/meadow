@@ -91,10 +91,11 @@ pub async fn handshake(stream: TcpStream, topic: String) -> Result<TcpStream, Er
 /// Send a `GenericMsg` of `MsgType` from the Node to the Host
 #[inline]
 pub async fn send_msg(stream: &TcpStream, packet_as_bytes: Vec<u8>) -> Result<(), Error> {
-    match stream.writable().await {
+    /*     match stream.writable().await {
         Ok(_) => (),
         Err(_e) => return Err(Error::AccessStream),
-    };
+    }; */
+    stream.writable().await?;
 
     // Write the request
     // TO_DO: This should be a loop with a maximum number of attempts
@@ -129,16 +130,9 @@ pub async fn await_response<T: Message>(
             Ok(0) => continue,
             Ok(n) => {
                 let bytes = &buf[..n];
-                match from_bytes::<GenericMsg>(bytes) {
-                    Ok(generic) => {
-                        if let Ok(msg) = TryInto::<Msg<T>>::try_into(generic) {
-                            return Ok(msg);
-                        } else {
-                            return Err(Error::Deserialization);
-                        }
-                    }
-                    Err(_e) => return Err(Error::Deserialization),
-                }
+                let generic = from_bytes::<GenericMsg>(bytes)?;
+                let specialized: Msg<T> = generic.try_into()?;
+                return Ok(specialized);
             }
             Err(_e) => {
                 // if e.kind() == std::io::ErrorKind::WouldBlock {}

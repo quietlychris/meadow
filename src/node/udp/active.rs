@@ -47,10 +47,7 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
     #[tracing::instrument]
     #[inline]
     pub fn publish(&self, val: T) -> Result<(), Error> {
-        let data: Vec<u8> = match to_allocvec(&val) {
-            Ok(data) => data,
-            Err(_e) => return Err(Error::Serialization),
-        };
+        let data: Vec<u8> = to_allocvec(&val)?;
 
         let generic = GenericMsg {
             msg_type: MsgType::SET,
@@ -60,10 +57,7 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
             data,
         };
 
-        let packet_as_bytes: Vec<u8> = match to_allocvec(&generic) {
-            Ok(packet) => packet,
-            Err(_e) => return Err(Error::Serialization),
-        };
+        let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
 
         let socket = match self.socket.as_ref() {
             Some(socket) => socket,
@@ -71,16 +65,10 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
         };
 
         self.runtime.block_on(async {
-            match socket
+            socket
                 .send_to(&packet_as_bytes, self.cfg.network_cfg.host_addr)
-                .await
-            {
-                Ok(_len) => Ok(()),
-                Err(e) => {
-                    error!("{:?}", e);
-                    Err(Error::UdpSend)
-                }
-            }
+                .await?;
+            Ok(())
         })
     }
 
@@ -95,24 +83,23 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
             data: Vec::new(),
         };
 
-        let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
-            Ok(packet) => packet,
-            Err(_e) => return Err(Error::Serialization),
-        };
+        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
 
         self.runtime.block_on(async {
             if let Some(socket) = &self.socket {
-                if let Ok(_n) =
-                    send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await
-                {
-                    let mut buffer = self.buffer.lock().await;
-                    match await_response(socket, &mut buffer).await {
-                        Ok(msg) => Ok(msg.clone()),
-                        Err(_e) => Err(Error::Deserialization),
-                    }
-                } else {
-                    Err(Error::BadResponse)
-                }
+                send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await?;
+                let mut buffer = self.buffer.lock().await;
+                let msg = await_response(socket, &mut buffer).await?;
+                Ok(msg)
+            /*                 if let Ok(_n) =
+                send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await
+            {
+                let mut buffer = self.buffer.lock().await;
+                let msg = await_response(socket, &mut buffer).await?;
+                Ok(msg)
+            } else {
+                Err(Error::BadResponse)
+            } */
             } else {
                 Err(Error::AccessSocket)
             }
@@ -130,24 +117,24 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
             data: Vec::new(),
         };
 
-        let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
-            Ok(packet) => packet,
-            Err(_e) => return Err(Error::Serialization),
-        };
+        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
 
         self.runtime.block_on(async {
             if let Some(socket) = &self.socket {
-                if let Ok(_n) =
-                    send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await
-                {
-                    let mut buffer = self.buffer.lock().await;
-                    match await_response(socket, &mut buffer).await {
-                        Ok(msg) => Ok(msg.clone()),
-                        Err(_e) => Err(Error::Deserialization),
-                    }
-                } else {
-                    Err(Error::BadResponse)
-                }
+                send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await?;
+                let mut buffer = self.buffer.lock().await;
+                let msg = await_response(socket, &mut buffer).await?;
+                Ok(msg)
+
+            /*                 if let Ok(_n) =
+                send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await
+            {
+                let mut buffer = self.buffer.lock().await;
+                let msg = await_response(socket, &mut buffer).await?;
+                Ok(msg)
+            } else {
+                Err(Error::BadResponse)
+            } */
             } else {
                 Err(Error::AccessSocket)
             }

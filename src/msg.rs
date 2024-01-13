@@ -43,16 +43,13 @@ impl<T: Message> TryInto<Msg<T>> for GenericMsg {
     type Error = crate::Error;
 
     fn try_into(self) -> Result<Msg<T>, Error> {
-        if let Ok(data) = postcard::from_bytes::<T>(&self.data[..]) {
-            Ok(Msg {
-                msg_type: self.msg_type,
-                timestamp: self.timestamp,
-                topic: self.topic.clone(),
-                data_type: self.data_type.clone(),
-                data,
-            })
-        } else {
-            Err(Error::Deserialization)
-        }
+        let data = postcard::from_bytes::<T>(&self.data[..])?;
+        Ok(Msg {
+            msg_type: self.msg_type,
+            timestamp: self.timestamp,
+            topic: self.topic.clone(),
+            data_type: self.data_type.clone(),
+            data,
+        })
     }
 }
