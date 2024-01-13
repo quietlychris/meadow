@@ -32,7 +32,7 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
         let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
 
         if let Some(connection) = &self.connection {
-            self.runtime.block_on(async {
+            self.rt_handle.block_on(async {
                 match connection.open_bi().await {
                     Ok((mut send, _recv)) => {
                         debug!("Node succesfully opened stream from connection");
@@ -68,7 +68,7 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
 
         let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
 
-        self.runtime.block_on(async {
+        self.rt_handle.block_on(async {
             let mut buf = self.buffer.lock().await;
 
             if let Some(connection) = self.connection.clone() {
@@ -107,7 +107,7 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
 
         let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
 
-        self.runtime.block_on(async {
+        self.rt_handle.block_on(async {
             let mut buf = self.buffer.lock().await;
 
             if let Some(connection) = self.connection.clone() {

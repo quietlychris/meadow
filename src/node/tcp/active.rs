@@ -40,7 +40,7 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
             None => return Err(Error::AccessStream),
         };
 
-        self.runtime.block_on(async {
+        self.rt_handle.block_on(async {
             // Send the publish message
             send_msg(stream, packet_as_bytes).await?;
 
@@ -88,7 +88,7 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
 
         let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
 
-        self.runtime.block_on(async {
+        self.rt_handle.block_on(async {
             let mut buffer = self.buffer.lock().await;
             send_msg(stream, packet_as_bytes).await?;
             let msg = await_response::<T>(stream, &mut buffer).await?;
@@ -114,7 +114,7 @@ impl<T: Message + 'static> Node<Tcp, Active, T> {
 
         let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
 
-        self.runtime.block_on(async {
+        self.rt_handle.block_on(async {
             let mut buffer = self.buffer.lock().await;
             send_msg(stream, packet_as_bytes).await?;
             let msg = await_response::<Vec<String>>(stream, &mut buffer).await?;

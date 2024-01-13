@@ -29,6 +29,7 @@ impl<T: Message> From<Node<Udp, Idle, T>> for Node<Udp, Active, T> {
             __data_type: PhantomData,
             cfg: node.cfg,
             runtime: node.runtime,
+            rt_handle: node.rt_handle,
             stream: node.stream,
             topic: node.topic,
             socket: node.socket,
@@ -64,7 +65,7 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
             None => return Err(Error::AccessSocket),
         };
 
-        self.runtime.block_on(async {
+        self.rt_handle.block_on(async {
             socket
                 .send_to(&packet_as_bytes, self.cfg.network_cfg.host_addr)
                 .await?;
@@ -85,7 +86,7 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
 
         let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
 
-        self.runtime.block_on(async {
+        self.rt_handle.block_on(async {
             if let Some(socket) = &self.socket {
                 send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await?;
                 let mut buffer = self.buffer.lock().await;
@@ -119,7 +120,7 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
 
         let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
 
-        self.runtime.block_on(async {
+        self.rt_handle.block_on(async {
             if let Some(socket) = &self.socket {
                 send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await?;
                 let mut buffer = self.buffer.lock().await;
