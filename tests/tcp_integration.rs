@@ -1,41 +1,11 @@
 #![deny(unused_must_use)]
 
 use meadow::*;
+mod common;
+use common::Pose;
 
 use std::thread;
 use std::time::Duration;
-
-#[cfg(feature = "quic")]
-use std::sync::Once;
-
-#[cfg(feature = "quic")]
-use meadow::host::quic::generate_certs;
-
-#[cfg(feature = "quic")]
-static INIT: Once = Once::new();
-
-#[cfg(feature = "quic")]
-pub fn initialize() {
-    use meadow::host::quic::QuicCertGenConfig;
-
-    INIT.call_once(|| {
-        generate_certs(QuicCertGenConfig::default());
-    });
-}
-
-/// Example test struct for docs and tests
-#[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
-#[repr(C)]
-struct Pose {
-    pub x: f32,
-    pub y: f32,
-}
-
-/// Example test struct for docs and tests, incompatible with Pose
-#[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
-struct NotPose {
-    a: isize,
-}
 
 #[test]
 fn integrate_host_and_single_node() {
@@ -181,63 +151,4 @@ fn no_subscribed_value() {
 
     // Unwrapping on an error should lead to panic
     let _result: usize = reader.get_subscribed_data().unwrap().data;
-}
-
-#[test]
-fn simple_udp() {
-    let mut host = HostConfig::default().build().unwrap();
-    host.start().unwrap();
-    println!("Started host");
-
-    let node = NodeConfig::<Udp, f32>::new("num")
-        .build()
-        .unwrap()
-        .activate()
-        .unwrap();
-
-    for i in 0..10 {
-        let x = i as f32;
-
-        match node.publish(x) {
-            Ok(_) => (),
-            Err(e) => {
-                dbg!(e);
-            }
-        };
-        thread::sleep(Duration::from_millis(1));
-        let result = node.request().unwrap();
-        assert_eq!(x, result.data);
-    }
-}
-
-#[test]
-fn udp_subscription() {
-    let mut host = HostConfig::default().build().unwrap();
-    host.start().unwrap();
-    println!("Started host");
-
-    let node = NodeConfig::<Udp, f32>::new("num")
-        .build()
-        .unwrap()
-        .activate()
-        .unwrap();
-    let subscriber = NodeConfig::<Udp, f32>::new("num")
-        .build()
-        .unwrap()
-        .subscribe(Duration::from_millis(1))
-        .unwrap();
-
-    for i in 0..10 {
-        let x = i as f32;
-
-        match node.publish(x) {
-            Ok(_) => (),
-            Err(e) => {
-                dbg!(e);
-            }
-        };
-        thread::sleep(Duration::from_millis(5));
-        let result = subscriber.get_subscribed_data().unwrap();
-        assert_eq!(x, result.data);
-    }
 }

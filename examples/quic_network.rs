@@ -1,7 +1,5 @@
 #[cfg(feature = "quic")]
 use meadow::host::quic::generate_certs;
-#[cfg(feature = "quic")]
-use meadow::node::Quic;
 
 #[cfg(feature = "quic")]
 fn main() -> Result<(), meadow::Error> {
@@ -31,7 +29,7 @@ fn main() -> Result<(), meadow::Error> {
         .subscribe(Duration::from_millis(50))?;
 
     for i in 0..5 {
-        node.publish(i as usize)?;
+        node.publish(i)?;
         println!("Published {}", i);
         let value = node.request()?;
         assert_eq!(i, value.data);

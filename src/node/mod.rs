@@ -1,7 +1,7 @@
 mod config;
 mod network_config;
 #[cfg(feature = "quic")]
-mod quic;
+pub mod quic;
 pub mod tcp;
 pub mod udp;
 
