@@ -32,6 +32,7 @@ impl<T: Message> From<Node<Tcp, Idle, T>> for Node<Tcp, Active, T> {
             __data_type: PhantomData,
             cfg: node.cfg,
             runtime: node.runtime,
+            rt_handle: node.rt_handle,
             stream: node.stream,
             topic: node.topic,
             socket: node.socket,
@@ -53,6 +54,7 @@ impl<T: Message> From<Node<Tcp, Idle, T>> for Node<Tcp, Subscription, T> {
             __data_type: PhantomData,
             cfg: node.cfg,
             runtime: node.runtime,
+            rt_handle: node.rt_handle,
             stream: node.stream,
             topic: node.topic,
             socket: node.socket,
@@ -74,7 +76,7 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
         let addr = self.cfg.network_cfg.host_addr;
         let topic = self.topic.clone();
 
-        let stream: Result<TcpStream, Error> = self.runtime.block_on(async move {
+        let stream: Result<TcpStream, Error> = self.rt_handle.block_on(async move {
             let stream = try_connection(addr).await?;
             let stream = handshake(stream, topic).await?;
             Ok(stream)

@@ -8,6 +8,7 @@ use crate::node::{Active, Idle, Message, Node};
 use crate::node::{Interface, NetworkConfig};
 use std::default::Default;
 use std::marker::PhantomData;
+use std::sync::Mutex;
 
 /// Configuration of strongly-typed Node
 #[derive(Debug, Clone)]
@@ -42,6 +43,7 @@ where
             Ok(runtime) => runtime,
             Err(_e) => return Err(Error::RuntimeCreation),
         };
+        let rt_handle = runtime.handle().clone();
 
         let topic = match &self.topic {
             Some(topic) => topic.to_owned(),
@@ -50,13 +52,12 @@ where
 
         let max_buffer_size = self.network_cfg.max_buffer_size;
 
-        use std::sync::Mutex;
-
         Ok(Node::<I, Idle, T> {
             __state: PhantomData::<Idle>,
             __data_type: PhantomData::<T>,
             cfg: self,
             runtime,
+            rt_handle,
             stream: None,
             socket: None,
             buffer: Arc::new(TokioMutex::new(vec![0u8; max_buffer_size])),

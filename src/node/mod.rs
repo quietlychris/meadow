@@ -17,7 +17,7 @@ pub use crate::node::tcp::*;
 extern crate alloc;
 
 use tokio::net::{TcpStream, UdpSocket};
-use tokio::runtime::Runtime;
+use tokio::runtime::{Handle, Runtime};
 use tokio::sync::Mutex as TokioMutex;
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, Duration};
@@ -81,6 +81,7 @@ pub struct Node<I: Interface + Default, State, T: Message> {
     pub __data_type: PhantomData<T>,
     pub cfg: NodeConfig<I, T>,
     pub runtime: Runtime,
+    pub rt_handle: Handle,
     pub topic: String,
     pub stream: Option<TcpStream>,
     pub socket: Option<UdpSocket>,

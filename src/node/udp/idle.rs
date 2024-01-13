@@ -25,7 +25,7 @@ use crate::node::network_config::Udp;
 impl<T: Message + 'static> Node<Udp, Idle, T> {
     //#[tracing::instrument(skip_all)]
     pub fn activate(mut self) -> Result<Node<Udp, Active, T>, Error> {
-        match self.runtime.block_on(async move {
+        match self.rt_handle.block_on(async move {
             match UdpSocket::bind("[::]:0").await {
                 Ok(socket) => Ok(socket),
                 Err(_e) => Err(Error::AccessSocket),
@@ -109,6 +109,7 @@ impl<T: Message> From<Node<Udp, Idle, T>> for Node<Udp, Subscription, T> {
             __data_type: PhantomData,
             cfg: node.cfg,
             runtime: node.runtime,
+            rt_handle: node.rt_handle,
             stream: node.stream,
             topic: node.topic,
             socket: node.socket,

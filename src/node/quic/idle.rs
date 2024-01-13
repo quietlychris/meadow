@@ -35,6 +35,7 @@ impl<T: Message> From<Node<Quic, Idle, T>> for Node<Quic, Active, T> {
             __data_type: PhantomData,
             cfg: node.cfg,
             runtime: node.runtime,
+            rt_handle: node.rt_handle,
             stream: node.stream,
             topic: node.topic,
             socket: node.socket,
@@ -54,6 +55,7 @@ impl<T: Message> From<Node<Quic, Idle, T>> for Node<Quic, Subscription, T> {
             __data_type: PhantomData,
             cfg: node.cfg,
             runtime: node.runtime,
+            rt_handle: node.rt_handle,
             stream: node.stream,
             topic: node.topic,
             socket: node.socket,
@@ -81,7 +83,7 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
         let host_addr = self.cfg.network_cfg.host_addr;
         let cert_path = self.cfg.network_cfg.cert_path.clone();
 
-        let (endpoint, connection) = self.runtime.block_on(async move {
+        let (endpoint, connection) = self.rt_handle.block_on(async move {
             // QUIC, needs to be done inside of a tokio context
             let client_cfg = generate_client_config_from_certs(cert_path)?;
             let client_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
