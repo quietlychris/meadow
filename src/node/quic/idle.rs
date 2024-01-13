@@ -118,7 +118,7 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
 
         let buffer = self.buffer.clone();
 
-        let task_subscribe = self.runtime.spawn(async move {
+        let task_subscribe = self.rt_handle.spawn(async move {
             let packet = GenericMsg {
                 msg_type: MsgType::GET,
                 timestamp: Utc::now(),

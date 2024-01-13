@@ -102,7 +102,7 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
 
         let buffer = self.buffer.clone();
 
-        let task_subscribe = self.runtime.spawn(async move {
+        let task_subscribe = self.rt_handle.spawn(async move {
             if let Ok(stream) = try_connection(addr).await {
                 if let Ok(stream) = handshake(stream, topic.clone()).await {
                     debug!("Successfully subscribed to Host");

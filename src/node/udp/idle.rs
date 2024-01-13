@@ -44,7 +44,7 @@ impl<T: Message + 'static> Node<Udp, Idle, T> {
         let data = Arc::clone(&subscription_data);
         let addr = self.cfg.network_cfg.host_addr;
 
-        let task_subscribe = self.runtime.spawn(async move {
+        let task_subscribe = self.rt_handle.spawn(async move {
             dbg!("in task_subscribe()");
             let packet = GenericMsg {
                 msg_type: MsgType::GET,
