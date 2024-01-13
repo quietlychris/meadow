@@ -23,9 +23,7 @@ fn main() -> Result<(), meadow::Error> {
     debug!("Host should be running in the background");
 
     // Get the writer up and running
-    let node = NodeConfig::<Quic, usize>::new("pose")
-        .build()?
-        .activate()?;
+    let node = NodeConfig::<Quic, usize>::new("pose").build()?.activate()?;
 
     // Create a subscription node with a query rate of 10 Hz
     let reader = NodeConfig::<Quic, usize>::new("pose")
