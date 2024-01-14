@@ -15,9 +15,6 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  check:
-
-
   build:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
