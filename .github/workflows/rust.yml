@@ -16,11 +16,7 @@ env:
 
 jobs:
   check:
-    - name: Run cargo-tarpaulin
-          uses: actions-rs/tarpaulin@v0.1
-          with:
-            version: '0.15.0'
-            args: '-- --test-threads 1'
+
 
   build:
     runs-on: ubuntu-latest
@@ -37,3 +33,8 @@ jobs:
       run: cargo run -p ci
     - name: QUIC CI
       run: cargo run -p ci --features quic
+    - name: Run cargo-tarpaulin
+      uses: actions-rs/tarpaulin@v0.1
+          with:
+            version: '0.15.0'
+            args: '-- --test-threads=1'
