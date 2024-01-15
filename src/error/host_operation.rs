@@ -15,7 +15,7 @@ pub enum HostError {
     NonExistentTopic,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum HostOperation {
     SUCCESS,
     FAILURE,

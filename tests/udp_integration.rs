@@ -115,6 +115,9 @@ fn topics_list_udp() {
 
     for i in 0..topics.len() {
         nodes[i].publish(i).unwrap();
+        dbg!(host.topics());
+        // TO_DO: We really shouldn't need to sleep here
+        thread::sleep(Duration::from_millis(1));
         assert_eq!(host.topics(), nodes[i].topics().unwrap().data);
         let t = if i == 0 {
             vec![topics[i].to_string()]
@@ -126,6 +129,7 @@ fn topics_list_udp() {
             t.sort();
             t
         };
+
         let mut nt = nodes[i].topics().unwrap().data;
         nt.sort();
         assert_eq!(t, nt);

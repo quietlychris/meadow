@@ -38,7 +38,6 @@ pub async fn process_udp(
                         panic!("{}", e);
                     }
                 };
-                // dbg!(&msg);
 
                 match msg.msg_type {
                     MsgType::SET => {
@@ -46,15 +45,16 @@ pub async fn process_udp(
                         let tree = db
                             .open_tree(msg.topic.as_bytes())
                             .expect("Error opening tree");
-                        let _db_result =
+
+                        let _db_result = {
                             match tree.insert(msg.timestamp.to_string().as_bytes(), bytes) {
                                 Ok(_prev_msg) => {
-                                    let mut count = count.lock().await;
-                                    *count += 1;
-                                    "SUCCESS".to_string()
+                                    info!("{:?}", msg.data);
+                                    crate::error::HostOperation::SUCCESS
                                 }
-                                Err(e) => e.to_string(),
-                            };
+                                Err(_e) => crate::error::HostOperation::FAILURE,
+                            }
+                        };
                     }
                     MsgType::GET => {
                         let tree = db
@@ -81,6 +81,7 @@ pub async fn process_udp(
                     }
                     MsgType::TOPICS => {
                         let names = db.tree_names();
+
                         let mut strings = Vec::new();
                         for name in names {
                             match std::str::from_utf8(&name[..]) {
@@ -99,19 +100,29 @@ pub async fn process_udp(
                             .unwrap();
                         strings.remove(index);
 
-                        if let Ok(data) = to_allocvec(&strings) {
-                            let packet: GenericMsg = GenericMsg {
-                                msg_type: MsgType::TOPICS,
-                                timestamp: Utc::now(),
-                                topic: "".to_string(),
-                                data_type: std::any::type_name::<Vec<String>>().to_string(),
-                                data,
-                            };
+                        match to_allocvec(&strings) {
+                            Ok(data) => {
+                                let packet: GenericMsg = GenericMsg {
+                                    msg_type: MsgType::TOPICS,
+                                    timestamp: Utc::now(),
+                                    topic: "".to_string(),
+                                    data_type: std::any::type_name::<Vec<String>>().to_string(),
+                                    data,
+                                };
 
-                            if let Ok(bytes) = to_allocvec(&packet) {
-                                if let Err(e) = socket.try_send_to(&bytes, return_addr) {
-                                    error!("Error sending data back on UDP/TOPICS: {:?}", e);
+                                if let Ok(bytes) = to_allocvec(&packet) {
+                                    if let Ok(()) = socket.writable().await {
+                                        if let Err(e) = socket.try_send_to(&bytes, return_addr) {
+                                            error!(
+                                                "Error sending data back on UDP/TOPICS: {:?}",
+                                                e
+                                            );
+                                        }
+                                    }
                                 }
+                            }
+                            Err(e) => {
+                                error!("{:?}", e);
                             }
                         }
                     }
