@@ -58,39 +58,41 @@ impl<T: Message + 'static> Node<Udp, Idle, T> {
                 let mut buffer = vec![0u8; 10_000];
 
                 loop {
-                    if let Ok(packet_as_bytes) = to_allocvec(&packet) {
+                    // if let Ok(packet_as_bytes) = to_allocvec(&packet) {
+                        let packet_as_bytes = match to_allocvec(&packet) {
+                            Ok(packet_as_bytes) => packet_as_bytes,
+                            Err(e) => {
+                                error!("{:?}",e);
+                                continue;
+                            }
+                        };
                         match udp::send_msg(&socket, packet_as_bytes.clone(), addr).await {
                             Ok(n) => {
                                 info!(n);
+                                match udp::await_response::<T>(&socket, &mut buffer).await {
+                                    Ok(msg) => {
+                                        let delta = Utc::now() - msg.timestamp;
+                                        if delta <= chrono::Duration::zero() {
+                                            info!("Data is not newer, skipping to next subscription iteration");
+                                            // continue;
+                                        }
+
+                                        let mut data = data.lock().await;
+                                        *data = Some(msg);
+                                        sleep(rate).await;
+                                    }
+                                    Err(e) => {
+                                        error!("Subscription Error: {}", e);
+                                    }
+                                };
                             }
                             Err(e) => {
                                 let e = e.to_string();
                                 info!(e);
                             }
                         };
-
-                        match udp::await_response::<T>(&socket, &mut buffer).await {
-                            Ok(msg) => {
-                                let delta = Utc::now() - msg.timestamp;
-                                if delta <= chrono::Duration::zero() {
-                                    info!("Data is not newer, skipping to next subscription iteration");
-                                    // continue;
-                                }
-
-                                let mut data = data.lock().await;
-                                *data = Some(msg);
-                            }
-                            Err(e) => {
-                                error!("Subscription Error: {}", e);
-                            }
-                        };
                     }
-                    else {
-                        error!("Error creating UDP subscription packet");
-                    }
-                    sleep(rate).await;
                 }
-            }
         });
 
         self.task_subscribe = Some(task_subscribe);

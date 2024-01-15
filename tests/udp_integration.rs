@@ -84,12 +84,7 @@ fn udp_subscription() {
     for i in 0..10 {
         let x = i as f32;
 
-        match node.publish(x) {
-            Ok(_) => (),
-            Err(e) => {
-                dbg!(e);
-            }
-        };
+        node.publish(x).unwrap();
         thread::sleep(Duration::from_millis(5));
         let result = subscriber.get_subscribed_data().unwrap();
         assert_eq!(x, result.data);
