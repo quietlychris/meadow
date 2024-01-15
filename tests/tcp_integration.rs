@@ -83,25 +83,6 @@ fn node_send_options() {
 }
 
 #[test]
-fn publish_boolean() {
-    let mut host: Host = HostConfig::default().build().unwrap();
-    host.start().unwrap();
-    println!("Host should be running in the background");
-
-    // Get the host up and running
-    let node: Node<Tcp, Idle, bool> = NodeConfig::new("my_boolean").build().unwrap();
-    let node = node.activate().unwrap();
-
-    for _i in 0..5 {
-        node.publish(true).unwrap();
-        thread::sleep(Duration::from_millis(50));
-        assert!(node.request().unwrap().data);
-    }
-
-    host.stop().unwrap();
-}
-
-#[test]
 fn subscription_usize() {
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
@@ -151,4 +132,44 @@ fn no_subscribed_value() {
 
     // Unwrapping on an error should lead to panic
     let _result: usize = reader.get_subscribed_data().unwrap().data;
+}
+
+#[test]
+fn topics_list_tcp() {
+    type N = Tcp;
+
+    let mut host: Host = HostConfig::default().build().unwrap();
+    host.start().unwrap();
+    println!("Host should be running in the background");
+
+    // Get the host up and running
+    let topics: Vec<String> = ["a", "b", "c", "d", "e", "f"]
+        .iter()
+        .map(|x| x.to_string())
+        .collect();
+    dbg!(&topics);
+    let mut nodes = Vec::with_capacity(topics.len());
+    for topic in topics.clone() {
+        let node: Node<N, Idle, usize> = NodeConfig::new(topic).build().unwrap();
+        let node = node.activate().unwrap();
+        nodes.push(node);
+    }
+
+    for i in 0..topics.len() {
+        nodes[i].publish(i).unwrap();
+        assert_eq!(host.topics(), nodes[i].topics().unwrap().data);
+        let t = if i == 0 {
+            vec![topics[i].to_string()]
+        } else {
+            let mut t = topics[0..i + 1]
+                .iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<String>>();
+            t.sort();
+            t
+        };
+        let mut nt = nodes[i].topics().unwrap().data;
+        nt.sort();
+        assert_eq!(t, nt);
+    }
 }

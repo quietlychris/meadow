@@ -267,7 +267,11 @@ impl Host {
                 strings.push(name.to_string());
             }
         }
-
+        // Remove default sled tree name
+        let index = strings.iter().position(|x| *x == "__sled__default");
+        if let Some(n) = index {
+            strings.remove(n);
+        }
         strings
     }
 

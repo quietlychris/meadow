@@ -91,3 +91,43 @@ fn udp_subscription() {
         assert_eq!(x, result.data);
     }
 }
+
+#[test]
+fn topics_list_udp() {
+    type N = Udp;
+
+    let mut host: Host = HostConfig::default().build().unwrap();
+    host.start().unwrap();
+    println!("Host should be running in the background");
+
+    // Get the host up and running
+    let topics: Vec<String> = ["a", "b", "c", "d", "e", "f"]
+        .iter()
+        .map(|x| x.to_string())
+        .collect();
+    dbg!(&topics);
+    let mut nodes = Vec::with_capacity(topics.len());
+    for topic in topics.clone() {
+        let node: Node<N, Idle, usize> = NodeConfig::new(topic).build().unwrap();
+        let node = node.activate().unwrap();
+        nodes.push(node);
+    }
+
+    for i in 0..topics.len() {
+        nodes[i].publish(i).unwrap();
+        assert_eq!(host.topics(), nodes[i].topics().unwrap().data);
+        let t = if i == 0 {
+            vec![topics[i].to_string()]
+        } else {
+            let mut t = topics[0..i + 1]
+                .iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<String>>();
+            t.sort();
+            t
+        };
+        let mut nt = nodes[i].topics().unwrap().data;
+        nt.sort();
+        assert_eq!(t, nt);
+    }
+}

@@ -67,12 +67,7 @@ fn main() -> Result<(), meadow::Error> {
         "The size of an a meadow Host before shutdown is: {}",
         std::mem::size_of_val(&host)
     );
-    let topics = host.topics();
-    for topic in &topics {
-        let db = host.store.clone();
-        let tree = db.open_tree(topic.as_bytes()).unwrap();
-        println!("Topic {} has {} stored values", topic, tree.len());
-    }
+    assert_eq!(host.topics(), node.topics()?.data);
 
     Ok(())
 }
