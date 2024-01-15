@@ -78,7 +78,7 @@ fn udp_subscription() {
     let subscriber = NodeConfig::<Udp, f32>::new("num")
         .build()
         .unwrap()
-        .subscribe(Duration::from_millis(1))
+        .subscribe(Duration::from_micros(1))
         .unwrap();
 
     for i in 0..10 {
@@ -87,6 +87,7 @@ fn udp_subscription() {
         node.publish(x).unwrap();
         thread::sleep(Duration::from_millis(5));
         let result = subscriber.get_subscribed_data().unwrap();
+        dbg!(&result);
         assert_eq!(x, result.data);
     }
 }
