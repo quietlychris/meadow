@@ -147,6 +147,12 @@ pub async fn process_quic(
                         strings.push(name.to_string());
                     }
                 }
+                // Remove default sled tree name
+                let index = strings
+                    .iter()
+                    .position(|x| *x == "__sled__default")
+                    .unwrap();
+                strings.remove(index);
                 if let Ok(data) = to_allocvec(&strings) {
                     let packet: GenericMsg = GenericMsg {
                         msg_type: MsgType::TOPICS,

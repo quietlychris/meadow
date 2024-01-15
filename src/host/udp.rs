@@ -21,7 +21,6 @@ pub async fn process_udp(
     count: Arc<Mutex<usize>>,
     max_buffer_size: usize,
 ) {
-    // let mut buf = [0u8; 10_000];
     let mut buf = vec![0u8; max_buffer_size];
     // TO_DO_PART_B: Tried to with try_read_buf(), but seems to panic?
     // let mut buf = Vec::with_capacity(max_buffer_size);
@@ -35,13 +34,12 @@ pub async fn process_udp(
                     Ok(msg) => msg,
                     Err(e) => {
                         error!("Had received Msg of {} bytes: {:?}, Error: {}", n, bytes, e);
-                        panic!("{}", e);
+                        continue;
                     }
                 };
 
                 match msg.msg_type {
                     MsgType::SET => {
-                        // println!("received {} bytes, to be assigned to: {}", n, &msg.name);
                         let tree = db
                             .open_tree(msg.topic.as_bytes())
                             .expect("Error opening tree");

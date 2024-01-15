@@ -96,7 +96,7 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
         })
     }
 
-    pub fn topics(&self) -> Result<Vec<String>, Error> {
+    pub fn topics(&self) -> Result<Msg<Vec<String>>, Error> {
         let packet = GenericMsg {
             msg_type: MsgType::TOPICS,
             timestamp: Utc::now(),
@@ -110,23 +110,30 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
         self.rt_handle.block_on(async {
             let mut buf = self.buffer.lock().await;
 
-            if let Some(connection) = self.connection.clone() {
-                let (mut send, mut recv) = connection.open_bi().await.map_err(ConnectionError)?;
-                debug!("Node succesfully opened stream from connection");
-                send.write_all(&packet_as_bytes).await.map_err(WriteError)?;
-                send.finish().await.map_err(WriteError)?;
+            let connection = self.connection.clone().ok_or(Connection)?;
 
-                if let Some(n) = recv.read(&mut buf).await.map_err(ReadError)? {
-                    let bytes = &buf[..n];
-                    let reply = from_bytes::<GenericMsg>(bytes)?;
-                    let topics = from_bytes::<Vec<String>>(&reply.data)?;
-                    Ok(topics)
-                } else {
-                    Ok(Vec::new())
-                }
-            } else {
-                Ok(Vec::new())
-            }
+            let (mut send, mut recv) = connection.open_bi().await.map_err(ConnectionError)?;
+            debug!("Node succesfully opened stream from connection");
+            send.write_all(&packet_as_bytes).await.map_err(WriteError)?;
+            send.finish().await.map_err(WriteError)?;
+
+            let n = recv
+                .read(&mut buf)
+                .await
+                .map_err(ReadError)?
+                .ok_or(Connection)?;
+            let bytes = &buf[..n];
+            let reply = from_bytes::<GenericMsg>(bytes)?;
+            let topics: Msg<Vec<String>> = reply.try_into()?;
+            Ok(topics)
+
+            /*                 if let Some(n) = recv.read(&mut buf).await.map_err(ReadError)?? {
+                let bytes = &buf[..n];
+                let reply = from_bytes::<GenericMsg>(bytes)?;
+                let topics = from_bytes::<Vec<String>>(&reply.data)?;
+                // let topics: Msg<Vec<String>> = reply.try_into()?;
+                Ok(topics)
+            } */
         })
     }
 }

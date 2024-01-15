@@ -7,14 +7,16 @@ use common::Pose;
 use std::thread;
 use std::time::Duration;
 
+type N = Tcp;
+
 #[test]
-fn integrate_host_and_single_node() {
+fn integrate_host_and_single_node_tcp() {
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let node: Node<Tcp, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
+    let node: Node<N, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
     let node = node.activate().unwrap();
 
     for i in 0..5 {
@@ -34,13 +36,13 @@ fn integrate_host_and_single_node() {
 }
 
 #[test]
-fn request_non_existent_topic() {
+fn request_non_existent_topic_tcp() {
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let node: Node<Tcp, Idle, Pose> = NodeConfig::new("doesnt_exist").build().unwrap();
+    let node: Node<N, Idle, Pose> = NodeConfig::new("doesnt_exist").build().unwrap();
     let node = node.activate().unwrap();
 
     // Requesting a topic that doesn't exist should return a recoverable error
@@ -53,17 +55,17 @@ fn request_non_existent_topic() {
 }
 
 #[test]
-fn node_send_options() {
+fn node_send_options_tcp() {
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
 
     // Get the host up and running
-    let node_a = NodeConfig::<Tcp, Option<f32>>::new("pose")
+    let node_a = NodeConfig::<N, Option<f32>>::new("pose")
         .build()
         .unwrap()
         .activate()
         .unwrap();
-    let node_b = NodeConfig::<Tcp, Option<f32>>::new("pose")
+    let node_b = NodeConfig::<N, Option<f32>>::new("pose")
         .build()
         .unwrap()
         .activate()
@@ -83,13 +85,12 @@ fn node_send_options() {
 }
 
 #[test]
-fn subscription_usize() {
+fn subscription_usize_tcp() {
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
-    println!("Host should be running in the background");
 
     // Get the host up and running
-    let writer = NodeConfig::<Tcp, usize>::new("subscription")
+    let writer = NodeConfig::<N, usize>::new("subscription")
         .build()
         .unwrap()
         .activate()
@@ -119,12 +120,12 @@ fn subscription_usize() {
 
 #[test]
 #[should_panic]
-fn no_subscribed_value() {
+fn no_subscribed_value_tcp() {
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
 
     // Create a subscription node with a query rate of 10 Hz
-    let reader = NodeConfig::<Tcp, usize>::new("subscription")
+    let reader = NodeConfig::<N, usize>::new("subscription")
         .build()
         .unwrap()
         .subscribe(Duration::from_millis(100))
@@ -136,8 +137,6 @@ fn no_subscribed_value() {
 
 #[test]
 fn topics_list_tcp() {
-    type N = Tcp;
-
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
