@@ -49,6 +49,7 @@ rand = "0.8"
 # Make tokio macro available
 tokio = { version = "1", features = ["macros", "signal"] }
 rayon = "1"
+serial_test = "3"
 
 [[bench]]
 name = "criterion"

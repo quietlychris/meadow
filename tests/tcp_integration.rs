@@ -4,10 +4,12 @@ use meadow::*;
 mod common;
 use common::Pose;
 
+use serial_test::*;
 use std::thread;
 use std::time::Duration;
 
 #[test]
+#[serial]
 fn integrate_host_and_single_node() {
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
@@ -34,6 +36,7 @@ fn integrate_host_and_single_node() {
 }
 
 #[test]
+#[serial]
 fn request_non_existent_topic() {
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
@@ -53,6 +56,7 @@ fn request_non_existent_topic() {
 }
 
 #[test]
+#[serial]
 fn node_send_options() {
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
@@ -83,6 +87,7 @@ fn node_send_options() {
 }
 
 #[test]
+#[serial]
 fn publish_boolean() {
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
@@ -102,6 +107,7 @@ fn publish_boolean() {
 }
 
 #[test]
+#[serial]
 fn subscription_usize() {
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
@@ -138,6 +144,7 @@ fn subscription_usize() {
 
 #[test]
 #[should_panic]
+#[serial]
 fn no_subscribed_value() {
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();

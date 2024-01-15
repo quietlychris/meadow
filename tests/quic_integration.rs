@@ -4,6 +4,7 @@ use meadow::*;
 mod common;
 use common::*;
 
+use serial_test::*;
 use std::thread;
 use std::time::Duration;
 
@@ -26,6 +27,7 @@ pub fn initialize() {
 }
 
 #[test]
+#[serial]
 #[cfg(feature = "quic")]
 fn integrate_host_and_single_node_quic() {
     initialize();

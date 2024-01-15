@@ -4,10 +4,12 @@ use meadow::*;
 mod common;
 use common::Pose;
 
+use serial_test::*;
 use std::thread;
 use std::time::Duration;
 
 #[test]
+#[serial]
 fn integrate_host_and_single_node_udp() {
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
@@ -34,6 +36,7 @@ fn integrate_host_and_single_node_udp() {
 }
 
 #[test]
+#[serial]
 fn simple_udp() {
     let mut host = HostConfig::default().build().unwrap();
     host.start().unwrap();
@@ -61,6 +64,7 @@ fn simple_udp() {
 }
 
 #[test]
+#[serial]
 fn udp_subscription() {
     let mut host = HostConfig::default().build().unwrap();
     host.start().unwrap();
