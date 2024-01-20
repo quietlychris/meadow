@@ -26,18 +26,21 @@ fn main() {
         .subscribe(Duration::from_millis(10))
         .unwrap();
 
-    if let Err(e) = reader.get_subscribed_data() {
-        println!("{:?}", e);
-    } else {
-        panic!("There shouldn't be a subscribed value yet...");
-    };
+    for _ in 0..3 {
+        if let Err(e) = reader.get_subscribed_data() {
+            println!("{:?}", e);
+        } else {
+            panic!("There shouldn't be a subscribed value yet...");
+        };
+    }
+
 
     for i in 0..5 {
         let test_value = i as usize;
         writer.publish(test_value).unwrap();
         dbg!(reader.get_subscribed_data());
         let own_back = writer.request().unwrap();
-        dbg!(own_back);
+        // dbg!(own_back);
         std::thread::sleep(std::time::Duration::from_millis(1000));
         let result = reader.get_subscribed_data();
 

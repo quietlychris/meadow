@@ -118,68 +118,28 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
 
         let buffer = self.buffer.clone();
 
+         
+
+        let packet = GenericMsg {
+            msg_type: MsgType::SUBSCRIBE,
+            timestamp: Utc::now(),
+            topic: topic.to_string(),
+            data_type: std::any::type_name::<T>().to_string(),
+            data: postcard::to_allocvec(&rate)?,
+        };
         let task_subscribe = self.rt_handle.spawn(async move {
-            let packet = GenericMsg {
-                msg_type: MsgType::GET,
-                timestamp: Utc::now(),
-                topic: topic.to_string(),
-                data_type: std::any::type_name::<T>().to_string(),
-                data: Vec::new(),
-            };
-
-            let mut buf = buffer.lock().await;
-
-            loop {
-                let packet_as_bytes: Vec<u8> = match to_allocvec(&packet) {
-                    Ok(bytes) => bytes,
-                    _ => continue,
-                };
-                if let Some(connection) = connection.clone() {
-                    let (mut send, mut recv) = match connection.open_bi().await {
-                        Ok((send, recv)) => (send, recv),
-                        _ => continue,
-                    };
-
-                    if let Err(e) = send.write_all(&packet_as_bytes).await {
-                        error!("Unable to write packet: {:?}", e);
-                        continue;
-                    };
-                    /*                      if let Err(e) = send.finish().await {
-                        error!("Unable to finish packet send: {:?}", e);
-                    } */
-
-                    if let Ok(Some(n)) = recv.read(&mut buf).await {
-                        let bytes = &buf[..n];
-
-                        let generic = match from_bytes::<GenericMsg>(bytes) {
-                            Ok(generic) => generic,
-                            _ => continue,
-                        };
-                        let msg: Msg<T> = match generic.try_into() {
-                            Ok(msg) => msg,
-                            Err(e) => {
-                                error!("Error: {:?}", e);
-                                continue;
-                            }
-                        };
-
-                        if let Some(data) = data.lock().await.as_ref() {
-                            debug!("Timestamp: {}", data.timestamp);
-                            let delta = data.timestamp - msg.timestamp;
-                            debug!(
-                                "The time difference between QUIC subscription msg tx/rx is: {} us",
-                                delta
-                            );
-                            if delta <= chrono::Duration::zero() {
-                                // println!("Data is not newer, skipping to next subscription iteration");
-                                continue;
-                            }
-                        }
-
-                        debug!("QUIC Subscriber received new data");
-                        let mut data = data.lock().await;
-                        *data = Some(msg);
-                        sleep(rate).await;
+            if let Some(connection) = connection {
+                loop {
+                    if let Err(e) = run_subscription::<T>(
+                        packet.clone(),
+                        buffer.clone(),
+                        connection.clone(),
+                        data.clone(),
+                        rate,
+                    )
+                    .await
+                    {
+                        error!("{:?}", e);
                     }
                 }
             }
@@ -192,4 +152,49 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
 
         Ok(subscription_node)
     }
+}
+
+async fn run_subscription<T: Message>(
+    packet: GenericMsg,
+    buffer: Arc<TokioMutex<Vec<u8>>>,
+    connection: quinn::Connection,
+    data: Arc<TokioMutex<Option<Msg<T>>>>,
+    rate: Duration,
+) -> Result<(), Error> {
+    let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
+    let (mut send, mut recv) = connection.open_bi().await.map_err(ConnectionError)?;
+
+    send.write_all(&packet_as_bytes).await.map_err(WriteError)?;
+    info!("Wrote subscription message");
+
+    loop {
+        let mut buf = buffer.lock().await;
+
+        if let Ok(Some(n)) = recv.read(&mut buf).await {
+            let bytes = &buf[..n];
+
+            let generic = from_bytes::<GenericMsg>(bytes)?;
+            let msg: Msg<T> = generic.try_into()?;
+
+            if let Some(data) = data.lock().await.as_ref() {
+                debug!("Timestamp: {}", data.timestamp);
+                let delta = data.timestamp - msg.timestamp;
+                debug!(
+                    "The time difference between QUIC subscription msg tx/rx is: {} us",
+                    delta
+                );
+                if delta <= chrono::Duration::zero() {
+                    // println!("Data is not newer, skipping to next subscription iteration");
+                    // continue; TO_DO
+                }
+            }
+
+            debug!("QUIC Subscriber received new data");
+            let mut data = data.lock().await;
+            *data = Some(msg);
+            sleep(rate).await;
+        }
+    }
+
+    Ok(())
 }

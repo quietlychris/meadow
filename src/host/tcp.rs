@@ -132,6 +132,7 @@ pub async fn process_tcp(
                             }
                         }
                     }
+                    MsgType::SUBSCRIBE => {}
                     MsgType::TOPICS => {
                         let names = db.tree_names();
 

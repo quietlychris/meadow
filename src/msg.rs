@@ -15,6 +15,7 @@ pub enum MsgType {
     SET,
     GET,
     TOPICS,
+    SUBSCRIBE,
 }
 
 /// Message format containing a strongly-typed data payload and associated metadata

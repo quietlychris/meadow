@@ -77,6 +77,7 @@ pub async fn process_udp(
                             };
                         }
                     }
+                    MsgType::SUBSCRIBE => {}
                     MsgType::TOPICS => {
                         let names = db.tree_names();
 
