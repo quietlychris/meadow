@@ -12,14 +12,14 @@ use std::sync::Once;
 
 #[cfg(feature = "quic")]
 use meadow::host::quic::generate_certs;
+#[cfg(feature = "quic")]
+use meadow::host::quic::QuicCertGenConfig;
 
 #[cfg(feature = "quic")]
 static INIT: Once = Once::new();
 
 #[cfg(feature = "quic")]
 pub fn initialize() {
-    use meadow::host::quic::QuicCertGenConfig;
-
     INIT.call_once(|| {
         generate_certs(QuicCertGenConfig::default());
     });
@@ -31,6 +31,8 @@ type N = Quic;
 #[cfg(feature = "quic")]
 #[test]
 fn integrate_host_and_single_node_quic() {
+    generate_certs(QuicCertGenConfig::default());
+
     let mut host: Host = HostConfig::default().with_udp_config(None).build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
@@ -58,6 +60,8 @@ fn integrate_host_and_single_node_quic() {
 #[cfg(feature = "quic")]
 #[test]
 fn request_non_existent_topic_quic() {
+    generate_certs(QuicCertGenConfig::default());
+
     let mut host: Host = HostConfig::default().with_udp_config(None).build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
@@ -78,6 +82,8 @@ fn request_non_existent_topic_quic() {
 #[cfg(feature = "quic")]
 #[test]
 fn node_send_options_quic() {
+    generate_certs(QuicCertGenConfig::default());
+
     let mut host: Host = HostConfig::default().with_udp_config(None).build().unwrap();
     host.start().unwrap();
 
@@ -109,6 +115,8 @@ fn node_send_options_quic() {
 #[cfg(feature = "quic")]
 #[test]
 fn subscription_usize_quic() {
+    generate_certs(QuicCertGenConfig::default());
+
     let mut host: Host = HostConfig::default().with_udp_config(None).build().unwrap();
     host.start().unwrap();
 
@@ -145,6 +153,8 @@ fn subscription_usize_quic() {
 #[test]
 #[should_panic]
 fn no_subscribed_value_quic() {
+    generate_certs(QuicCertGenConfig::default());
+
     let mut host: Host = HostConfig::default().with_udp_config(None).build().unwrap();
     host.start().unwrap();
 
@@ -162,6 +172,8 @@ fn no_subscribed_value_quic() {
 #[cfg(feature = "quic")]
 #[test]
 fn topics_list_quic() {
+    generate_certs(QuicCertGenConfig::default());
+
     let mut host: Host = HostConfig::default().with_udp_config(None).build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
