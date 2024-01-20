@@ -146,18 +146,19 @@ pub async fn process_quic(
                 let rate = specialized.data;
 
                 if let Ok(tree) = db.open_tree(msg.topic.as_bytes()) {
-                    info!("Tree with topic \"{}\" exists",msg.topic);
+                    info!("Tree with topic \"{}\" exists", msg.topic);
                     loop {
                         let return_bytes = match tree.last() {
                             Ok(Some(msg)) => msg.1,
                             _ => {
-                                let e: String = format!("Error: no topic \"{}\" exists", &msg.topic);
+                                let e: String =
+                                    format!("Error: no topic \"{}\" exists", &msg.topic);
                                 error!("{}", &e);
                                 e.as_bytes().into()
                             }
                         };
-                        info!("SUBSCRIBE_DATA: {:?}",&return_bytes);
-    
+                        info!("SUBSCRIBE_DATA: {:?}", &return_bytes);
+
                         match tx.write(&return_bytes).await {
                             Ok(_n) => {
                                 let mut count = count.lock().await;
@@ -170,10 +171,8 @@ pub async fn process_quic(
                         sleep(rate).await;
                     }
                 } else {
-                    error!("No tree with topic \"{}\" exists",msg.topic);
+                    error!("No tree with topic \"{}\" exists", msg.topic);
                 }
-
-
             }
             MsgType::TOPICS => {
                 let names = db.tree_names();

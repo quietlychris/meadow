@@ -1,4 +1,4 @@
-use meadow::*;
+/* use meadow::*;
 use std::thread;
 use std::time::Duration;
 
@@ -33,7 +33,6 @@ fn main() {
             panic!("There shouldn't be a subscribed value yet...");
         };
     }
-
 
     for i in 0..5 {
         let test_value = i as usize;
@@ -76,3 +75,6 @@ fn logging() {
         )
         .init();
 }
+ */
+
+fn main() {}

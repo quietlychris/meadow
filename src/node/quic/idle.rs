@@ -118,8 +118,6 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
 
         let buffer = self.buffer.clone();
 
-         
-
         let packet = GenericMsg {
             msg_type: MsgType::SUBSCRIBE,
             timestamp: Utc::now(),
@@ -195,6 +193,4 @@ async fn run_subscription<T: Message>(
             sleep(rate).await;
         }
     }
-
-    Ok(())
 }
