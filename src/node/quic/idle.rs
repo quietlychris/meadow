@@ -163,7 +163,6 @@ async fn run_subscription<T: Message>(
     let (mut send, mut recv) = connection.open_bi().await.map_err(ConnectionError)?;
 
     send.write_all(&packet_as_bytes).await.map_err(WriteError)?;
-    info!("Wrote subscription message");
 
     loop {
         let mut buf = buffer.lock().await;
@@ -183,7 +182,7 @@ async fn run_subscription<T: Message>(
                 );
                 if delta <= chrono::Duration::zero() {
                     // println!("Data is not newer, skipping to next subscription iteration");
-                    // continue; TO_DO
+                    continue;
                 }
             }
 
