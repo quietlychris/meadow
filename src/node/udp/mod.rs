@@ -45,7 +45,6 @@ pub async fn await_response<T: Message>(
             }
         }
     }
-
 }
 
 #[inline]

@@ -125,6 +125,7 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
             data_type: std::any::type_name::<T>().to_string(),
             data: postcard::to_allocvec(&rate)?,
         };
+
         let task_subscribe = self.rt_handle.spawn(async move {
             if let Some(connection) = connection {
                 loop {
@@ -151,6 +152,7 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
     }
 }
 
+#[tracing::instrument(skip_all)]
 async fn run_subscription<T: Message>(
     packet: GenericMsg,
     buffer: Arc<TokioMutex<Vec<u8>>>,
@@ -161,6 +163,7 @@ async fn run_subscription<T: Message>(
     let (mut send, mut recv) = connection.open_bi().await.map_err(ConnectionError)?;
 
     send.write_all(&packet_as_bytes).await.map_err(WriteError)?;
+    send.finish().await.map_err(WriteError)?;
 
     loop {
         let mut buf = buffer.lock().await;
@@ -169,22 +172,22 @@ async fn run_subscription<T: Message>(
             let bytes = &buf[..n];
 
             let generic = from_bytes::<GenericMsg>(bytes)?;
+            info!("QUIC received generic: {:?}", &generic);
             let msg: Msg<T> = generic.try_into()?;
 
             if let Some(data) = data.lock().await.as_ref() {
                 debug!("Timestamp: {}", data.timestamp);
-                let delta = data.timestamp - msg.timestamp;
-                debug!(
+                let delta = msg.timestamp - data.timestamp;
+                info!(
                     "The time difference between QUIC subscription msg tx/rx is: {} us",
                     delta
                 );
                 if delta <= chrono::Duration::zero() {
-                    // println!("Data is not newer, skipping to next subscription iteration");
+                    warn!("Data is not newer, skipping to next subscription iteration");
                     continue;
                 }
             }
 
-            debug!("QUIC Subscriber received new data");
             let mut data = data.lock().await;
             *data = Some(msg);
         }

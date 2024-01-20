@@ -5,9 +5,9 @@ fn main() -> Result<(), meadow::Error> {
     // Set up logging
     logging();
 
-    type N = Udp;
+    type N = Tcp;
 
-    let mut host: Host = HostConfig::default().build()?;
+    let mut host: Host = HostConfig::default().with_udp_config(None).build()?;
     host.start()?;
     println!("Host should be running in the background");
 
@@ -19,20 +19,20 @@ fn main() -> Result<(), meadow::Error> {
     // Create a subscription node with a query rate of 10 Hz
     let reader = NodeConfig::<N, usize>::new("subscription")
         .build()?
-        .subscribe(Duration::from_millis(1_000))?;
+        .subscribe(Duration::from_millis(500))?;
 
     // Since subscribed topics are not guaranteed to exist, subscribed nodes always return Option<T>
     //let _result = reader.get_subscribed_data();
     //dbg!(_result);
 
-    for i in 0..5 {
+    for i in 0..5usize {
         println!("publishing {}", i);
-        writer.publish(i as usize).unwrap();
-        std::thread::sleep(std::time::Duration::from_millis(1_100));
+        writer.publish(i).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(1000));
         let result = writer.request()?.data;
         dbg!(result);
         assert_eq!(writer.request()?.data, i);
-        // assert_eq!(reader.get_subscribed_data()?.data, i);
+        assert_eq!(reader.get_subscribed_data()?.data, i);
     }
 
     // host.stop()?;

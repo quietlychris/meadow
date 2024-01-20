@@ -38,9 +38,9 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
                         debug!("Node succesfully opened stream from connection");
 
                         if let Ok(()) = send.write_all(&packet_as_bytes).await {
-                            /*                             if let Ok(()) = send.finish().await {
+                            if let Ok(()) = send.finish().await {
                                 debug!("Node successfully wrote packet to stream");
-                            } */
+                            }
                         } else {
                             error!("Error writing packet to stream");
                         }
@@ -115,7 +115,7 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
             let (mut send, mut recv) = connection.open_bi().await.map_err(ConnectionError)?;
             debug!("Node succesfully opened stream from connection");
             send.write_all(&packet_as_bytes).await.map_err(WriteError)?;
-            // send.finish().await.map_err(WriteError)?;
+            send.finish().await.map_err(WriteError)?;
 
             let n = recv
                 .read(&mut buf)
@@ -126,14 +126,6 @@ impl<T: Message + 'static> Node<Quic, Active, T> {
             let reply = from_bytes::<GenericMsg>(bytes)?;
             let topics: Msg<Vec<String>> = reply.try_into()?;
             Ok(topics)
-
-            /*                 if let Some(n) = recv.read(&mut buf).await.map_err(ReadError)?? {
-                let bytes = &buf[..n];
-                let reply = from_bytes::<GenericMsg>(bytes)?;
-                let topics = from_bytes::<Vec<String>>(&reply.data)?;
-                // let topics: Msg<Vec<String>> = reply.try_into()?;
-                Ok(topics)
-            } */
         })
     }
 }

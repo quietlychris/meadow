@@ -39,7 +39,7 @@ pub async fn handshake(
 }
 
 /// Host process for handling incoming connections from Nodes
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 #[inline]
 pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize) {
     let mut buf = vec![0u8; max_buffer_size];

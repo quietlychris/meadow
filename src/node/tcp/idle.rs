@@ -149,16 +149,23 @@ async fn run_subscription<T: Message>(
     loop {
         match await_response::<T>(stream, &mut buffer).await {
             Ok(msg) => {
-                let delta = Utc::now() - msg.timestamp;
-                // println!("The time difference between msg tx/rx is: {} us",delta);
-                if delta <= chrono::Duration::zero() {
-                    // println!("Data is not newer, skipping to next subscription iteration");
-                    continue;
-                }
-
                 let mut data = data.lock().await;
+                use std::ops::DerefMut;
+                match data.deref_mut() {
+                    Some(existing) => {
+                        let delta = msg.timestamp - existing.timestamp;
+                        // println!("The time difference between msg tx/rx is: {} us",delta);
+                        if delta <= chrono::Duration::zero() {
+                            // println!("Data is not newer, skipping to next subscription iteration");
+                            continue;
+                        }
 
-                *data = Some(msg);
+                        *data = Some(msg);
+                    }
+                    None => {
+                        *data = Some(msg);
+                    }
+                }
             }
             Err(e) => {
                 error!("Subscription Error: {:?}", e);

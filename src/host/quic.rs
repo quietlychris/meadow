@@ -92,11 +92,14 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
 
                 let db_result = match tree.insert(msg.timestamp.to_string(), bytes) {
                     Ok(_prev_msg) => crate::error::HostOperation::SUCCESS, //"SUCCESS".to_string(),
-                    Err(_e) => crate::error::HostOperation::FAILURE,
+                    Err(_e) => {
+                        error!("{:?}", _e);
+                        crate::error::HostOperation::FAILURE
+                    }
                 };
 
                 if let Ok(bytes) = postcard::to_allocvec(&db_result) {
-                    loop {
+                    for _ in 0..10 {
                         match tx.write(&bytes).await {
                             Ok(_n) => {
                                 break;
@@ -134,30 +137,27 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
                 let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
                 let rate = specialized.data;
 
-                if let Ok(tree) = db.open_tree(msg.topic.as_bytes()) {
-                    info!("Tree with topic \"{}\" exists", msg.topic);
-                    loop {
-                        let return_bytes = match tree.last() {
-                            Ok(Some(msg)) => msg.1,
-                            _ => {
-                                let e: String =
-                                    format!("Error: no topic \"{}\" exists", &msg.topic);
-                                error!("{}", &e);
-                                e.as_bytes().into()
-                            }
-                        };
-                        info!("SUBSCRIBE_DATA: {:?}", &return_bytes);
+                loop {
+                    let tree = db
+                        .open_tree(msg.topic.as_bytes())
+                        .expect("Error opening tree");
 
-                        match tx.write(&return_bytes).await {
-                            Ok(_n) => {}
-                            Err(e) => {
-                                error!("{}", e);
-                            }
+                    let return_bytes = match tree.last() {
+                        Ok(Some(msg)) => msg.1,
+                        _ => {
+                            let e: String = format!("Error: no topic \"{}\" exists", &msg.topic);
+                            error!("{}", &e);
+                            e.as_bytes().into()
                         }
-                        sleep(rate).await;
+                    };
+
+                    match tx.write(&return_bytes).await {
+                        Ok(_n) => {}
+                        Err(e) => {
+                            error!("{}", e);
+                        }
                     }
-                } else {
-                    error!("No tree with topic \"{}\" exists", msg.topic);
+                    sleep(rate).await;
                 }
             }
             MsgType::TOPICS => {
