@@ -28,6 +28,7 @@ pub async fn await_response<T: Message>(
                 info!("await_response received {} bytes", n);
                 let bytes = &buf[..n];
                 let generic = postcard::from_bytes::<GenericMsg>(bytes)?;
+                info!("Generic: {:?}", &generic);
                 let msg: Msg<T> = generic.try_into()?;
                 return Ok(msg);
             }

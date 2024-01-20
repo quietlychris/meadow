@@ -3,14 +3,16 @@ use std::time::Duration;
 
 fn main() -> Result<(), meadow::Error> {
     // Set up logging
-    start_logging();
+    logging();
 
-    let mut host: Host = HostConfig::default().build()?;
+    type N = Quic;
+
+    let mut host: Host = HostConfig::default().with_udp_config(None).build()?;
     host.start()?;
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let writer = NodeConfig::<Tcp, _>::new("subscription")
+    let writer = NodeConfig::<N, _>::new("subscription")
         .build()?
         .activate()?;
 
@@ -49,8 +51,29 @@ fn main() -> Result<(), meadow::Error> {
     Ok(())
 }
 
-fn start_logging() {
-    let file_appender = tracing_appender::rolling::hourly("logs/", "subscription");
-    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-    tracing_subscriber::fmt().with_writer(non_blocking).init();
+fn logging() {
+    use std::{fs::File, sync::Arc};
+    use tracing_subscriber::{filter, prelude::*};
+
+    // A layer that logs events to a file.
+    let file = File::create("logs/debug.log");
+    let file = match file {
+        Ok(file) => file,
+        Err(error) => panic!("Error: {:?}", error),
+    };
+
+    let log = tracing_subscriber::fmt::layer()
+        .compact()
+        .with_ansi(false)
+        .with_line_number(true)
+        .with_writer(Arc::new(file));
+
+    tracing_subscriber::registry()
+        .with(
+            log
+                // Add an `INFO` filter to the stdout logging layer
+                .with_filter(filter::LevelFilter::INFO), // .with_filter(filter::LevelFilter::WARN)
+                                                         // .with_filter(filter::LevelFilter::ERROR)
+        )
+        .init();
 }

@@ -109,11 +109,7 @@ fn subscription_usize_tcp() {
         let test_value = i as usize;
         writer.publish(test_value).unwrap();
         std::thread::sleep(std::time::Duration::from_millis(100));
-        match reader.get_subscribed_data() {
-            Ok(result) => assert_eq!(test_value, result.data),
-            Err(e) => panic!("{:?}", e),
-        }
-        // dbg!(result);
+        assert_eq!(reader.get_subscribed_data().unwrap().data, test_value);
     }
 }
 

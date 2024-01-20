@@ -1,7 +1,8 @@
 // Tokio for async
 use tokio::net::UdpSocket;
-use tokio::sync::Mutex; // as TokioMutex;
-                        // Tracing for logging
+use tokio::sync::Mutex;
+use tokio::time::{sleep, Duration}; // as TokioMutex;
+                                    // Tracing for logging
 use tracing::*;
 // Postcard is the default de/serializer
 use postcard::*;
@@ -30,7 +31,7 @@ pub async fn process_udp(
             Ok((0, _)) => break, // TO_DO: break or continue?
             Ok((n, return_addr)) => {
                 let bytes = &buf[..n];
-                let msg: Msg<&[u8]> = match from_bytes(bytes) {
+                let msg: GenericMsg = match from_bytes(bytes) {
                     Ok(msg) => msg,
                     Err(e) => {
                         error!("Had received Msg of {} bytes: {:?}, Error: {}", n, bytes, e);
@@ -77,7 +78,34 @@ pub async fn process_udp(
                             };
                         }
                     }
-                    MsgType::SUBSCRIBE => {}
+                    MsgType::SUBSCRIBE => {
+                        let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
+                        let rate = specialized.data;
+                        let tree = db
+                            .open_tree(msg.topic.as_bytes())
+                            .expect("Error opening tree");
+
+                        loop {
+                            if let Ok(topic) = tree.last() {
+                                let return_bytes = match topic {
+                                    Some(msg) => msg.1,
+                                    None => {
+                                        let e: String =
+                                            format!("Error: no topic \"{}\" exists", &msg.topic);
+                                        error!("{}", &e);
+                                        e.as_bytes().into()
+                                    }
+                                };
+
+                                if let Ok(()) = socket.writable().await {
+                                    if let Err(e) = socket.try_send_to(&return_bytes, return_addr) {
+                                        error!("Error sending data back on UDP/GET: {}", e)
+                                    };
+                                };
+                            }
+                            sleep(rate).await;
+                        }
+                    }
                     MsgType::TOPICS => {
                         let names = db.tree_names();
 
