@@ -1,8 +1,9 @@
 use tokio::io::AsyncWriteExt;
 // Tokio for async
 use tokio::net::TcpStream;
-use tokio::sync::Mutex; // as TokioMutex;
-                        // Tracing for logging
+use tokio::sync::Mutex;
+use tokio::time::{sleep, Duration}; // as TokioMutex;
+                                    // Tracing for logging
 use tracing::*;
 // Postcard is the default de/serializer
 use postcard::*;
@@ -60,7 +61,7 @@ pub async fn process_tcp(
                 }
 
                 let bytes = &buf[..n];
-                let msg: Msg<&[u8]> = match from_bytes(bytes) {
+                let msg: GenericMsg = match from_bytes(bytes) {
                     Ok(msg) => {
                         info!("{:?}", msg);
                         msg
@@ -132,7 +133,41 @@ pub async fn process_tcp(
                             }
                         }
                     }
-                    MsgType::SUBSCRIBE => {}
+                    MsgType::SUBSCRIBE => {
+                        let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
+                        let rate = specialized.data;
+
+                        if let Ok(tree) = db.open_tree(msg.topic.as_bytes()) {
+                            loop {
+                                if let Ok(topic) = tree.last() {
+                                    let return_bytes = match topic {
+                                        Some(msg) => msg.1,
+                                        None => {
+                                            let e: String = format!(
+                                                "Error: no topic \"{}\" exists",
+                                                &msg.topic
+                                            );
+                                            error!("{}", &e);
+                                            e.clone().as_bytes().into()
+                                        }
+                                    };
+
+                                    if let Ok(()) = stream.writable().await {
+                                        if let Err(e) = stream.try_write(&return_bytes) {
+                                            error!(
+                                                "Error sending data back on TCP/TOPICS: {:?}",
+                                                e
+                                            );
+                                        } else {
+                                            let mut count = count.lock().await;
+                                            *count += 1;
+                                        }
+                                    }
+                                    sleep(rate).await;
+                                }
+                            }
+                        }
+                    }
                     MsgType::TOPICS => {
                         let names = db.tree_names();
 

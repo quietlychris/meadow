@@ -8,6 +8,7 @@ use futures_util::StreamExt;
 use quinn::Connection as QuicConnection;
 use std::sync::{Arc, Mutex as StdMutex};
 use tokio::sync::Mutex as TokioMutex;
+use tokio::time::{sleep, Duration};
 
 use chrono::Utc;
 use postcard::from_bytes;
@@ -140,8 +141,6 @@ pub async fn process_quic(
                 }
             }
             MsgType::SUBSCRIBE => {
-                info!("In subscribe!");
-                use tokio::time::{sleep, Duration};
                 let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
                 let rate = specialized.data;
 

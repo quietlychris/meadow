@@ -22,6 +22,28 @@ use std::marker::PhantomData;
 use crate::msg::*;
 use crate::node::network_config::Udp;
 
+impl<T: Message> From<Node<Udp, Idle, T>> for Node<Udp, Subscription, T> {
+    fn from(node: Node<Udp, Idle, T>) -> Self {
+        Self {
+            __state: PhantomData,
+            __data_type: PhantomData,
+            cfg: node.cfg,
+            runtime: node.runtime,
+            rt_handle: node.rt_handle,
+            stream: node.stream,
+            topic: node.topic,
+            socket: node.socket,
+            buffer: node.buffer,
+            #[cfg(feature = "quic")]
+            endpoint: node.endpoint,
+            #[cfg(feature = "quic")]
+            connection: node.connection,
+            subscription_data: node.subscription_data,
+            task_subscribe: None,
+        }
+    }
+}
+
 impl<T: Message + 'static> Node<Udp, Idle, T> {
     //#[tracing::instrument(skip_all)]
     pub fn activate(mut self) -> Result<Node<Udp, Active, T>, Error> {
@@ -43,52 +65,30 @@ impl<T: Message + 'static> Node<Udp, Idle, T> {
         let subscription_data: Arc<TokioMutex<Option<Msg<T>>>> = Arc::new(TokioMutex::new(None));
         let data = Arc::clone(&subscription_data);
         let addr = self.cfg.network_cfg.host_addr;
+        let buffer = self.buffer.clone();
+
+        let packet = GenericMsg {
+            msg_type: MsgType::SUBSCRIBE,
+            timestamp: Utc::now(),
+            topic: topic.clone(),
+            data_type: std::any::type_name::<T>().to_string(),
+            data: to_allocvec(&rate)?,
+        };
 
         let task_subscribe = self.rt_handle.spawn(async move {
-            dbg!("in task_subscribe()");
-            let packet = GenericMsg {
-                msg_type: MsgType::GET,
-                timestamp: Utc::now(),
-                topic: topic.clone(),
-                data_type: std::any::type_name::<T>().to_string(),
-                data: Vec::new(),
-            };
-
             if let Ok(socket) = UdpSocket::bind("[::]:0").await {
-                let mut buffer = vec![0u8; 10_000];
-
                 loop {
-                    if let Ok(packet_as_bytes) = to_allocvec(&packet) {
-                        match udp::send_msg(&socket, packet_as_bytes.clone(), addr).await {
-                            Ok(n) => {
-                                info!(n);
-                            }
-                            Err(e) => {
-                                let e = e.to_string();
-                                info!(e);
-                            }
-                        };
-
-                        match udp::await_response::<T>(&socket, &mut buffer).await {
-                            Ok(msg) => {
-                                let delta = Utc::now() - msg.timestamp;
-                                if delta <= chrono::Duration::zero() {
-                                    info!("Data is not newer, skipping to next subscription iteration");
-                                    // continue;
-                                }
-
-                                let mut data = data.lock().await;
-                                *data = Some(msg);
-                            }
-                            Err(e) => {
-                                error!("Subscription Error: {}", e);
-                            }
-                        };
+                    if let Err(e) = run_subscription::<T>(
+                        packet.clone(),
+                        buffer.clone(),
+                        &socket,
+                        data.clone(),
+                        addr,
+                    )
+                    .await
+                    {
+                        error!("{:?}", e);
                     }
-                    else {
-                        error!("Error creating UDP subscription packet");
-                    }
-                    sleep(rate).await;
                 }
             }
         });
@@ -102,24 +102,33 @@ impl<T: Message + 'static> Node<Udp, Idle, T> {
     }
 }
 
-impl<T: Message> From<Node<Udp, Idle, T>> for Node<Udp, Subscription, T> {
-    fn from(node: Node<Udp, Idle, T>) -> Self {
-        Self {
-            __state: PhantomData,
-            __data_type: PhantomData,
-            cfg: node.cfg,
-            runtime: node.runtime,
-            rt_handle: node.rt_handle,
-            stream: node.stream,
-            topic: node.topic,
-            socket: node.socket,
-            buffer: node.buffer,
-            #[cfg(feature = "quic")]
-            endpoint: node.endpoint,
-            #[cfg(feature = "quic")]
-            connection: node.connection,
-            subscription_data: node.subscription_data,
-            task_subscribe: None,
-        }
+async fn run_subscription<T: Message>(
+    packet: GenericMsg,
+    buffer: Arc<TokioMutex<Vec<u8>>>,
+    socket: &UdpSocket,
+    data: Arc<TokioMutex<Option<Msg<T>>>>,
+    addr: SocketAddr,
+) -> Result<(), Error> {
+    let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
+    udp::send_msg(socket, packet_as_bytes.clone(), addr).await?;
+
+    loop {
+        let mut buf = buffer.lock().await;
+
+        match udp::await_response::<T>(socket, &mut buf).await {
+            Ok(msg) => {
+                let delta = Utc::now() - msg.timestamp;
+                if delta <= chrono::Duration::zero() {
+                    info!("Data is not newer, skipping to next subscription iteration");
+                    // continue;
+                }
+
+                let mut data = data.lock().await;
+                *data = Some(msg);
+            }
+            Err(e) => {
+                error!("Subscription Error: {}", e);
+            }
+        };
     }
 }

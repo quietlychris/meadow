@@ -140,10 +140,10 @@ fn subscription_usize_quic() {
         let test_value = i as usize;
         writer.publish(test_value).unwrap();
         std::thread::sleep(std::time::Duration::from_millis(100));
-        // let result = reader.get_subscribed_data();
+        //  result = reader.get_subscribed_data().unwrap();
         match reader.get_subscribed_data() {
             Ok(result) => assert_eq!(test_value, result.data),
-            Err(e) => println!("{:?}", e),
+            Err(e) => panic!("{:?}", e),
         }
         // dbg!(result);
     }

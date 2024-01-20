@@ -118,7 +118,6 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
                             buffer.clone(),
                             &stream,
                             data.clone(),
-                            rate,
                         )
                         .await
                         {
@@ -142,7 +141,6 @@ async fn run_subscription<T: Message>(
     buffer: Arc<TokioMutex<Vec<u8>>>,
     stream: &TcpStream,
     data: Arc<TokioMutex<Option<Msg<T>>>>,
-    rate: Duration,
 ) -> Result<(), Error> {
     let packet_as_bytes = to_allocvec(&packet)?;
     send_msg(stream, packet_as_bytes).await?;
@@ -167,7 +165,5 @@ async fn run_subscription<T: Message>(
                 continue;
             }
         };
-
-        sleep(rate).await;
     }
 }

@@ -133,7 +133,6 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
                         buffer.clone(),
                         connection.clone(),
                         data.clone(),
-                        rate,
                     )
                     .await
                     {
@@ -157,7 +156,6 @@ async fn run_subscription<T: Message>(
     buffer: Arc<TokioMutex<Vec<u8>>>,
     connection: quinn::Connection,
     data: Arc<TokioMutex<Option<Msg<T>>>>,
-    rate: Duration,
 ) -> Result<(), Error> {
     let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
     let (mut send, mut recv) = connection.open_bi().await.map_err(ConnectionError)?;
@@ -189,7 +187,6 @@ async fn run_subscription<T: Message>(
             debug!("QUIC Subscriber received new data");
             let mut data = data.lock().await;
             *data = Some(msg);
-            sleep(rate).await;
         }
     }
 }
