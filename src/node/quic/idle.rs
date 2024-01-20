@@ -144,16 +144,23 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
                         error!("Unable to write packet: {:?}", e);
                         continue;
                     };
-                    if let Err(e) = send.finish().await {
+                    /*                      if let Err(e) = send.finish().await {
                         error!("Unable to finish packet send: {:?}", e);
-                    };
+                    } */
 
                     if let Ok(Some(n)) = recv.read(&mut buf).await {
                         let bytes = &buf[..n];
 
-                        let msg = match from_bytes::<Msg<T>>(bytes) {
-                            Ok(msg) => msg,
+                        let generic = match from_bytes::<GenericMsg>(bytes) {
+                            Ok(generic) => generic,
                             _ => continue,
+                        };
+                        let msg: Msg<T> = match generic.try_into() {
+                            Ok(msg) => msg,
+                            Err(e) => {
+                                error!("Error: {:?}", e);
+                                continue;
+                            }
                         };
 
                         if let Some(data) = data.lock().await.as_ref() {

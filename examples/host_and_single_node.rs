@@ -1,10 +1,8 @@
 use meadow::*;
-use std::{fs::File, sync::Arc};
-use tracing::*;
-use tracing_subscriber::{filter, prelude::*};
-
 use std::thread;
 use std::time::Duration;
+
+use tracing::*;
 
 /// Example test struct for docs and tests
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -73,6 +71,9 @@ fn main() -> Result<(), meadow::Error> {
 }
 
 fn logging() {
+    use std::{fs::File, sync::Arc};
+    use tracing_subscriber::{filter, prelude::*};
+
     // A layer that logs events to a file.
     let file = File::create("logs/debug.log");
     let file = match file {
