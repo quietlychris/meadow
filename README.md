@@ -73,7 +73,7 @@ meadow currently supports the following messaging patterns:
 | UDP      | **X**     | **X**      | **X**     |            |
 | QUIC     | **X**     | **X**      | **X**     | **X**      |
 
-Meadow's subscriber functionality currently works a bit differently than many other middlewares; rather than having the most recent data on the subscribed topic pushed to it by the Host upon receive, the Node will spawn a background task that requests and caches data from the subscribed topic in order to be available locally on-demand rather than on-request.
+Meadow's subscriber functionality currently works a bit differently than many other middlewares; rather than having the most recent data on the subscribed topic pushed to it by the Host upon receive, the Host will the most recent data subscribed topic as a requested rate to the Node, which will cache it locally to be available on-demand rather than on-request.
 
 ## Key Dependencies
 Under the hood, `meadow` relies on:
@@ -82,7 +82,7 @@ Under the hood, `meadow` relies on:
 * [`postcard`](https://github.com/jamesmunns/postcard): Efficient `#![no_std]`-compatible, [serde](https://serde.rs/)-based de/serializer designed for embedded or constrained environments 
 
 ## Benchmarks
-Preliminary benchmark data is showing round-trip message times (publish-request-reply) on `locahost` using the `--release` compilation profile, on the README's `Coordinate` data (strongly-typed, 8 bytes) to be <50 microseconds. Statistical benchmarks on different data profiles can be run via [`criterion`](https://github.com/bheisler/criterion.rs) via `cargo bench`.
+Preliminary benchmark data is showing round-trip message times (publish-request-reply) on `locahost` using the `--release` compilation profile, on the README's `Coordinate` data (strongly-typed, 8 bytes) to be <100 microseconds. Statistical benchmarks on different data profiles can be run via [`criterion`](https://github.com/bheisler/criterion.rs) via `cargo bench`.
 
 If you are doing robotics development, `meadow` is probably fast enough to move your data around (unless you're trying to do something like video streaming, in which case you should probably be using dedicated endpoints). 
 

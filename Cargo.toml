@@ -1,6 +1,6 @@
 [package]
 name = "meadow"
-version = "0.2.0"
+version = "0.1.0"
 description = "Robotics-focused middleware for embedded Linux"
 authors = ["Christopher Moran <christopher.and.moran@gmail.com>"]
 edition = "2021"
