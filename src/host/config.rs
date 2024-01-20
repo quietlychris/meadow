@@ -80,8 +80,6 @@ impl HostConfig {
         let connections = Arc::new(StdMutex::new(Vec::new()));
         let store: sled::Db = self.sled_cfg.open()?;
 
-        let reply_count = Arc::new(Mutex::new(0));
-
         Ok(Host {
             cfg: self,
             runtime,
@@ -91,7 +89,6 @@ impl HostConfig {
             #[cfg(feature = "quic")]
             task_listen_quic: None,
             store,
-            reply_count,
         })
     }
 }

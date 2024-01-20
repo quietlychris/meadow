@@ -11,9 +11,11 @@ pub enum HostError {
     GetFailure,
     #[error("Unsuccessful Host connection")]
     ConnectionError,
+    #[error("Topic does not exist")]
+    NonExistentTopic,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum HostOperation {
     SUCCESS,
     FAILURE,

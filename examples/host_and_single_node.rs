@@ -1,10 +1,8 @@
 use meadow::*;
-use std::{fs::File, sync::Arc};
-use tracing::*;
-use tracing_subscriber::{filter, prelude::*};
-
 use std::thread;
 use std::time::Duration;
+
+use tracing::*;
 
 /// Example test struct for docs and tests
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -15,6 +13,8 @@ struct Pose {
 
 fn main() -> Result<(), meadow::Error> {
     logging();
+
+    type N = Udp;
 
     // Configure the Host with logging
     let mut host = {
@@ -34,7 +34,7 @@ fn main() -> Result<(), meadow::Error> {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let node: Node<Tcp, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
+    let node: Node<N, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
     let node = node.activate()?;
     debug!("Node should now be connected");
     println!(
@@ -67,17 +67,15 @@ fn main() -> Result<(), meadow::Error> {
         "The size of an a meadow Host before shutdown is: {}",
         std::mem::size_of_val(&host)
     );
-    let topics = host.topics();
-    for topic in &topics {
-        let db = host.store.clone();
-        let tree = db.open_tree(topic.as_bytes()).unwrap();
-        println!("Topic {} has {} stored values", topic, tree.len());
-    }
+    assert_eq!(host.topics(), node.topics()?.data);
 
     Ok(())
 }
 
 fn logging() {
+    use std::{fs::File, sync::Arc};
+    use tracing_subscriber::{filter, prelude::*};
+
     // A layer that logs events to a file.
     let file = File::create("logs/debug.log");
     let file = match file {

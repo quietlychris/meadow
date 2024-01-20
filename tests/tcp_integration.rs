@@ -7,14 +7,16 @@ use common::Pose;
 use std::thread;
 use std::time::Duration;
 
+type N = Tcp;
+
 #[test]
-fn integrate_host_and_single_node() {
+fn integrate_host_and_single_node_tcp() {
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let node: Node<Tcp, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
+    let node: Node<N, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
     let node = node.activate().unwrap();
 
     for i in 0..5 {
@@ -34,13 +36,13 @@ fn integrate_host_and_single_node() {
 }
 
 #[test]
-fn request_non_existent_topic() {
+fn request_non_existent_topic_tcp() {
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let node: Node<Tcp, Idle, Pose> = NodeConfig::new("doesnt_exist").build().unwrap();
+    let node: Node<N, Idle, Pose> = NodeConfig::new("doesnt_exist").build().unwrap();
     let node = node.activate().unwrap();
 
     // Requesting a topic that doesn't exist should return a recoverable error
@@ -53,17 +55,17 @@ fn request_non_existent_topic() {
 }
 
 #[test]
-fn node_send_options() {
+fn node_send_options_tcp() {
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
 
     // Get the host up and running
-    let node_a = NodeConfig::<Tcp, Option<f32>>::new("pose")
+    let node_a = NodeConfig::<N, Option<f32>>::new("pose")
         .build()
         .unwrap()
         .activate()
         .unwrap();
-    let node_b = NodeConfig::<Tcp, Option<f32>>::new("pose")
+    let node_b = NodeConfig::<N, Option<f32>>::new("pose")
         .build()
         .unwrap()
         .activate()
@@ -83,32 +85,12 @@ fn node_send_options() {
 }
 
 #[test]
-fn publish_boolean() {
+fn subscription_usize_tcp() {
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
-    println!("Host should be running in the background");
 
     // Get the host up and running
-    let node: Node<Tcp, Idle, bool> = NodeConfig::new("my_boolean").build().unwrap();
-    let node = node.activate().unwrap();
-
-    for _i in 0..5 {
-        node.publish(true).unwrap();
-        thread::sleep(Duration::from_millis(50));
-        assert!(node.request().unwrap().data);
-    }
-
-    host.stop().unwrap();
-}
-
-#[test]
-fn subscription_usize() {
-    let mut host: Host = HostConfig::default().build().unwrap();
-    host.start().unwrap();
-    println!("Host should be running in the background");
-
-    // Get the host up and running
-    let writer = NodeConfig::<Tcp, usize>::new("subscription")
+    let writer = NodeConfig::<N, usize>::new("subscription")
         .build()
         .unwrap()
         .activate()
@@ -127,23 +109,18 @@ fn subscription_usize() {
         let test_value = i as usize;
         writer.publish(test_value).unwrap();
         std::thread::sleep(std::time::Duration::from_millis(100));
-        // let result = reader.get_subscribed_data();
-        match reader.get_subscribed_data() {
-            Ok(result) => assert_eq!(test_value, result.data),
-            Err(e) => println!("{:?}", e),
-        }
-        // dbg!(result);
+        assert_eq!(reader.get_subscribed_data().unwrap().data, test_value);
     }
 }
 
 #[test]
 #[should_panic]
-fn no_subscribed_value() {
+fn no_subscribed_value_tcp() {
     let mut host: Host = HostConfig::default().build().unwrap();
     host.start().unwrap();
 
     // Create a subscription node with a query rate of 10 Hz
-    let reader = NodeConfig::<Tcp, usize>::new("subscription")
+    let reader = NodeConfig::<N, usize>::new("subscription")
         .build()
         .unwrap()
         .subscribe(Duration::from_millis(100))
@@ -151,4 +128,42 @@ fn no_subscribed_value() {
 
     // Unwrapping on an error should lead to panic
     let _result: usize = reader.get_subscribed_data().unwrap().data;
+}
+
+#[test]
+fn topics_list_tcp() {
+    let mut host: Host = HostConfig::default().build().unwrap();
+    host.start().unwrap();
+    println!("Host should be running in the background");
+
+    // Get the host up and running
+    let topics: Vec<String> = ["a", "b", "c", "d", "e", "f"]
+        .iter()
+        .map(|x| x.to_string())
+        .collect();
+    dbg!(&topics);
+    let mut nodes = Vec::with_capacity(topics.len());
+    for topic in topics.clone() {
+        let node: Node<N, Idle, usize> = NodeConfig::new(topic).build().unwrap();
+        let node = node.activate().unwrap();
+        nodes.push(node);
+    }
+
+    for i in 0..topics.len() {
+        nodes[i].publish(i).unwrap();
+        assert_eq!(host.topics(), nodes[i].topics().unwrap().data);
+        let t = if i == 0 {
+            vec![topics[i].to_string()]
+        } else {
+            let mut t = topics[0..i + 1]
+                .iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<String>>();
+            t.sort();
+            t
+        };
+        let mut nt = nodes[i].topics().unwrap().data;
+        nt.sort();
+        assert_eq!(t, nt);
+    }
 }

@@ -1,4 +1,4 @@
-use meadow::{Deserialize, Host, HostConfig, Idle, Node, NodeConfig, Serialize, Tcp};
+use meadow::*;
 
 use std::thread;
 use std::time::Duration;
@@ -12,8 +12,7 @@ struct Pose {
 
 const LABELS: usize = 36;
 fn main() -> Result<(), meadow::Error> {
-    // Set up logging
-    start_logging();
+    type N = Tcp;
 
     let mut host: Host = HostConfig::default().build()?;
     host.start()?;
@@ -29,7 +28,7 @@ fn main() -> Result<(), meadow::Error> {
             };
 
             // Create a node
-            let node: Node<Tcp, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
+            let node: Node<N, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
             let node = match node.activate() {
                 Ok(node) => {
                     println!("NODE_{} connected successfully", i);
@@ -61,10 +60,4 @@ fn main() -> Result<(), meadow::Error> {
     println!("All threads have joined!");
     host.stop()?;
     Ok(())
-}
-
-fn start_logging() {
-    let file_appender = tracing_appender::rolling::hourly("logs/", "multiple_nodes");
-    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-    tracing_subscriber::fmt().with_writer(non_blocking).init();
 }

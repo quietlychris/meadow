@@ -53,7 +53,6 @@ pub struct Host {
     #[cfg(feature = "quic")]
     pub task_listen_quic: Option<JoinHandle<()>>,
     pub store: sled::Db,
-    pub reply_count: Arc<Mutex<usize>>,
 }
 
 impl Host {
@@ -63,7 +62,6 @@ impl Host {
         let connections = self.connections.clone();
 
         let db = self.store.clone();
-        let counter = self.reply_count.clone();
 
         // Start up the UDP process
         match &self.cfg.udp_cfg {
@@ -77,14 +75,17 @@ impl Host {
                 let addr = SocketAddr::new(IpAddr::V4(ip), udp_cfg.socket_num);
 
                 let db = db.clone();
-                let counter = counter.clone();
 
                 // Start the UDP listening socket
                 let (max_buffer_size_udp, _max_name_size_udp) =
                     (udp_cfg.max_buffer_size, udp_cfg.max_name_size);
+                let rt_handle = self.runtime.handle().clone();
                 let task_listen_udp = self.runtime.spawn(async move {
                     match UdpSocket::bind(addr).await {
-                        Ok(socket) => process_udp(socket, db, counter, max_buffer_size_udp).await,
+                        Ok(socket) => {
+                            process_udp(rt_handle.clone(), socket, db.clone(), max_buffer_size_udp)
+                                .await
+                        }
                         Err(e) => {
                             error!("{}", e);
                         }
@@ -107,7 +108,6 @@ impl Host {
 
                 let (max_buffer_size_tcp, max_name_size_tcp) =
                     (tcp_cfg.max_buffer_size, tcp_cfg.max_name_size);
-                let counter = counter.clone();
                 let db = db.clone();
                 let connections = Arc::clone(&connections);
 
@@ -129,12 +129,11 @@ impl Host {
                                 };
                                 debug!("Host received connection from {:?}", &name);
 
-                                let counter = counter.clone();
                                 let connections = Arc::clone(&connections.clone());
                                 let db = db.clone();
 
                                 let handle = tokio::spawn(async move {
-                                    process_tcp(stream, db, counter, max_buffer_size_tcp).await;
+                                    process_tcp(stream, db, max_buffer_size_tcp).await;
                                 });
                                 let connection = Connection {
                                     handle,
@@ -183,7 +182,6 @@ impl Host {
                         );
                         let connections = Arc::clone(&connections.clone());
                         loop {
-                            let counter = counter.clone();
                             if let Some(conn) = endpoint.accept().await {
                                 if let Ok(connection) = conn.await {
                                     let db = db.clone();
@@ -200,7 +198,6 @@ impl Host {
                                             // TO_DO: Instead of having these buffers, is there a way that we can just use sled 
                                             // to hold our buffer space instead, removing the additional allocation?
                                             let mut buf = vec![0u8; max_buffer_size_quic];
-                                            let counter = counter.clone();
                                             match connection.accept_bi().await {
                                                 Ok((send, recv)) => {
                                                     debug!("Host successfully received bi-directional stream from {}",connection.remote_address());
@@ -209,7 +206,6 @@ impl Host {
                                                             (send, recv),
                                                             db.clone(),
                                                             &mut buf,
-                                                            counter.clone(),
                                                         )
                                                         .await;
                                                     });
@@ -267,7 +263,11 @@ impl Host {
                 strings.push(name.to_string());
             }
         }
-
+        // Remove default sled tree name
+        let index = strings.iter().position(|x| *x == "__sled__default");
+        if let Some(n) = index {
+            strings.remove(n);
+        }
         strings
     }
 

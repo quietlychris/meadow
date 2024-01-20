@@ -101,51 +101,28 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
         let data = Arc::clone(&subscription_data);
 
         let buffer = self.buffer.clone();
+        let packet = GenericMsg {
+            msg_type: MsgType::SUBSCRIBE,
+            timestamp: Utc::now(),
+            topic: topic.clone(),
+            data_type: std::any::type_name::<T>().to_string(),
+            data: to_allocvec(&rate)?,
+        };
 
         let task_subscribe = self.rt_handle.spawn(async move {
             if let Ok(stream) = try_connection(addr).await {
                 if let Ok(stream) = handshake(stream, topic.clone()).await {
-                    debug!("Successfully subscribed to Host");
-
-                    let packet = GenericMsg {
-                        msg_type: MsgType::GET,
-                        timestamp: Utc::now(),
-                        topic: topic.clone(),
-                        data_type: std::any::type_name::<T>().to_string(),
-                        data: Vec::new(),
-                    };
-
-                    let mut buffer = buffer.lock().await;
                     loop {
-                        if let Ok(packet_as_bytes) = to_allocvec(&packet) {
-                            match send_msg(&stream, packet_as_bytes).await {
-                                Ok(()) => {
-                                    let msg = match await_response::<T>(&stream, &mut buffer).await
-                                    {
-                                        Ok(msg) => msg,
-                                        Err(e) => {
-                                            error!("Subscription Error: {}", e);
-                                            continue;
-                                        }
-                                    };
-                                    let delta = Utc::now() - msg.timestamp;
-                                    // println!("The time difference between msg tx/rx is: {} us",delta);
-                                    if delta <= chrono::Duration::zero() {
-                                        // println!("Data is not newer, skipping to next subscription iteration");
-                                        continue;
-                                    }
-
-                                    let mut data = data.lock().await;
-
-                                    *data = Some(msg);
-                                }
-                                Err(e) => {
-                                    error!("{}", e);
-                                }
-                            }
+                        if let Err(e) = run_subscription::<T>(
+                            packet.clone(),
+                            buffer.clone(),
+                            &stream,
+                            data.clone(),
+                        )
+                        .await
+                        {
+                            error!("{:?}", e);
                         }
-
-                        sleep(rate).await;
                     }
                 }
             }
@@ -156,5 +133,44 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
         subscription_node.subscription_data = subscription_data;
 
         Ok(subscription_node)
+    }
+}
+
+async fn run_subscription<T: Message>(
+    packet: GenericMsg,
+    buffer: Arc<TokioMutex<Vec<u8>>>,
+    stream: &TcpStream,
+    data: Arc<TokioMutex<Option<Msg<T>>>>,
+) -> Result<(), Error> {
+    let packet_as_bytes = to_allocvec(&packet)?;
+    send_msg(stream, packet_as_bytes).await?;
+
+    let mut buffer = buffer.lock().await;
+    loop {
+        match await_response::<T>(stream, &mut buffer).await {
+            Ok(msg) => {
+                let mut data = data.lock().await;
+                use std::ops::DerefMut;
+                match data.deref_mut() {
+                    Some(existing) => {
+                        let delta = msg.timestamp - existing.timestamp;
+                        // println!("The time difference between msg tx/rx is: {} us",delta);
+                        if delta <= chrono::Duration::zero() {
+                            // println!("Data is not newer, skipping to next subscription iteration");
+                            continue;
+                        }
+
+                        *data = Some(msg);
+                    }
+                    None => {
+                        *data = Some(msg);
+                    }
+                }
+            }
+            Err(e) => {
+                error!("Subscription Error: {:?}", e);
+                continue;
+            }
+        };
     }
 }

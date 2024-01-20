@@ -8,6 +8,7 @@ use futures_util::StreamExt;
 use quinn::Connection as QuicConnection;
 use std::sync::{Arc, Mutex as StdMutex};
 use tokio::sync::Mutex as TokioMutex;
+use tokio::time::{sleep, Duration};
 
 use chrono::Utc;
 use postcard::from_bytes;
@@ -70,12 +71,7 @@ pub fn read_certs_from_file(
     }
 }
 
-pub async fn process_quic(
-    stream: (SendStream, RecvStream),
-    db: sled::Db,
-    buf: &mut [u8],
-    count: Arc<TokioMutex<usize>>,
-) {
+pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &mut [u8]) {
     let (mut tx, mut rx) = stream;
 
     if let Ok(Some(n)) = rx.read(buf).await {
@@ -87,7 +83,7 @@ pub async fn process_quic(
                 panic!("{}", e);
             }
         };
-        // debug!("{:?}", &msg);
+        info!("{:?}", &msg);
         match msg.msg_type {
             MsgType::SET => {
                 let tree = db
@@ -96,15 +92,16 @@ pub async fn process_quic(
 
                 let db_result = match tree.insert(msg.timestamp.to_string(), bytes) {
                     Ok(_prev_msg) => crate::error::HostOperation::SUCCESS, //"SUCCESS".to_string(),
-                    Err(_e) => crate::error::HostOperation::FAILURE,
+                    Err(_e) => {
+                        error!("{:?}", _e);
+                        crate::error::HostOperation::FAILURE
+                    }
                 };
 
                 if let Ok(bytes) = postcard::to_allocvec(&db_result) {
-                    loop {
+                    for _ in 0..10 {
                         match tx.write(&bytes).await {
                             Ok(_n) => {
-                                let mut count = count.lock().await;
-                                *count += 1;
                                 break;
                             }
                             Err(e) => {
@@ -130,13 +127,37 @@ pub async fn process_quic(
                 };
 
                 match tx.write(&return_bytes).await {
-                    Ok(_n) => {
-                        let mut count = count.lock().await;
-                        *count += 1;
-                    }
+                    Ok(_n) => {}
                     Err(e) => {
                         error!("{}", e);
                     }
+                }
+            }
+            MsgType::SUBSCRIBE => {
+                let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
+                let rate = specialized.data;
+
+                loop {
+                    let tree = db
+                        .open_tree(msg.topic.as_bytes())
+                        .expect("Error opening tree");
+
+                    let return_bytes = match tree.last() {
+                        Ok(Some(msg)) => msg.1,
+                        _ => {
+                            let e: String = format!("Error: no topic \"{}\" exists", &msg.topic);
+                            error!("{}", &e);
+                            e.as_bytes().into()
+                        }
+                    };
+
+                    match tx.write(&return_bytes).await {
+                        Ok(_n) => {}
+                        Err(e) => {
+                            error!("{}", e);
+                        }
+                    }
+                    sleep(rate).await;
                 }
             }
             MsgType::TOPICS => {
@@ -147,6 +168,12 @@ pub async fn process_quic(
                         strings.push(name.to_string());
                     }
                 }
+                // Remove default sled tree name
+                let index = strings
+                    .iter()
+                    .position(|x| *x == "__sled__default")
+                    .unwrap();
+                strings.remove(index);
                 if let Ok(data) = to_allocvec(&strings) {
                     let packet: GenericMsg = GenericMsg {
                         msg_type: MsgType::TOPICS,

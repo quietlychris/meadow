@@ -91,10 +91,6 @@ pub async fn handshake(stream: TcpStream, topic: String) -> Result<TcpStream, Er
 /// Send a `GenericMsg` of `MsgType` from the Node to the Host
 #[inline]
 pub async fn send_msg(stream: &TcpStream, packet_as_bytes: Vec<u8>) -> Result<(), Error> {
-    /*     match stream.writable().await {
-        Ok(_) => (),
-        Err(_e) => return Err(Error::AccessStream),
-    }; */
     stream.writable().await?;
 
     // Write the request
