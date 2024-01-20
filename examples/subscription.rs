@@ -5,9 +5,9 @@ fn main() -> Result<(), meadow::Error> {
     // Set up logging
     logging();
 
-    type N = Quic;
+    type N = Udp;
 
-    let mut host: Host = HostConfig::default().with_udp_config(None).build()?;
+    let mut host: Host = HostConfig::default().build()?;
     host.start()?;
     println!("Host should be running in the background");
 
@@ -17,34 +17,22 @@ fn main() -> Result<(), meadow::Error> {
         .activate()?;
 
     // Create a subscription node with a query rate of 10 Hz
-    let reader = writer
-        .cfg
-        .clone()
+    let reader = NodeConfig::<N, usize>::new("subscription")
         .build()?
-        .subscribe(Duration::from_micros(1))?;
+        .subscribe(Duration::from_millis(1_000))?;
 
     // Since subscribed topics are not guaranteed to exist, subscribed nodes always return Option<T>
-    let result = match reader.get_subscribed_data() {
-        Ok(val) => val.data,
-        Err(e) => {
-            println!("Error: {:?}, returning 0", e);
-            0
-        }
-    };
-    dbg!(result);
+    //let _result = reader.get_subscribed_data();
+    //dbg!(_result);
 
-    for i in 0..100 {
+    for i in 0..5 {
         println!("publishing {}", i);
-        writer.publish(i as usize)?;
-        std::thread::sleep(std::time::Duration::from_micros(200));
-        match reader.get_subscribed_data() {
-            Ok(result) => {
-                dbg!(result);
-            }
-            Err(e) => {
-                dbg!(e);
-            }
-        };
+        writer.publish(i as usize).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(1_100));
+        let result = writer.request()?.data;
+        dbg!(result);
+        assert_eq!(writer.request()?.data, i);
+        // assert_eq!(reader.get_subscribed_data()?.data, i);
     }
 
     // host.stop()?;
@@ -64,7 +52,7 @@ fn logging() {
 
     let log = tracing_subscriber::fmt::layer()
         .compact()
-        .with_ansi(false)
+        .with_ansi(true)
         .with_line_number(true)
         .with_writer(Arc::new(file));
 

@@ -41,12 +41,7 @@ pub async fn handshake(
 /// Host process for handling incoming connections from Nodes
 #[tracing::instrument]
 #[inline]
-pub async fn process_tcp(
-    stream: TcpStream,
-    db: sled::Db,
-    count: Arc<Mutex<usize>>,
-    max_buffer_size: usize,
-) {
+pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize) {
     let mut buf = vec![0u8; max_buffer_size];
     loop {
         if let Err(e) = stream.readable().await {
@@ -95,8 +90,6 @@ pub async fn process_tcp(
                             loop {
                                 match stream.try_write(&bytes) {
                                     Ok(_n) => {
-                                        let mut count = count.lock().await;
-                                        *count += 1;
                                         break;
                                     }
                                     Err(_e) => {
@@ -126,9 +119,6 @@ pub async fn process_tcp(
                             if let Ok(()) = stream.writable().await {
                                 if let Err(e) = stream.try_write(&return_bytes) {
                                     error!("Error sending data back on TCP/TOPICS: {:?}", e);
-                                } else {
-                                    let mut count = count.lock().await;
-                                    *count += 1;
                                 }
                             }
                         }
@@ -158,9 +148,6 @@ pub async fn process_tcp(
                                                 "Error sending data back on TCP/TOPICS: {:?}",
                                                 e
                                             );
-                                        } else {
-                                            let mut count = count.lock().await;
-                                            *count += 1;
                                         }
                                     }
                                     sleep(rate).await;

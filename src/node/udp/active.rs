@@ -85,22 +85,13 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
         };
 
         let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
+        let buffer = self.buffer.clone();
 
         self.rt_handle.block_on(async {
             if let Some(socket) = &self.socket {
                 send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await?;
-                let mut buffer = self.buffer.lock().await;
-                let msg = await_response(socket, &mut buffer).await?;
+                let msg = await_response(socket, buffer).await?;
                 Ok(msg)
-            /*                 if let Ok(_n) =
-                send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await
-            {
-                let mut buffer = self.buffer.lock().await;
-                let msg = await_response(socket, &mut buffer).await?;
-                Ok(msg)
-            } else {
-                Err(Error::BadResponse)
-            } */
             } else {
                 Err(Error::AccessSocket)
             }
@@ -119,23 +110,13 @@ impl<T: Message + 'static> Node<Udp, Active, T> {
         };
 
         let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
+        let buffer = self.buffer.clone();
 
         self.rt_handle.block_on(async {
             if let Some(socket) = &self.socket {
                 send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await?;
-                let mut buffer = self.buffer.lock().await;
-                let msg = await_response(socket, &mut buffer).await?;
+                let msg = await_response(socket, buffer).await?;
                 Ok(msg)
-
-            /*                 if let Ok(_n) =
-                send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await
-            {
-                let mut buffer = self.buffer.lock().await;
-                let msg = await_response(socket, &mut buffer).await?;
-                Ok(msg)
-            } else {
-                Err(Error::BadResponse)
-            } */
             } else {
                 Err(Error::AccessSocket)
             }

@@ -1,5 +1,6 @@
 // Tokio for async
 use tokio::net::UdpSocket;
+use tokio::runtime::Handle;
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration}; // as TokioMutex;
                                     // Tracing for logging
@@ -14,20 +15,23 @@ use chrono::Utc;
 use crate::*;
 
 /// Host process for handling incoming connections from Nodes
-#[tracing::instrument]
+#[tracing::instrument(skip(db))]
 #[inline]
 pub async fn process_udp(
+    rt_handle: Handle,
     socket: UdpSocket,
     db: sled::Db,
-    count: Arc<Mutex<usize>>,
     max_buffer_size: usize,
 ) {
     let mut buf = vec![0u8; max_buffer_size];
+    let s = Arc::new(socket);
+
     // TO_DO_PART_B: Tried to with try_read_buf(), but seems to panic?
     // let mut buf = Vec::with_capacity(max_buffer_size);
     loop {
         // dbg!(&count);
-        match socket.recv_from(&mut buf).await {
+        let s = s.clone();
+        match s.recv_from(&mut buf).await {
             Ok((0, _)) => break, // TO_DO: break or continue?
             Ok((n, return_addr)) => {
                 let bytes = &buf[..n];
@@ -41,6 +45,7 @@ pub async fn process_udp(
 
                 match msg.msg_type {
                     MsgType::SET => {
+                        info!("Received SET message: {:?}", &msg);
                         let tree = db
                             .open_tree(msg.topic.as_bytes())
                             .expect("Error opening tree");
@@ -71,8 +76,8 @@ pub async fn process_udp(
                                 }
                             };
 
-                            if let Ok(()) = socket.writable().await {
-                                if let Err(e) = socket.try_send_to(&return_bytes, return_addr) {
+                            if let Ok(()) = s.writable().await {
+                                if let Err(e) = s.try_send_to(&return_bytes, return_addr) {
                                     error!("Error sending data back on UDP/GET: {}", e)
                                 };
                             };
@@ -81,30 +86,40 @@ pub async fn process_udp(
                     MsgType::SUBSCRIBE => {
                         let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
                         let rate = specialized.data;
-                        let tree = db
-                            .open_tree(msg.topic.as_bytes())
-                            .expect("Error opening tree");
+                        info!("Received SUBSCRIBE message: {:?}", &msg);
+                        info!("Received subscription @ rate {:?}", rate);
 
-                        loop {
-                            if let Ok(topic) = tree.last() {
-                                let return_bytes = match topic {
-                                    Some(msg) => msg.1,
-                                    None => {
-                                        let e: String =
-                                            format!("Error: no topic \"{}\" exists", &msg.topic);
-                                        error!("{}", &e);
-                                        e.as_bytes().into()
-                                    }
-                                };
+                        let db = db.clone();
 
-                                if let Ok(()) = socket.writable().await {
-                                    if let Err(e) = socket.try_send_to(&return_bytes, return_addr) {
-                                        error!("Error sending data back on UDP/GET: {}", e)
+                        rt_handle.spawn(async move {
+                            loop {
+                                let tree = db
+                                    .open_tree(msg.topic.as_bytes())
+                                    .expect("Error opening tree");
+                                if let Ok(topic) = tree.last() {
+                                    let return_bytes = match topic {
+                                        Some(msg) => msg.1,
+                                        None => {
+                                            let e: String = format!(
+                                                "Error: no topic \"{}\" exists",
+                                                &msg.topic
+                                            );
+                                            error!("{}", &e);
+                                            e.as_bytes().into()
+                                        }
                                     };
-                                };
+                                    let return_msg = from_bytes::<GenericMsg>(&return_bytes);
+                                    info!("Host sending return to subscriber: {:?}", return_msg);
+
+                                    if let Ok(()) = s.writable().await {
+                                        if let Err(e) = s.try_send_to(&return_bytes, return_addr) {
+                                            error!("Error sending data back on UDP/GET: {}", e)
+                                        };
+                                    };
+                                }
+                                sleep(rate).await;
                             }
-                            sleep(rate).await;
-                        }
+                        });
                     }
                     MsgType::TOPICS => {
                         let names = db.tree_names();
@@ -138,8 +153,8 @@ pub async fn process_udp(
                                 };
 
                                 if let Ok(bytes) = to_allocvec(&packet) {
-                                    if let Ok(()) = socket.writable().await {
-                                        if let Err(e) = socket.try_send_to(&bytes, return_addr) {
+                                    if let Ok(()) = s.writable().await {
+                                        if let Err(e) = s.try_send_to(&bytes, return_addr) {
                                             error!(
                                                 "Error sending data back on UDP/TOPICS: {:?}",
                                                 e

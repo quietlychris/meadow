@@ -14,6 +14,8 @@ struct Pose {
 fn main() -> Result<(), meadow::Error> {
     logging();
 
+    type N = Udp;
+
     // Configure the Host with logging
     let mut host = {
         let date = chrono::Utc::now();
@@ -32,7 +34,7 @@ fn main() -> Result<(), meadow::Error> {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let node: Node<Tcp, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
+    let node: Node<N, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
     let node = node.activate()?;
     debug!("Node should now be connected");
     println!(

@@ -4,7 +4,9 @@ mod subscription;
 
 use crate::msg::{GenericMsg, Message, Msg};
 use std::convert::TryInto;
+use std::sync::Arc;
 use tokio::net::UdpSocket;
+use tokio::sync::Mutex as TokioMutex;
 
 use tracing::*;
 
@@ -13,22 +15,25 @@ use std::io::{Error as IoError, ErrorKind};
 use std::net::SocketAddr;
 
 #[inline]
+#[tracing::instrument(skip(buffer))]
 pub async fn await_response<T: Message>(
     socket: &UdpSocket,
-    buf: &mut [u8],
+    buffer: Arc<TokioMutex<Vec<u8>>>,
 ) -> Result<Msg<T>, Error> {
     socket.readable().await?;
-    for _ in 0..10 {
-        match socket.recv(buf).await {
+    loop {
+        let mut buf = buffer.lock().await;
+
+        match socket.recv(&mut buf).await {
             Ok(0) => {
                 info!("await_response received zero bytes");
                 continue;
             }
             Ok(n) => {
-                info!("await_response received {} bytes", n);
+                // info!("await_response received {} bytes", n);
                 let bytes = &buf[..n];
+
                 let generic = postcard::from_bytes::<GenericMsg>(bytes)?;
-                info!("Generic: {:?}", &generic);
                 let msg: Msg<T> = generic.try_into()?;
                 return Ok(msg);
             }
@@ -40,10 +45,7 @@ pub async fn await_response<T: Message>(
             }
         }
     }
-    Err(Error::Io(IoError::new(
-        ErrorKind::TimedOut,
-        "Didn't receive a response within 10 cycles!",
-    )))
+
 }
 
 #[inline]

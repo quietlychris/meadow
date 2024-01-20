@@ -71,12 +71,7 @@ pub fn read_certs_from_file(
     }
 }
 
-pub async fn process_quic(
-    stream: (SendStream, RecvStream),
-    db: sled::Db,
-    buf: &mut [u8],
-    count: Arc<TokioMutex<usize>>,
-) {
+pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &mut [u8]) {
     let (mut tx, mut rx) = stream;
 
     if let Ok(Some(n)) = rx.read(buf).await {
@@ -104,8 +99,6 @@ pub async fn process_quic(
                     loop {
                         match tx.write(&bytes).await {
                             Ok(_n) => {
-                                let mut count = count.lock().await;
-                                *count += 1;
                                 break;
                             }
                             Err(e) => {
@@ -131,10 +124,7 @@ pub async fn process_quic(
                 };
 
                 match tx.write(&return_bytes).await {
-                    Ok(_n) => {
-                        let mut count = count.lock().await;
-                        *count += 1;
-                    }
+                    Ok(_n) => {}
                     Err(e) => {
                         error!("{}", e);
                     }
@@ -159,10 +149,7 @@ pub async fn process_quic(
                         info!("SUBSCRIBE_DATA: {:?}", &return_bytes);
 
                         match tx.write(&return_bytes).await {
-                            Ok(_n) => {
-                                let mut count = count.lock().await;
-                                *count += 1;
-                            }
+                            Ok(_n) => {}
                             Err(e) => {
                                 error!("{}", e);
                             }

@@ -45,11 +45,14 @@ impl<T: Message> From<Node<Udp, Idle, T>> for Node<Udp, Subscription, T> {
 }
 
 impl<T: Message + 'static> Node<Udp, Idle, T> {
-    //#[tracing::instrument(skip_all)]
+    #[tracing::instrument(skip(self))]
     pub fn activate(mut self) -> Result<Node<Udp, Active, T>, Error> {
         match self.rt_handle.block_on(async move {
             match UdpSocket::bind("[::]:0").await {
-                Ok(socket) => Ok(socket),
+                Ok(socket) => {
+                    info!("Bound to socket: {:?}", &socket);
+                    Ok(socket)
+                }
                 Err(_e) => Err(Error::AccessSocket),
             }
         }) {
@@ -60,6 +63,7 @@ impl<T: Message + 'static> Node<Udp, Idle, T> {
         Ok(Node::<Udp, Active, T>::from(self))
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn subscribe(mut self, rate: Duration) -> Result<Node<Udp, Subscription, T>, Error> {
         let topic = self.topic.clone();
         let subscription_data: Arc<TokioMutex<Option<Msg<T>>>> = Arc::new(TokioMutex::new(None));
@@ -77,6 +81,7 @@ impl<T: Message + 'static> Node<Udp, Idle, T> {
 
         let task_subscribe = self.rt_handle.spawn(async move {
             if let Ok(socket) = UdpSocket::bind("[::]:0").await {
+                info!("Bound to socket: {:?}", &socket);
                 loop {
                     if let Err(e) = run_subscription::<T>(
                         packet.clone(),
@@ -87,6 +92,7 @@ impl<T: Message + 'static> Node<Udp, Idle, T> {
                     )
                     .await
                     {
+                        // dbg!(&e);
                         error!("{:?}", e);
                     }
                 }
@@ -102,6 +108,7 @@ impl<T: Message + 'static> Node<Udp, Idle, T> {
     }
 }
 
+#[tracing::instrument(skip_all)]
 async fn run_subscription<T: Message>(
     packet: GenericMsg,
     buffer: Arc<TokioMutex<Vec<u8>>>,
@@ -113,22 +120,16 @@ async fn run_subscription<T: Message>(
     udp::send_msg(socket, packet_as_bytes.clone(), addr).await?;
 
     loop {
-        let mut buf = buffer.lock().await;
+        let msg = udp::await_response::<T>(socket, buffer.clone()).await?;
+        info!("UDP Msg<T> received: {:?}", &msg);
+        let delta = Utc::now() - msg.timestamp;
+        if delta <= chrono::Duration::zero() {
+            info!("Data is not newer, skipping to next subscription iteration");
+            continue;
+        }
 
-        match udp::await_response::<T>(socket, &mut buf).await {
-            Ok(msg) => {
-                let delta = Utc::now() - msg.timestamp;
-                if delta <= chrono::Duration::zero() {
-                    info!("Data is not newer, skipping to next subscription iteration");
-                    // continue;
-                }
-
-                let mut data = data.lock().await;
-                *data = Some(msg);
-            }
-            Err(e) => {
-                error!("Subscription Error: {}", e);
-            }
-        };
+        let mut data = data.lock().await;
+        *data = Some(msg);
+        info!("Inserted new subscription data!");
     }
 }
