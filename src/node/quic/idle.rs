@@ -19,6 +19,7 @@ use std::sync::Arc;
 
 use alloc::vec::Vec;
 use postcard::*;
+use std::convert::TryInto;
 use std::marker::PhantomData;
 
 // Quic

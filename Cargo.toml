@@ -3,10 +3,10 @@ name = "meadow"
 version = "0.1.0"
 description = "Robotics-focused middleware for embedded Linux"
 authors = ["Christopher Moran <christopher.and.moran@gmail.com>"]
-edition = "2021"
+edition = "2018"
 license = "MPL-2.0"
 repository = "https://github.com/quietlychris/meadow"
-keywords = ["robotics", "middleware", "autonomy"]
+keywords = ["robotics", "middleware", "autonomy", "serde"]
 categories = ["science::robotics", "network-programming"]
 
 [lib]

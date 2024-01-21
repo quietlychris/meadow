@@ -6,6 +6,7 @@ use crate::*;
 use futures_util::lock::Mutex;
 use futures_util::StreamExt;
 use quinn::Connection as QuicConnection;
+use std::convert::TryInto;
 use std::sync::{Arc, Mutex as StdMutex};
 use tokio::sync::Mutex as TokioMutex;
 use tokio::time::{sleep, Duration};

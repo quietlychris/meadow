@@ -1,12 +1,12 @@
 [![crates.io](https://img.shields.io/crates/v/meadow.svg)](https://crates.io/crates/meadow) [![Documentation](https://docs.rs/meadow/badge.svg)](https://docs.rs/meadow) ![CI](https://github.com/quietlychris/meadow/actions/workflows/rust.yml/badge.svg)
 # Meadow
 
-`meadow` is an experimental robotics-focused middleware for embedded Linux. It is built with a high preference for catching errors at compile-time over runtime and a focus on developer ergonomics. 
+`meadow` is an experimental robotics-focused middleware for embedded Linux. It is built with a high preference for catching errors at compile-time over runtime and a focus on developer ergonomics, and can natively operate on any [`serde`](https://serde.rs/)-compatible data type. 
 
 ```rust
 use meadow::*;
 
-// Any type implementing Debug and serde's De/Serialize traits are meadow-compatible
+// `meadow` should be able to operate on any `serde`-compatible data types
 // (the standard library Debug and Clone traits are also required)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Coordinate {
@@ -79,7 +79,7 @@ Meadow's subscriber functionality currently works a bit differently than many ot
 Under the hood, `meadow` relies on:
 * [`sled`](https://github.com/spacejam/sled): High-performance embedded, thread-safe database 
 * [`tokio`](https://tokio.rs): Asynchronous runtime, enabling a large number of simultaneous connections
-* [`postcard`](https://github.com/jamesmunns/postcard): Efficient `#![no_std]`-compatible, [serde](https://serde.rs/)-based de/serializer designed for embedded or constrained environments 
+* [`postcard`](https://github.com/jamesmunns/postcard): Efficient `#![no_std]`-compatible, [serde](https://serde.rs/)-based de/serializer designed for embedded or constrained environments. `meadow` should be able to operate native on any `serde`-compatible data types.  
 
 ## Benchmarks
 Preliminary benchmark data is showing round-trip message times (publish-request-reply) on `locahost` using the `--release` compilation profile, on the README's `Coordinate` data (strongly-typed, 8 bytes) to be <100 microseconds. Statistical benchmarks on different data profiles can be run via [`criterion`](https://github.com/bheisler/criterion.rs) via `cargo bench`.

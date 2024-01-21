@@ -13,6 +13,7 @@ use std::sync::Arc;
 use chrono::Utc;
 
 use crate::*;
+use std::convert::TryInto;
 
 /// Host process for handling incoming connections from Nodes
 #[tracing::instrument(skip(db))]

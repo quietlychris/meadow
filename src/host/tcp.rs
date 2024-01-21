@@ -14,6 +14,7 @@ use chrono::Utc;
 
 use crate::error::{Error, HostOperation::*};
 use crate::*;
+use std::convert::TryInto;
 use std::result::Result;
 
 /// Initiate a TCP connection with a Node
