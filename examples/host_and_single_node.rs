@@ -34,9 +34,8 @@ fn main() -> Result<(), meadow::Error> {
     println!("Host should be running in the background");
 
     thread::sleep(Duration::from_secs(60));
-    
 
-/*     // Get the host up and running
+    /*     // Get the host up and running
     let node: Node<N, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
     let node = node.activate()?;
     debug!("Node should now be connected");

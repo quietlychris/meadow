@@ -1,7 +1,7 @@
 use meadow::*;
 use std::thread;
-use tokio::time;
 use std::time::Duration;
+use tokio::time;
 
 use serde::{Deserialize, Serialize};
 
@@ -25,7 +25,10 @@ async fn main() {
 
     for i in 0..5 {
         // Could get this by reading a GPS, for example
-        let c = Coordinate { x: i as f32, y: i as f32 };
+        let c = Coordinate {
+            x: i as f32,
+            y: i as f32,
+        };
         node.publish(c).await.unwrap();
         time::sleep(Duration::from_millis(1_000)).await;
         let result = node.request().await.unwrap();
