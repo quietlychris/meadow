@@ -1,6 +1,6 @@
-use crate::node::network_config::Udp;
-use crate::node::Interface;
-use crate::node::Node;
+use crate::node::blocking::network_config::Udp;
+use crate::node::blocking::Interface;
+use crate::node::blocking::Node;
 use crate::Error;
 use crate::{Active, Idle, MsgType};
 use std::marker::PhantomData;
@@ -9,7 +9,7 @@ use std::ops::DerefMut;
 use std::sync::Arc;
 use tokio::sync::Mutex as TokioMutex;
 
-use crate::node::udp::*;
+use crate::node::blocking::udp::*;
 
 use chrono::Utc;
 

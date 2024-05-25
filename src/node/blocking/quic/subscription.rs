@@ -1,7 +1,7 @@
 use crate::error::Error;
 use crate::msg::Message;
-use crate::node::network_config::Quic;
-use crate::node::Subscription;
+use crate::node::blocking::network_config::Quic;
+use crate::node::blocking::Subscription;
 use crate::Msg;
 use crate::Node;
 

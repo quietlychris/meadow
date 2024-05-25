@@ -1,4 +1,4 @@
-use meadow::node::RuntimeConfig;
+use meadow::node::blocking::RuntimeConfig;
 use meadow::*;
 use std::{fs::File, sync::Arc};
 use tracing::*;
@@ -14,7 +14,8 @@ struct Pose {
     pub y: f32,
 }
 
-fn main() -> Result<(), meadow::Error> {
+#[tokio::main]
+async fn main() -> Result<(), meadow::Error> {
     logging();
 
     // Configure the Host with logging

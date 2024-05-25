@@ -13,7 +13,7 @@ struct Coordinate {
 fn main() {
     let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
     let node: Node<Tcp, Idle, Coordinate> = NodeConfig::new("my_coordinate")
-        .with_config(node::NetworkConfig::<Tcp>::default().set_host_addr(addr))
+        .with_config(node::blocking::NetworkConfig::<Tcp>::default().set_host_addr(addr))
         .build()
         .unwrap();
     let node = node.activate().unwrap();

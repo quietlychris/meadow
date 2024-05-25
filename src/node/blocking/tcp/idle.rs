@@ -2,8 +2,8 @@ extern crate alloc;
 use crate::Error;
 use crate::*;
 
-use crate::node::network_config::Tcp;
-use crate::node::*;
+use crate::node::blocking::network_config::Tcp;
+use crate::node::blocking::*;
 
 use tokio::net::UdpSocket;
 use tokio::sync::Mutex as TokioMutex;

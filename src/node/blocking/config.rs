@@ -4,9 +4,9 @@ use std::sync::Arc;
 use tokio::runtime::Handle;
 use tokio::sync::Mutex as TokioMutex;
 
-use crate::node::network_config::*;
-use crate::node::{Active, Idle, Message, Node};
-use crate::node::{Interface, NetworkConfig};
+use crate::node::blocking::network_config::*;
+use crate::node::blocking::{Active, Idle, Message, Node};
+use crate::node::blocking::{Interface, NetworkConfig};
 use std::default::Default;
 use std::marker::PhantomData;
 use std::sync::Mutex;

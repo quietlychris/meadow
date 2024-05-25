@@ -1,6 +1,6 @@
 use crate::error::{Error, Quic::*};
-use crate::node::network_config::Quic;
-use crate::node::Interface;
+use crate::node::blocking::network_config::Quic;
+use crate::node::blocking::Interface;
 use crate::*;
 
 use crate::msg::{GenericMsg, Message, Msg};

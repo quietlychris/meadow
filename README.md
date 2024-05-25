@@ -24,7 +24,7 @@ fn main() -> Result<(), meadow::Error> {
     // Build a Node. Nodes can run over TCP, UDP, or QUIC
     let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
     let node: Node<Udp, Idle, Coordinate> = NodeConfig::new("position")
-        .with_config(node::NetworkConfig::<Udp>::default().set_host_addr(addr))
+        .with_config(node::blocking::NetworkConfig::<Udp>::default().set_host_addr(addr))
         .build()?;
     // Nodes use strict typestates; without using the activate() method first,
     // the compiler won't let allow publish() or request() methods on an Idle Node
@@ -40,7 +40,7 @@ fn main() -> Result<(), meadow::Error> {
     // Nodes can also be subscribers, which will request topic updates from the Host
     // at a given rate
     let subscriber = NodeConfig::<Tcp, Coordinate>::new("position")
-        .with_config(node::NetworkConfig::<Tcp>::default().set_host_addr(addr))
+        .with_config(node::blocking::NetworkConfig::<Tcp>::default().set_host_addr(addr))
         .build()?
         .subscribe(std::time::Duration::from_micros(100))?;
 
