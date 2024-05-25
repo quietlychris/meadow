@@ -73,6 +73,7 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                 match msg.msg_type {
                     MsgType::SET => {
                         // println!("received {} bytes, to be assigned to: {}", n, &msg.name);
+                        let name = to_allocvec(&msg.topic).unwrap();
                         let tree = db
                             .open_tree(msg.topic.as_bytes())
                             .expect("Error opening tree");
