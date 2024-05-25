@@ -1,5 +1,6 @@
 use meadow::*;
 use std::thread;
+use tokio::time;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
@@ -10,23 +11,24 @@ struct Coordinate {
     y: f32,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
     let node: Node<Tcp, Idle, Coordinate> = NodeConfig::new("my_coordinate")
-        .with_config(node::blocking::NetworkConfig::<Tcp>::default().set_host_addr(addr))
+        .with_config(node::nonblocking::NetworkConfig::<Tcp>::default().set_host_addr(addr))
         .build()
         .unwrap();
-    let node = node.activate().unwrap();
+    let node = node.activate().await.unwrap(); // unwrap();
 
     let c = Coordinate { x: 4.0, y: 4.0 };
-    node.publish(c).unwrap();
+    node.publish(c).await.unwrap();
 
-    loop {
+    for i in 0..5 {
         // Could get this by reading a GPS, for example
-        let c = Coordinate { x: 4.0, y: 4.0 };
-        node.publish(c).unwrap();
-        thread::sleep(Duration::from_millis(1_000));
-        let result = node.request().unwrap();
+        let c = Coordinate { x: i as f32, y: i as f32 };
+        node.publish(c).await.unwrap();
+        time::sleep(Duration::from_millis(1_000)).await;
+        let result = node.request().await.unwrap();
         println!("Got coordinate: {:?}", result);
     }
 }
