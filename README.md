@@ -91,7 +91,7 @@ As mentioned above, this library should be considered *experimental*. While the 
 
 ## Additional Resources
 The following projects are built with Meadow:
-- [Tutlesim](https://github.com/quietlychris/turtlesim): Simple 2D autonomy simulator
+- [Turtlesim](https://github.com/quietlychris/turtlesim): Simple 2D autonomy simulator
 - [Orientation](https://github.com/quietlychris/orientation): Real-time 3D orientation visualization of a BNO055 IMU using Meadow and Bevy
 
 ## License
