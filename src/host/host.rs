@@ -272,7 +272,6 @@ impl Host {
     }
 
     /// Print information about all Host connections
-    #[no_mangle]
     pub fn print_connections(&mut self) -> Result<(), crate::Error> {
         match self.connections.lock() {
             Ok(connections) => {
