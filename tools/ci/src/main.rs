@@ -66,14 +66,18 @@ fn main() {
     // See if clippy has any complaints.
     // - Type complexity must be ignored because we use huge templates for queries
     cmd!(sh, "cargo clippy --package meadow --all-targets --all-features -- -D warnings -A clippy::type_complexity -W clippy::doc_markdown")
-    .run()
-    .expect("Please fix clippy errors in output above.");
+        .run()
+        .expect("Please fix clippy errors in output above.");
 
     sh.set_var("RUSTDOCFLAGS", "-D warnings");
     // Check the documentation format is valid
     cmd!(sh, "cargo doc --package meadow")
         .run()
         .expect("Please check that all documentation follows rustdoc standards");
+
+    cmd!(sh, "cargo run --bin certs --features=quic")
+        .run()
+        .expect("Couldn't generate a QUIC certificate");
 
     // Run tests
     cmd!(
