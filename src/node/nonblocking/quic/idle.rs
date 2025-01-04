@@ -2,7 +2,7 @@ extern crate alloc;
 use crate::error::{Error, Quic::*};
 use crate::*;
 
-use crate::node::nonblocking::network_config::Quic;
+use crate::node::nonblocking::network_config::{Quic, Nonblocking};
 use crate::node::nonblocking::*;
 
 use std::path::PathBuf;
@@ -29,8 +29,8 @@ use crate::msg::*;
 use crate::node::nonblocking::quic::generate_client_config_from_certs;
 use chrono::Utc;
 
-impl<T: Message> From<Node<Quic, Idle, T>> for Node<Quic, Active, T> {
-    fn from(node: Node<Quic, Idle, T>) -> Self {
+impl<T: Message> From<Node<Nonblocking, Quic, Idle, T>> for Node<Nonblocking, Quic, Active, T> {
+    fn from(node: Node<Nonblocking, Quic, Idle, T>) -> Self {
         Self {
             __state: PhantomData,
             __data_type: PhantomData,
@@ -47,8 +47,8 @@ impl<T: Message> From<Node<Quic, Idle, T>> for Node<Quic, Active, T> {
     }
 }
 
-impl<T: Message> From<Node<Quic, Idle, T>> for Node<Quic, Subscription, T> {
-    fn from(node: Node<Quic, Idle, T>) -> Self {
+impl<T: Message> From<Node<Nonblocking, Quic, Idle, T>> for Node<Nonblocking, Quic, Subscription, T> {
+    fn from(node: Node<Nonblocking, Quic, Idle, T>) -> Self {
         Self {
             __state: PhantomData,
             __data_type: PhantomData,
@@ -65,15 +65,15 @@ impl<T: Message> From<Node<Quic, Idle, T>> for Node<Quic, Subscription, T> {
     }
 }
 
-impl<T: Message + 'static> Node<Quic, Idle, T> {
+impl<T: Message + 'static> Node<Nonblocking, Quic, Idle, T> {
     /// Attempt connection from the Node to the Host located at the specified address
     //#[tracing::instrument(skip_all)]
-    pub async fn activate(mut self) -> Result<Node<Quic, Active, T>, Error> {
+    pub async fn activate(mut self) -> Result<Node<Nonblocking, Quic, Active, T>, Error> {
         debug!("Attempting QUIC connection");
 
         self.create_connection().await?;
 
-        Ok(Node::<Quic, Active, T>::from(self))
+        Ok(Node::<Nonblocking, Quic, Active, T>::from(self))
     }
 
     async fn create_connection(&mut self) -> Result<(), Error> {
@@ -105,7 +105,7 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
     }
 
     #[tracing::instrument(skip_all)]
-    pub async fn subscribe(mut self, rate: Duration) -> Result<Node<Quic, Subscription, T>, Error> {
+    pub async fn subscribe(mut self, rate: Duration) -> Result<Node<Nonblocking, Quic, Subscription, T>, Error> {
         self.create_connection().await?;
         let connection = self.connection.clone();
         let topic = self.topic.clone();
@@ -142,7 +142,7 @@ impl<T: Message + 'static> Node<Quic, Idle, T> {
 
         self.task_subscribe = Some(task_subscribe);
 
-        let mut subscription_node = Node::<Quic, Subscription, T>::from(self);
+        let mut subscription_node = Node::<Nonblocking, Quic, Subscription, T>::from(self);
         subscription_node.subscription_data = subscription_data;
 
         Ok(subscription_node)

@@ -1,5 +1,5 @@
 use crate::error::{Error, Quic::*};
-use crate::node::nonblocking::network_config::Quic;
+use crate::node::nonblocking::network_config::{Quic, Nonblocking};
 use crate::node::nonblocking::Interface;
 use crate::*;
 
@@ -16,7 +16,7 @@ use tracing::*;
 /// Quic implements the Interface trait
 impl Interface for Quic {}
 
-impl<T: Message + 'static> Node<Quic, Active, T> {
+impl<T: Message + 'static> Node<Nonblocking, Quic, Active, T> {
     #[tracing::instrument(skip(self))]
     pub async fn publish(&self, val: T) -> Result<(), Error> {
         let data: Vec<u8> = to_allocvec(&val)?;

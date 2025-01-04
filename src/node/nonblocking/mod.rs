@@ -9,7 +9,7 @@ pub use crate::node::nonblocking::config::*;
 pub use crate::node::nonblocking::network_config::NetworkConfig;
 #[cfg(feature = "quic")]
 pub use crate::node::nonblocking::network_config::Quic;
-pub use crate::node::nonblocking::network_config::{Tcp, Udp};
+pub use crate::node::nonblocking::network_config::{Tcp, Udp, Blocking, Nonblocking};
 #[cfg(feature = "quic")]
 pub use crate::node::nonblocking::quic::*;
 pub use crate::node::nonblocking::tcp::*;
@@ -34,7 +34,7 @@ use alloc::vec::Vec;
 use postcard::*;
 
 use crate::msg::*;
-use crate::node::nonblocking::network_config::Interface;
+use crate::node::nonblocking::network_config::{Block, Interface};
 use crate::Error;
 use chrono::{DateTime, Utc};
 
@@ -69,16 +69,19 @@ mod private {
 
     impl Sealed for crate::Idle {}
     impl Sealed for crate::Active {}
+
+    impl Sealed for crate::Blocking {}
+    impl Sealed for crate::Nonblocking {}
 }
 
 use std::sync::Mutex;
 
 /// Strongly-typed Node capable of publish/request on Host
 #[derive(Debug)]
-pub struct Node<I: Interface + Default, State, T: Message> {
+pub struct Node<B: Block, I: Interface + Default, State, T: Message> {
     pub __state: PhantomData<State>,
     pub __data_type: PhantomData<T>,
-    pub cfg: NodeConfig<I, T>,
+    pub cfg: NodeConfig<B, I, T>,
     // pub runtime: Option<Runtime>,
     // pub rt_handle: Handle,
     pub topic: String,

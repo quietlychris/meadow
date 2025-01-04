@@ -2,7 +2,7 @@ extern crate alloc;
 use crate::Error;
 use crate::*;
 
-use crate::node::nonblocking::network_config::Tcp;
+use crate::node::nonblocking::network_config::{Nonblocking, Tcp};
 use crate::node::nonblocking::*;
 
 use tokio::net::UdpSocket;
@@ -25,8 +25,8 @@ use quinn::Endpoint;
 use crate::msg::*;
 use chrono::Utc;
 
-impl<T: Message> From<Node<Tcp, Idle, T>> for Node<Tcp, Active, T> {
-    fn from(node: Node<Tcp, Idle, T>) -> Self {
+impl<T: Message> From<Node<Nonblocking, Tcp, Idle, T>> for Node<Nonblocking, Tcp, Active, T> {
+    fn from(node: Node<Nonblocking, Tcp, Idle, T>) -> Self {
         Self {
             __state: PhantomData,
             __data_type: PhantomData,
@@ -45,8 +45,8 @@ impl<T: Message> From<Node<Tcp, Idle, T>> for Node<Tcp, Active, T> {
     }
 }
 
-impl<T: Message> From<Node<Tcp, Idle, T>> for Node<Tcp, Subscription, T> {
-    fn from(node: Node<Tcp, Idle, T>) -> Self {
+impl<T: Message> From<Node<Nonblocking, Tcp, Idle, T>> for Node<Nonblocking, Tcp, Subscription, T> {
+    fn from(node: Node<Nonblocking, Tcp, Idle, T>) -> Self {
         Self {
             __state: PhantomData,
             __data_type: PhantomData,
@@ -65,10 +65,10 @@ impl<T: Message> From<Node<Tcp, Idle, T>> for Node<Tcp, Subscription, T> {
     }
 }
 
-impl<T: Message + 'static> Node<Tcp, Idle, T> {
+impl<T: Message + 'static> Node<Nonblocking, Tcp, Idle, T> {
     /// Attempt connection from the Node to the Host located at the specified address
     #[tracing::instrument(skip_all)]
-    pub async fn activate(mut self) -> Result<Node<Tcp, Active, T>, Error> {
+    pub async fn activate(mut self) -> Result<Node<Nonblocking, Tcp, Active, T>, Error> {
         let addr = self.cfg.network_cfg.host_addr;
         let topic = self.topic.clone();
 
@@ -85,11 +85,11 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
             self.stream = Some(stream);
         }
 
-        Ok(Node::<Tcp, Active, T>::from(self))
+        Ok(Node::<Nonblocking, Tcp, Active, T>::from(self))
     }
 
     #[tracing::instrument]
-    pub async fn subscribe(mut self, rate: Duration) -> Result<Node<Tcp, Subscription, T>, Error> {
+    pub async fn subscribe(mut self, rate: Duration) -> Result<Node<Nonblocking, Tcp, Subscription, T>, Error> {
         let addr = self.cfg.network_cfg.host_addr;
         let topic = self.topic.clone();
 
@@ -125,7 +125,7 @@ impl<T: Message + 'static> Node<Tcp, Idle, T> {
         });
         self.task_subscribe = Some(task_subscribe);
 
-        let mut subscription_node = Node::<Tcp, Subscription, T>::from(self);
+        let mut subscription_node = Node::<Nonblocking, Tcp, Subscription, T>::from(self);
         subscription_node.subscription_data = subscription_data;
 
         Ok(subscription_node)

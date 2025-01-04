@@ -54,5 +54,5 @@ pub use crate::networks::get_ip;
 pub use crate::node::nonblocking::Quic;
 pub use crate::node::nonblocking::{
     tcp::await_response, tcp::send_msg, Active, Idle, NetworkConfig, Node, NodeConfig,
-    Subscription, Tcp, Udp,
+    Subscription, Tcp, Udp, Blocking, Nonblocking
 };

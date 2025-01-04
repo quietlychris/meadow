@@ -43,29 +43,29 @@ impl RuntimeConfig {
 
 /// Configuration of strongly-typed Node
 #[derive(Debug, Clone)]
-pub struct NodeConfig<I: Interface + Default, T: Message> {
+pub struct NodeConfig<B: Block, I: Interface + Default, T: Message> {
     pub __data_type: PhantomData<T>,
     pub topic: Option<String>,
-    pub network_cfg: NetworkConfig<I>,
+    pub network_cfg: NetworkConfig<B, I>,
     pub runtime_cfg: RuntimeConfig,
 }
 
-impl<I: Interface + Default + Clone, T: Message> NodeConfig<I, T>
+impl<B: Block, I: Interface + Default + Clone, T: Message> NodeConfig<B, I, T>
 where
-    NetworkConfig<I>: Default,
+    NetworkConfig<B, I>: Default,
 {
     /// Create a named, strongly-typed Node without an assigned topic
-    pub fn new(topic: impl Into<String>) -> NodeConfig<I, T> {
+    pub fn new(topic: impl Into<String>) -> NodeConfig<B, I, T> {
         NodeConfig {
             __data_type: PhantomData,
             topic: Some(topic.into()),
-            network_cfg: NetworkConfig::<I>::default(),
+            network_cfg: NetworkConfig::<B, I>::default(),
             runtime_cfg: RuntimeConfig::default(),
         }
     }
 
     /// Configure the TCP connection parameteres
-    pub fn with_config(mut self, network_cfg: NetworkConfig<I>) -> Self {
+    pub fn with_config(mut self, network_cfg: NetworkConfig<B, I>) -> Self {
         self.network_cfg = network_cfg;
         self
     }
@@ -76,7 +76,7 @@ where
     }
 
     /// Construct a Node from the specified configuration
-    pub fn build(self) -> Result<Node<I, Idle, T>, Error> {
+    pub fn build(self) -> Result<Node<B, I, Idle, T>, Error> {
         /*         let (runtime, rt_handle) = {
             if self.runtime_cfg.owned_runtime {
                 let runtime = match tokio::runtime::Builder::new_multi_thread()
@@ -102,7 +102,7 @@ where
 
         let max_buffer_size = self.network_cfg.max_buffer_size;
 
-        Ok(Node::<I, Idle, T> {
+        Ok(Node::<B, I, Idle, T> {
             __state: PhantomData::<Idle>,
             __data_type: PhantomData::<T>,
             cfg: self,

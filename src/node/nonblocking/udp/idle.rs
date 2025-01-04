@@ -22,8 +22,8 @@ use std::marker::PhantomData;
 use crate::msg::*;
 use crate::node::nonblocking::network_config::Udp;
 
-impl<T: Message> From<Node<Udp, Idle, T>> for Node<Udp, Subscription, T> {
-    fn from(node: Node<Udp, Idle, T>) -> Self {
+impl<T: Message> From<Node<Nonblocking, Udp, Idle, T>> for Node<Nonblocking, Udp, Subscription, T> {
+    fn from(node: Node<Nonblocking, Udp, Idle, T>) -> Self {
         Self {
             __state: PhantomData,
             __data_type: PhantomData,
@@ -42,9 +42,9 @@ impl<T: Message> From<Node<Udp, Idle, T>> for Node<Udp, Subscription, T> {
     }
 }
 
-impl<T: Message + 'static> Node<Udp, Idle, T> {
+impl<T: Message + 'static> Node<Nonblocking, Udp, Idle, T> {
     #[tracing::instrument(skip(self))]
-    pub async fn activate(mut self) -> Result<Node<Udp, Active, T>, Error> {
+    pub async fn activate(mut self) -> Result<Node<Nonblocking, Udp, Active, T>, Error> {
         match {
             match UdpSocket::bind("[::]:0").await {
                 Ok(socket) => {
@@ -58,11 +58,11 @@ impl<T: Message + 'static> Node<Udp, Idle, T> {
             Err(e) => return Err(e),
         };
 
-        Ok(Node::<Udp, Active, T>::from(self))
+        Ok(Node::<Nonblocking, Udp, Active, T>::from(self))
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn subscribe(mut self, rate: Duration) -> Result<Node<Udp, Subscription, T>, Error> {
+    pub async fn subscribe(mut self, rate: Duration) -> Result<Node<Nonblocking, Udp, Subscription, T>, Error> {
         let topic = self.topic.clone();
         let subscription_data: Arc<TokioMutex<Option<Msg<T>>>> = Arc::new(TokioMutex::new(None));
         let data = Arc::clone(&subscription_data);
@@ -99,7 +99,7 @@ impl<T: Message + 'static> Node<Udp, Idle, T> {
 
         self.task_subscribe = Some(task_subscribe);
 
-        let mut subscription_node = Node::<Udp, Subscription, T>::from(self);
+        let mut subscription_node = Node::<Nonblocking, Udp, Subscription, T>::from(self);
         subscription_node.subscription_data = subscription_data;
 
         Ok(subscription_node)

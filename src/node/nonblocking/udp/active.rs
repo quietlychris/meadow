@@ -1,4 +1,4 @@
-use crate::node::nonblocking::network_config::Udp;
+use crate::node::nonblocking::network_config::{Udp, Nonblocking};
 use crate::node::nonblocking::Interface;
 use crate::node::nonblocking::Node;
 use crate::Error;
@@ -22,8 +22,8 @@ use tracing::*;
 /// Udp implements the Interface trait
 impl Interface for Udp {}
 
-impl<T: Message> From<Node<Udp, Idle, T>> for Node<Udp, Active, T> {
-    fn from(node: Node<Udp, Idle, T>) -> Self {
+impl<T: Message> From<Node<Nonblocking, Udp, Idle, T>> for Node<Nonblocking, Udp, Active, T> {
+    fn from(node: Node<Nonblocking, Udp, Idle, T>) -> Self {
         Self {
             __state: PhantomData,
             __data_type: PhantomData,
@@ -44,7 +44,7 @@ impl<T: Message> From<Node<Udp, Idle, T>> for Node<Udp, Active, T> {
     }
 }
 
-impl<T: Message + 'static> Node<Udp, Active, T> {
+impl<T: Message + 'static> Node<Nonblocking, Udp, Active, T> {
     #[tracing::instrument]
     #[inline]
     pub async fn publish(&self, val: T) -> Result<(), Error> {
