@@ -17,7 +17,7 @@ pub struct Subscription;
 mod private {
     pub trait Sealed {}
 
-    use crate::node::network_config::{Udp, Tcp};
+    use crate::node::network_config::{Tcp, Udp};
     impl Sealed for Udp {}
     impl Sealed for Tcp {}
     #[cfg(feature = "quic")]
@@ -67,8 +67,8 @@ use std::fs::File;
 #[cfg(feature = "quic")]
 use std::io::BufReader;
 
-use std::sync::Mutex;
 use crate::node::config::NodeConfig;
+use std::sync::Mutex;
 
 /// Strongly-typed Node capable of publish/request on Host
 #[derive(Debug)]
@@ -76,8 +76,8 @@ pub struct Node<B: Block, I: Interface + Default, State, T: Message> {
     pub __state: PhantomData<State>,
     pub __data_type: PhantomData<T>,
     pub cfg: NodeConfig<B, I, T>,
-    // pub runtime: Option<Runtime>,
-    // pub rt_handle: Handle,
+    pub runtime: Option<Runtime>,
+    pub rt_handle: Option<Handle>,
     pub topic: String,
     pub stream: Option<TcpStream>,
     pub socket: Option<UdpSocket>,

@@ -51,3 +51,12 @@ pub use crate::host::{Host, HostConfig};
 pub use crate::msg::{GenericMsg, Message, Msg, MsgType};
 pub use crate::networks::get_ip;
 
+pub mod prelude {
+    pub use crate::host::HostConfig;
+    pub use crate::node::config::NodeConfig;
+    pub use crate::node::network_config::{Blocking, Nonblocking, Tcp, Udp};
+    pub use crate::node::{Active, Idle, Node, Subscription};
+    pub use crate::Msg;
+    pub use crate::SledConfig;
+    pub use serde::{Deserialize, Serialize};
+}

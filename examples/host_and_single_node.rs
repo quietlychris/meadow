@@ -1,4 +1,4 @@
-use meadow::*;
+use meadow::prelude::*;
 use std::thread;
 use std::time::Duration;
 
@@ -14,7 +14,7 @@ struct Pose {
 fn main() -> Result<(), meadow::Error> {
     logging();
 
-    type N = Udp;
+    type N = Tcp;
 
     // Configure the Host with logging
     let mut host = {
@@ -33,10 +33,10 @@ fn main() -> Result<(), meadow::Error> {
     host.start()?;
     println!("Host should be running in the background");
 
-    thread::sleep(Duration::from_secs(60));
+    // thread::sleep(Duration::from_secs(60));
 
-    /*     // Get the host up and running
-    let node: Node<N, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
+    // Get the host up and running
+    let node: Node<Blocking, N, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
     let node = node.activate()?;
     debug!("Node should now be connected");
     println!(
@@ -69,7 +69,7 @@ fn main() -> Result<(), meadow::Error> {
         "The size of an a meadow Host before shutdown is: {}",
         std::mem::size_of_val(&host)
     );
-    assert_eq!(host.topics(), node.topics()?.data); */
+    assert_eq!(host.topics(), node.topics()?.data);
 
     Ok(())
 }

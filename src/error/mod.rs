@@ -55,6 +55,8 @@ pub enum Error {
     /// Transparent `std::io` error
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    #[error("Unable to access Tokio runtime handle")]
+    HandleAccess,
 }
 
 /// This is the Result type used by meadow.

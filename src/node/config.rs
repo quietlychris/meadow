@@ -1,4 +1,4 @@
-use crate::{Message, Error};
+use crate::{Error, Message};
 use std::result::Result;
 use std::sync::Arc;
 use tokio::runtime::Handle;
@@ -105,6 +105,8 @@ where
         Ok(Node::<B, I, Idle, T> {
             __state: PhantomData::<Idle>,
             __data_type: PhantomData::<T>,
+            runtime: None,
+            rt_handle: None,
             cfg: self,
             stream: None,
             socket: None,
