@@ -1,5 +1,5 @@
 use crate::error::{Error, Quic::*};
-use crate::node::nonblocking::network_config::{Quic, Nonblocking};
+use crate::node::network_config::{Nonblocking, Quic};
 use crate::node::nonblocking::Interface;
 use crate::*;
 

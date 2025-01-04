@@ -1,7 +1,7 @@
 use crate::error::Error;
 use crate::msg::Message;
-use crate::node::nonblocking::network_config::{Quic, Nonblocking};
-use crate::node::nonblocking::Subscription;
+use crate::node::network_config::{Nonblocking, Quic};
+use crate::node::Subscription;
 use crate::Msg;
 use crate::Node;
 

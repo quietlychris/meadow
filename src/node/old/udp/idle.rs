@@ -2,8 +2,8 @@ extern crate alloc;
 use crate::Error;
 use crate::*;
 
-use crate::node::nonblocking::udp::send_msg;
-use crate::node::nonblocking::*;
+use crate::node::blocking::udp::send_msg;
+use crate::node::blocking::*;
 
 use tokio::net::UdpSocket;
 use tokio::sync::Mutex as TokioMutex;
@@ -20,14 +20,16 @@ use postcard::*;
 use std::marker::PhantomData;
 
 use crate::msg::*;
-use crate::node::nonblocking::network_config::Udp;
+use crate::node::blocking::network_config::Udp;
 
-impl<T: Message> From<Node<Nonblocking, Udp, Idle, T>> for Node<Nonblocking, Udp, Subscription, T> {
-    fn from(node: Node<Nonblocking, Udp, Idle, T>) -> Self {
+impl<T: Message> From<Node<Udp, Idle, T>> for Node<Udp, Subscription, T> {
+    fn from(node: Node<Udp, Idle, T>) -> Self {
         Self {
             __state: PhantomData,
             __data_type: PhantomData,
             cfg: node.cfg,
+            runtime: node.runtime,
+            rt_handle: node.rt_handle,
             stream: node.stream,
             topic: node.topic,
             socket: node.socket,
@@ -42,10 +44,10 @@ impl<T: Message> From<Node<Nonblocking, Udp, Idle, T>> for Node<Nonblocking, Udp
     }
 }
 
-impl<T: Message + 'static> Node<Nonblocking, Udp, Idle, T> {
+impl<T: Message + 'static> Node<Udp, Idle, T> {
     #[tracing::instrument(skip(self))]
-    pub async fn activate(mut self) -> Result<Node<Nonblocking, Udp, Active, T>, Error> {
-        match {
+    pub fn activate(mut self) -> Result<Node<Udp, Active, T>, Error> {
+        match self.rt_handle.block_on(async move {
             match UdpSocket::bind("[::]:0").await {
                 Ok(socket) => {
                     info!("Bound to socket: {:?}", &socket);
@@ -53,19 +55,16 @@ impl<T: Message + 'static> Node<Nonblocking, Udp, Idle, T> {
                 }
                 Err(_e) => Err(Error::AccessSocket),
             }
-        } {
+        }) {
             Ok(socket) => self.socket = Some(socket),
             Err(e) => return Err(e),
         };
 
-        Ok(Node::<Nonblocking, Udp, Active, T>::from(self))
+        Ok(Node::<Udp, Active, T>::from(self))
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn subscribe(
-        mut self,
-        rate: Duration,
-    ) -> Result<Node<Nonblocking, Udp, Subscription, T>, Error> {
+    pub fn subscribe(mut self, rate: Duration) -> Result<Node<Udp, Subscription, T>, Error> {
         let topic = self.topic.clone();
         let subscription_data: Arc<TokioMutex<Option<Msg<T>>>> = Arc::new(TokioMutex::new(None));
         let data = Arc::clone(&subscription_data);
@@ -80,7 +79,7 @@ impl<T: Message + 'static> Node<Nonblocking, Udp, Idle, T> {
             data: to_allocvec(&rate)?,
         };
 
-        let task_subscribe = tokio::spawn(async move {
+        let task_subscribe = self.rt_handle.spawn(async move {
             if let Ok(socket) = UdpSocket::bind("[::]:0").await {
                 info!("Bound to socket: {:?}", &socket);
                 loop {
@@ -102,7 +101,7 @@ impl<T: Message + 'static> Node<Nonblocking, Udp, Idle, T> {
 
         self.task_subscribe = Some(task_subscribe);
 
-        let mut subscription_node = Node::<Nonblocking, Udp, Subscription, T>::from(self);
+        let mut subscription_node = Node::<Udp, Subscription, T>::from(self);
         subscription_node.subscription_data = subscription_data;
 
         Ok(subscription_node)

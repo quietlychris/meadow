@@ -50,9 +50,4 @@ pub use crate::error::Error;
 pub use crate::host::{Host, HostConfig};
 pub use crate::msg::{GenericMsg, Message, Msg, MsgType};
 pub use crate::networks::get_ip;
-#[cfg(feature = "quic")]
-pub use crate::node::nonblocking::Quic;
-pub use crate::node::nonblocking::{
-    tcp::await_response, tcp::send_msg, Active, Idle, NetworkConfig, Node, NodeConfig,
-    Subscription, Tcp, Udp, Blocking, Nonblocking
-};
+

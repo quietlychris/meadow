@@ -1,16 +1,15 @@
-use crate::node::network_config::{Nonblocking, Udp};
-use crate::node::nonblocking::Node;
-use crate::node::Interface;
-use crate::node::{Active, Idle};
+use crate::node::blocking::network_config::Udp;
+use crate::node::blocking::Interface;
+use crate::node::blocking::Node;
 use crate::Error;
-use crate::MsgType;
+use crate::{Active, Idle, MsgType};
 use std::marker::PhantomData;
 use std::net::SocketAddr;
 use std::ops::DerefMut;
 use std::sync::Arc;
 use tokio::sync::Mutex as TokioMutex;
 
-use crate::node::nonblocking::udp::*;
+use crate::node::blocking::udp::*;
 
 use chrono::Utc;
 
@@ -23,14 +22,14 @@ use tracing::*;
 /// Udp implements the Interface trait
 impl Interface for Udp {}
 
-impl<T: Message> From<Node<Nonblocking, Udp, Idle, T>> for Node<Nonblocking, Udp, Active, T> {
-    fn from(node: Node<Nonblocking, Udp, Idle, T>) -> Self {
+impl<T: Message> From<Node<Udp, Idle, T>> for Node<Udp, Active, T> {
+    fn from(node: Node<Udp, Idle, T>) -> Self {
         Self {
             __state: PhantomData,
             __data_type: PhantomData,
             cfg: node.cfg,
-            // runtime: node.runtime,
-            // rt_handle: node.rt_handle,
+            runtime: node.runtime,
+            rt_handle: node.rt_handle,
             stream: node.stream,
             topic: node.topic,
             socket: node.socket,
@@ -45,10 +44,10 @@ impl<T: Message> From<Node<Nonblocking, Udp, Idle, T>> for Node<Nonblocking, Udp
     }
 }
 
-impl<T: Message + 'static> Node<Nonblocking, Udp, Active, T> {
+impl<T: Message + 'static> Node<Udp, Active, T> {
     #[tracing::instrument]
     #[inline]
-    pub async fn publish(&self, val: T) -> Result<(), Error> {
+    pub fn publish(&self, val: T) -> Result<(), Error> {
         let data: Vec<u8> = to_allocvec(&val)?;
 
         let generic = GenericMsg {
@@ -66,15 +65,17 @@ impl<T: Message + 'static> Node<Nonblocking, Udp, Active, T> {
             None => return Err(Error::AccessSocket),
         };
 
-        socket
-            .send_to(&packet_as_bytes, self.cfg.network_cfg.host_addr)
-            .await?;
-        Ok(())
+        self.rt_handle.block_on(async {
+            socket
+                .send_to(&packet_as_bytes, self.cfg.network_cfg.host_addr)
+                .await?;
+            Ok(())
+        })
     }
 
     #[tracing::instrument]
     #[inline]
-    pub async fn request(&self) -> Result<Msg<T>, Error> {
+    pub fn request(&self) -> Result<Msg<T>, Error> {
         let packet: GenericMsg = GenericMsg {
             msg_type: MsgType::GET,
             timestamp: Utc::now(),
@@ -86,18 +87,20 @@ impl<T: Message + 'static> Node<Nonblocking, Udp, Active, T> {
         let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
         let buffer = self.buffer.clone();
 
-        if let Some(socket) = &self.socket {
-            send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await?;
-            let msg = await_response(socket, buffer).await?;
-            Ok(msg)
-        } else {
-            Err(Error::AccessSocket)
-        }
+        self.rt_handle.block_on(async {
+            if let Some(socket) = &self.socket {
+                send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await?;
+                let msg = await_response(socket, buffer).await?;
+                Ok(msg)
+            } else {
+                Err(Error::AccessSocket)
+            }
+        })
     }
 
     #[tracing::instrument]
     #[inline]
-    pub async fn topics(&self) -> Result<Msg<Vec<String>>, Error> {
+    pub fn topics(&self) -> Result<Msg<Vec<String>>, Error> {
         let packet: GenericMsg = GenericMsg {
             msg_type: MsgType::TOPICS,
             timestamp: Utc::now(),
@@ -109,12 +112,14 @@ impl<T: Message + 'static> Node<Nonblocking, Udp, Active, T> {
         let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
         let buffer = self.buffer.clone();
 
-        if let Some(socket) = &self.socket {
-            send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await?;
-            let msg = await_response(socket, buffer).await?;
-            Ok(msg)
-        } else {
-            Err(Error::AccessSocket)
-        }
+        self.rt_handle.block_on(async {
+            if let Some(socket) = &self.socket {
+                send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await?;
+                let msg = await_response(socket, buffer).await?;
+                Ok(msg)
+            } else {
+                Err(Error::AccessSocket)
+            }
+        })
     }
 }

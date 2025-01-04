@@ -2,8 +2,8 @@ extern crate alloc;
 use crate::error::{Error, Quic::*};
 use crate::*;
 
-use crate::node::network_config::{Nonblocking, Quic};
-use crate::node::nonblocking::*;
+use crate::node::blocking::network_config::Quic;
+use crate::node::blocking::*;
 
 use std::path::PathBuf;
 
@@ -26,15 +26,17 @@ use std::marker::PhantomData;
 use quinn::Endpoint;
 
 use crate::msg::*;
-use crate::node::nonblocking::quic::generate_client_config_from_certs;
+use crate::node::blocking::quic::generate_client_config_from_certs;
 use chrono::Utc;
 
-impl<T: Message> From<Node<Nonblocking, Quic, Idle, T>> for Node<Nonblocking, Quic, Active, T> {
-    fn from(node: Node<Nonblocking, Quic, Idle, T>) -> Self {
+impl<T: Message> From<Node<Quic, Idle, T>> for Node<Quic, Active, T> {
+    fn from(node: Node<Quic, Idle, T>) -> Self {
         Self {
             __state: PhantomData,
             __data_type: PhantomData,
             cfg: node.cfg,
+            runtime: node.runtime,
+            rt_handle: node.rt_handle,
             stream: node.stream,
             topic: node.topic,
             socket: node.socket,
@@ -47,14 +49,14 @@ impl<T: Message> From<Node<Nonblocking, Quic, Idle, T>> for Node<Nonblocking, Qu
     }
 }
 
-impl<T: Message> From<Node<Nonblocking, Quic, Idle, T>>
-    for Node<Nonblocking, Quic, Subscription, T>
-{
-    fn from(node: Node<Nonblocking, Quic, Idle, T>) -> Self {
+impl<T: Message> From<Node<Quic, Idle, T>> for Node<Quic, Subscription, T> {
+    fn from(node: Node<Quic, Idle, T>) -> Self {
         Self {
             __state: PhantomData,
             __data_type: PhantomData,
             cfg: node.cfg,
+            runtime: node.runtime,
+            rt_handle: node.rt_handle,
             stream: node.stream,
             topic: node.topic,
             socket: node.socket,
@@ -67,22 +69,22 @@ impl<T: Message> From<Node<Nonblocking, Quic, Idle, T>>
     }
 }
 
-impl<T: Message + 'static> Node<Nonblocking, Quic, Idle, T> {
+impl<T: Message + 'static> Node<Quic, Idle, T> {
     /// Attempt connection from the Node to the Host located at the specified address
     //#[tracing::instrument(skip_all)]
-    pub async fn activate(mut self) -> Result<Node<Nonblocking, Quic, Active, T>, Error> {
+    pub fn activate(mut self) -> Result<Node<Quic, Active, T>, Error> {
         debug!("Attempting QUIC connection");
 
-        self.create_connection().await?;
+        self.create_connection()?;
 
-        Ok(Node::<Nonblocking, Quic, Active, T>::from(self))
+        Ok(Node::<Quic, Active, T>::from(self))
     }
 
-    async fn create_connection(&mut self) -> Result<(), Error> {
+    fn create_connection(&mut self) -> Result<(), Error> {
         let host_addr = self.cfg.network_cfg.host_addr;
         let cert_path = self.cfg.network_cfg.cert_path.clone();
 
-        let (endpoint, connection) = {
+        let (endpoint, connection) = self.rt_handle.block_on(async move {
             // QUIC, needs to be done inside of a tokio context
             let client_cfg = generate_client_config_from_certs(cert_path)?;
             let client_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
@@ -100,18 +102,15 @@ impl<T: Message + 'static> Node<Nonblocking, Quic, Idle, T> {
             debug!("{:?}", &endpoint.local_addr());
 
             Ok::<(Endpoint, quinn::Connection), Error>((endpoint, connection))
-        }?;
+        })?;
         self.endpoint = Some(endpoint);
         self.connection = Some(connection);
         Ok(())
     }
 
     #[tracing::instrument(skip_all)]
-    pub async fn subscribe(
-        mut self,
-        rate: Duration,
-    ) -> Result<Node<Nonblocking, Quic, Subscription, T>, Error> {
-        self.create_connection().await?;
+    pub fn subscribe(mut self, rate: Duration) -> Result<Node<Quic, Subscription, T>, Error> {
+        self.create_connection()?;
         let connection = self.connection.clone();
         let topic = self.topic.clone();
 
@@ -128,7 +127,7 @@ impl<T: Message + 'static> Node<Nonblocking, Quic, Idle, T> {
             data: postcard::to_allocvec(&rate)?,
         };
 
-        let task_subscribe = tokio::spawn(async move {
+        let task_subscribe = self.rt_handle.spawn(async move {
             if let Some(connection) = connection {
                 loop {
                     if let Err(e) = run_subscription::<T>(
@@ -147,7 +146,7 @@ impl<T: Message + 'static> Node<Nonblocking, Quic, Idle, T> {
 
         self.task_subscribe = Some(task_subscribe);
 
-        let mut subscription_node = Node::<Nonblocking, Quic, Subscription, T>::from(self);
+        let mut subscription_node = Node::<Quic, Subscription, T>::from(self);
         subscription_node.subscription_data = subscription_data;
 
         Ok(subscription_node)

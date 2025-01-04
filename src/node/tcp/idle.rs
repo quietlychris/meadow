@@ -2,9 +2,10 @@ extern crate alloc;
 use crate::Error;
 use crate::*;
 
-use crate::node::nonblocking::network_config::{Nonblocking, Tcp};
-use crate::node::nonblocking::*;
+use crate::node::network_config::{Nonblocking, Tcp};
+use crate::node::*;
 
+use tcp::try_connection;
 use tokio::net::UdpSocket;
 use tokio::sync::Mutex as TokioMutex;
 use tokio::time::{sleep, Duration};
@@ -65,6 +66,9 @@ impl<T: Message> From<Node<Nonblocking, Tcp, Idle, T>> for Node<Nonblocking, Tcp
     }
 }
 
+use crate::node::tcp::handshake;
+use tokio::net::TcpStream;
+
 impl<T: Message + 'static> Node<Nonblocking, Tcp, Idle, T> {
     /// Attempt connection from the Node to the Host located at the specified address
     #[tracing::instrument(skip_all)]
@@ -89,7 +93,10 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Idle, T> {
     }
 
     #[tracing::instrument]
-    pub async fn subscribe(mut self, rate: Duration) -> Result<Node<Nonblocking, Tcp, Subscription, T>, Error> {
+    pub async fn subscribe(
+        mut self,
+        rate: Duration,
+    ) -> Result<Node<Nonblocking, Tcp, Subscription, T>, Error> {
         let addr = self.cfg.network_cfg.host_addr;
         let topic = self.topic.clone();
 
@@ -132,6 +139,8 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Idle, T> {
     }
 }
 
+
+use crate::node::tcp::{send_msg, await_response};
 async fn run_subscription<T: Message>(
     packet: GenericMsg,
     buffer: Arc<TokioMutex<Vec<u8>>>,

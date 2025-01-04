@@ -14,8 +14,10 @@ struct Coordinate {
 #[tokio::main]
 async fn main() {
     let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-    let node: Node<Tcp, Idle, Coordinate> = NodeConfig::new("my_coordinate")
-        .with_config(node::nonblocking::NetworkConfig::<Tcp>::default().set_host_addr(addr))
+    let node: Node<Nonblocking, Tcp, Idle, Coordinate> = NodeConfig::new("my_coordinate")
+        .with_config(
+            node::nonblocking::NetworkConfig::<Nonblocking, Tcp>::default().set_host_addr(addr),
+        )
         .build()
         .unwrap();
     let node = node.activate().await.unwrap(); // unwrap();

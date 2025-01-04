@@ -1,17 +1,17 @@
 mod config;
 mod network_config;
-#[cfg(feature = "quic")]
-pub mod quic;
+// #[cfg(feature = "quic")]
+//pub mod quic;
 pub mod tcp;
-pub mod udp;
+// pub mod udp;
 
 pub use crate::node::blocking::config::*;
 pub use crate::node::blocking::network_config::NetworkConfig;
-#[cfg(feature = "quic")]
-pub use crate::node::blocking::network_config::Quic;
+//#[cfg(feature = "quic")]
+// pub use crate::node::blocking::network_config::Quic;
 pub use crate::node::blocking::network_config::{Tcp, Udp};
-#[cfg(feature = "quic")]
-pub use crate::node::blocking::quic::*;
+//#[cfg(feature = "quic")]
+//pub use crate::node::blocking::quic::*;
 pub use crate::node::blocking::tcp::*;
 
 extern crate alloc;
@@ -64,8 +64,8 @@ mod private {
     pub trait Sealed {}
     impl Sealed for crate::Udp {}
     impl Sealed for crate::Tcp {}
-    #[cfg(feature = "quic")]
-    impl Sealed for crate::node::blocking::network_config::Quic {}
+    //#[cfg(feature = "quic")]
+    //impl Sealed for crate::node::blocking::network_config::Quic {}
 
     impl Sealed for crate::Idle {}
     impl Sealed for crate::Active {}
