@@ -1,9 +1,9 @@
 extern crate alloc;
+use crate::node::network_config::{Nonblocking, Udp};
 use crate::Error;
-use crate::*;
 
-use crate::node::nonblocking::udp::send_msg;
-use crate::node::nonblocking::*;
+use crate::node::udp::send_msg;
+use crate::node::*;
 
 use tokio::net::UdpSocket;
 use tokio::sync::Mutex as TokioMutex;
@@ -20,7 +20,6 @@ use postcard::*;
 use std::marker::PhantomData;
 
 use crate::msg::*;
-use crate::node::nonblocking::network_config::Udp;
 
 impl<T: Message> From<Node<Nonblocking, Udp, Idle, T>> for Node<Nonblocking, Udp, Subscription, T> {
     fn from(node: Node<Nonblocking, Udp, Idle, T>) -> Self {
@@ -28,6 +27,8 @@ impl<T: Message> From<Node<Nonblocking, Udp, Idle, T>> for Node<Nonblocking, Udp
             __state: PhantomData,
             __data_type: PhantomData,
             cfg: node.cfg,
+            runtime: node.runtime,
+            rt_handle: node.rt_handle,
             stream: node.stream,
             topic: node.topic,
             socket: node.socket,

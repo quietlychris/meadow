@@ -1,8 +1,7 @@
-// pub mod blocking;
-pub mod network_config;
-// pub mod nonblocking;
 pub mod config;
+pub mod network_config;
 pub mod tcp;
+pub mod udp;
 
 /// State marker for a Node that has not been connected to a Host
 #[derive(Debug)]

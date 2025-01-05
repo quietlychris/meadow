@@ -1,6 +1,6 @@
 use crate::node::network_config::{Nonblocking, Udp};
-use crate::node::nonblocking::Node;
 use crate::node::Interface;
+use crate::node::Node;
 use crate::node::{Active, Idle};
 use crate::Error;
 use crate::MsgType;
@@ -10,7 +10,7 @@ use std::ops::DerefMut;
 use std::sync::Arc;
 use tokio::sync::Mutex as TokioMutex;
 
-use crate::node::nonblocking::udp::*;
+use crate::node::udp::*;
 
 use chrono::Utc;
 
@@ -20,17 +20,14 @@ use quinn::Connection as QuicConnection;
 use std::result::Result;
 use tracing::*;
 
-/// Udp implements the Interface trait
-impl Interface for Udp {}
-
 impl<T: Message> From<Node<Nonblocking, Udp, Idle, T>> for Node<Nonblocking, Udp, Active, T> {
     fn from(node: Node<Nonblocking, Udp, Idle, T>) -> Self {
         Self {
             __state: PhantomData,
             __data_type: PhantomData,
             cfg: node.cfg,
-            // runtime: node.runtime,
-            // rt_handle: node.rt_handle,
+            runtime: node.runtime,
+            rt_handle: node.rt_handle,
             stream: node.stream,
             topic: node.topic,
             socket: node.socket,

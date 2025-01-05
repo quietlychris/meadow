@@ -17,9 +17,6 @@ use tracing::*;
 
 use crate::node::network_config::{Interface, Tcp};
 
-/// Tcp implements the Interface trait
-impl Interface for Tcp {}
-
 impl<T: Message + 'static> Node<Nonblocking, Tcp, Active, T> {
     // TO_DO: The error handling in the async blocks need to be improved
     /// Send data to host on Node's assigned topic using `Msg<T>` packet

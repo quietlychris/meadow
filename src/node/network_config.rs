@@ -9,10 +9,16 @@ pub trait Block: private::Sealed + Default + Sized {}
 
 #[derive(Debug, Clone, Default)]
 pub struct Tcp {}
+impl Interface for Tcp {}
 #[derive(Debug, Clone, Default)]
 pub struct Udp {}
+impl Interface for Udp {}
+
+// #[cfg(feature = "quic")]
 #[derive(Debug, Clone, Default)]
 pub struct Quic {}
+#[cfg(feature = "quic")]
+impl Interface for Quic {}
 
 #[derive(Debug, Clone, Default)]
 pub struct Blocking;
