@@ -2,7 +2,7 @@ use crate::error::{
     Error, HostOperation,
     Quic::{self, *},
 };
-use crate::*;
+use crate::prelude::*;
 use futures_util::lock::Mutex;
 use futures_util::StreamExt;
 use quinn::Connection as QuicConnection;

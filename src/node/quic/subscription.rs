@@ -1,9 +1,7 @@
-use crate::error::Error;
-use crate::msg::Message;
 use crate::node::network_config::{Nonblocking, Quic};
 use crate::node::Node;
 use crate::node::Subscription;
-use crate::Msg;
+use crate::prelude::*;
 
 impl<T: Message + 'static> Node<Nonblocking, Quic, Subscription, T> {
     // Should actually return a <T>

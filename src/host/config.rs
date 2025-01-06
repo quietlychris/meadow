@@ -7,8 +7,11 @@ use tokio::sync::Mutex; // as TokioMutex;
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 // Misc other imports
-use crate::Error;
+use crate::prelude::*;
 use std::result::Result;
+
+#[doc(hidden)]
+pub use sled::Config as SledConfig;
 
 /// Host configuration structure
 #[derive(Debug)]

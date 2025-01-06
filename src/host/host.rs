@@ -1,4 +1,5 @@
 // Tokio for async
+use sled::Db;
 use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::net::UdpSocket;
@@ -32,7 +33,8 @@ use crate::host::quic::*;
 
 use crate::host::tcp::*;
 use crate::host::udp::*;
-use crate::Error;
+use crate::prelude::*;
+use crate::prelude::*;
 use crate::*;
 
 /// Named task handle for each Hosted connection
@@ -47,13 +49,13 @@ pub struct Connection {
 #[derive(Debug)]
 pub struct Host {
     pub(crate) cfg: HostConfig,
-    pub runtime: Runtime,
-    pub task_listen_tcp: Option<JoinHandle<()>>,
-    pub connections: Arc<StdMutex<Vec<Connection>>>,
-    pub task_listen_udp: Option<JoinHandle<()>>,
+    pub(crate) runtime: Runtime,
+    pub(crate) task_listen_tcp: Option<JoinHandle<()>>,
+    pub(crate) connections: Arc<StdMutex<Vec<Connection>>>,
+    pub(crate) task_listen_udp: Option<JoinHandle<()>>,
     #[cfg(feature = "quic")]
-    pub task_listen_quic: Option<JoinHandle<()>>,
-    pub store: sled::Db,
+    pub(crate) task_listen_quic: Option<JoinHandle<()>>,
+    pub(crate) store: sled::Db,
 }
 
 impl Drop for Host {
@@ -85,6 +87,11 @@ impl Host {
         &self.cfg
     }
 
+    /// Get access to the underlying `sled::Db` storage engine
+    pub fn db(&self) -> Db {
+        self.store.clone()
+    }
+
     /// Allow Host to begin accepting incoming connections
     #[tracing::instrument(skip(self))]
     pub fn start(&mut self) -> Result<(), crate::Error> {
@@ -96,7 +103,7 @@ impl Host {
         match &self.config().udp_cfg {
             None => warn!("Host has no UDP configuration"),
             Some(udp_cfg) => {
-                let ip = match crate::get_ip(&udp_cfg.interface) {
+                let ip = match get_ip(&udp_cfg.interface) {
                     Ok(ip) => ip,
                     Err(_e) => return Err(Error::InvalidInterface),
                 };
@@ -128,7 +135,7 @@ impl Host {
         match &self.config().tcp_cfg {
             None => warn!("Host has no TCP configuration"),
             Some(tcp_cfg) => {
-                let ip = match crate::get_ip(&tcp_cfg.interface) {
+                let ip = match get_ip(&tcp_cfg.interface) {
                     Ok(ip) => ip,
                     Err(_e) => return Err(Error::InvalidInterface),
                 };
@@ -186,7 +193,7 @@ impl Host {
         match &self.config().quic_cfg {
             None => warn!("Host has no QUIC configuration"),
             Some(quic_cfg) => {
-                let ip = match crate::get_ip(&quic_cfg.network_cfg.interface) {
+                let ip = match get_ip(&quic_cfg.network_cfg.interface) {
                     Ok(ip) => ip,
                     Err(_e) => return Err(Error::InvalidInterface),
                 };

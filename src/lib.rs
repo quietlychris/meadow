@@ -37,9 +37,6 @@ pub mod node;
 /// Re-export of Serde's `Serialize` and `Deserialize` traits
 pub use serde::{Deserialize, Serialize};
 
-#[doc(hidden)]
-pub use sled::Config as SledConfig;
-
 // Require that the README examples are valid
 // Will fail `cargo test` if not
 #[doc = include_str!("../README.md")]
@@ -47,20 +44,18 @@ pub use sled::Config as SledConfig;
 pub struct ReadMeDocTests;
 
 pub use crate::error::Error;
-pub use crate::host::{Host, HostConfig};
-pub use crate::msg::{GenericMsg, Message, Msg, MsgType};
-pub use crate::networks::get_ip;
 
 pub mod prelude {
-    pub use crate::host::{Host, HostConfig, UdpConfig};
+
+    pub use crate::msg::{GenericMsg, Message, Msg, MsgType};
+    pub use crate::networks::get_ip;
+    pub use crate::*;
+
+    pub use crate::host::{Host, HostConfig, SledConfig, UdpConfig};
     pub use crate::node::config::NodeConfig;
     pub use crate::node::config::RuntimeConfig;
     pub use crate::node::network_config::{Blocking, NetworkConfig, Nonblocking, Tcp, Udp};
     pub use crate::node::{Active, Idle, Node, Subscription};
-
-    pub use crate::Msg;
-    pub use crate::SledConfig;
-    pub use serde::{Deserialize, Serialize};
 
     #[cfg(feature = "quic")]
     pub use crate::host::{generate_certs, QuicConfig};

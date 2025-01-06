@@ -2,7 +2,7 @@ use crate::error::{Error, Quic::*};
 use crate::node::network_config::{Nonblocking, Quic};
 use crate::node::Active;
 use crate::node::Node;
-use crate::*;
+use crate::prelude::*;
 
 use crate::msg::{GenericMsg, Message, Msg};
 use std::convert::TryInto;

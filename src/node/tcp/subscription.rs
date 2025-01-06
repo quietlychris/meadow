@@ -1,6 +1,6 @@
 use crate::node::network_config::{Blocking, Nonblocking, Tcp};
 use crate::node::{Node, Subscription};
-use crate::{Error, Message, Msg};
+use crate::prelude::*;
 use std::ops::Deref;
 
 impl<T: Message + 'static> Node<Nonblocking, Tcp, Subscription, T> {
