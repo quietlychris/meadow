@@ -76,19 +76,41 @@ use std::sync::Mutex;
 /// Strongly-typed Node capable of publish/request on Host
 #[derive(Debug)]
 pub struct Node<B: Block, I: Interface + Default, State, T: Message> {
-    pub __state: PhantomData<State>,
-    pub __data_type: PhantomData<T>,
-    pub cfg: NodeConfig<B, I, T>,
-    pub runtime: Option<Runtime>,
-    pub rt_handle: Option<Handle>,
-    pub topic: String,
-    pub stream: Option<TcpStream>,
-    pub socket: Option<UdpSocket>,
-    pub buffer: Arc<TokioMutex<Vec<u8>>>,
+    pub(crate) __state: PhantomData<State>,
+    pub(crate) __data_type: PhantomData<T>,
+    pub(crate) cfg: NodeConfig<B, I, T>,
+    pub(crate) runtime: Option<Runtime>,
+    pub(crate) rt_handle: Option<Handle>,
+    pub(crate) topic: String,
+    pub(crate) stream: Option<TcpStream>,
+    pub(crate) socket: Option<UdpSocket>,
+    pub(crate) buffer: Arc<TokioMutex<Vec<u8>>>,
     #[cfg(feature = "quic")]
-    pub endpoint: Option<Endpoint>,
+    pub(crate) endpoint: Option<Endpoint>,
     #[cfg(feature = "quic")]
-    pub connection: Option<QuicConnection>,
-    pub subscription_data: Arc<TokioMutex<Option<Msg<T>>>>,
-    pub task_subscribe: Option<JoinHandle<()>>,
+    pub(crate) connection: Option<QuicConnection>,
+    pub(crate) subscription_data: Arc<TokioMutex<Option<Msg<T>>>>,
+    pub(crate) task_subscribe: Option<JoinHandle<()>>,
+}
+
+impl<B: Block, I: Interface + Default, State, T: Message> Node<B, I, State, T> {
+    /// Get reference to the `Node`'s Tokio runtime if one exists
+    pub fn runtime(&self) -> &Option<Runtime> {
+        &self.runtime
+    }
+
+    /// Get reference to the `Node`'s runtime handle if one exists
+    pub fn rt_handle(&self) -> &Option<Handle> {
+        &self.rt_handle
+    }
+
+    /// Get `Node`'s configuration
+    pub fn config(&self) -> &NodeConfig<B, I, T> {
+        &self.cfg
+    }
+
+    /// Get `Node`'s topic
+    pub fn topic(&self) -> String {
+        self.topic.clone()
+    }
 }

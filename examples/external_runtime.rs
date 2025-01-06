@@ -47,7 +47,8 @@ fn main() -> Result<(), meadow::Error> {
     let node = node.activate()?;
     println!(
         "Node's runtime: {:?}, using handle {:?}",
-        &node.runtime, &node.rt_handle
+        node.runtime(),
+        node.rt_handle()
     );
     debug!("Node should now be connected");
     println!(

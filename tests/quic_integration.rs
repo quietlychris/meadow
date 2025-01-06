@@ -129,7 +129,7 @@ fn subscription_usize_quic() {
 
     // Create a subscription node with a query rate of 100 Hz
     let reader = writer
-        .cfg
+        .config()
         .clone()
         .build()
         .unwrap()
