@@ -1,4 +1,4 @@
-use meadow::*;
+use meadow::prelude::*;
 use std::time::Duration;
 
 fn main() -> Result<(), meadow::Error> {
@@ -12,12 +12,12 @@ fn main() -> Result<(), meadow::Error> {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let writer = NodeConfig::<N, _>::new("subscription")
+    let writer = NodeConfig::<Blocking, N, _>::new("subscription")
         .build()?
         .activate()?;
 
     // Create a subscription node with a query rate of 10 Hz
-    let reader = NodeConfig::<N, usize>::new("subscription")
+    let reader = NodeConfig::<Blocking, N, usize>::new("subscription")
         .build()?
         .subscribe(Duration::from_millis(500))?;
 

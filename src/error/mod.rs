@@ -36,13 +36,13 @@ pub enum Error {
     /// Transparent std `Utf-8` error
     #[error(transparent)]
     Utf8(#[from] Utf8Error),
-    /// Error accessing an owned TcpStream
+    /// Error accessing an owned `TcpStream`
     #[error("Error accessing an owned TcpStream")]
     AccessStream,
-    /// Error accessing an owned UdpSocket
+    /// Error accessing an owned `UdpSocket`
     #[error("Error accessing an owned UdpSocket")]
     AccessSocket,
-    /// TcpStream connection attempt failure
+    /// `TcpStream` connection attempt failure
     #[error("TcpStream connection attempt failure")]
     StreamConnection,
     /// Errors based on Host operations
@@ -55,6 +55,8 @@ pub enum Error {
     /// Transparent `std::io` error
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    #[error("Unable to access Tokio runtime handle")]
+    HandleAccess,
 }
 
 /// This is the Result type used by meadow.

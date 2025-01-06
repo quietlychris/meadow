@@ -1,4 +1,4 @@
-use meadow::*;
+use meadow::prelude::*;
 
 use std::thread;
 use std::time::Duration;
@@ -28,7 +28,7 @@ fn main() -> Result<(), meadow::Error> {
             };
 
             // Create a node
-            let node: Node<N, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
+            let node: Node<Blocking, N, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
             let node = match node.activate() {
                 Ok(node) => {
                     println!("NODE_{} connected successfully", i);

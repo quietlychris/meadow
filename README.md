@@ -4,7 +4,7 @@
 `meadow` is an experimental robotics-focused middleware for embedded Linux. It is built with a high preference for catching errors at compile-time over runtime and a focus on developer ergonomics, and can natively operate on any [`serde`](https://serde.rs/)-compatible data type. 
 
 ```rust
-use meadow::*;
+use meadow::prelude::*;
 
 // `meadow` should be able to operate on any `serde`-compatible data types
 // (the standard library Debug and Clone traits are also required)
@@ -21,14 +21,15 @@ fn main() -> Result<(), meadow::Error> {
     host.start()?;
     // Other tasks can operate while the host is running in the background
 
-    // Build a Node. Nodes can run over TCP, UDP, or QUIC
+    // Build a Node. Nodes can be either Blocking or Nonblocking and operate
+    // over UDP, TCP, or QUIC as interfaces, which are proxies for un/reliable transport
     let addr = "127.0.0.1:25000".parse::<std::net::SocketAddr>().unwrap();
-    let node: Node<Udp, Idle, Coordinate> = NodeConfig::new("position")
-        .with_config(node::NetworkConfig::<Udp>::default().set_host_addr(addr))
+    let node: Node<Blocking, Tcp, Idle, Coordinate> = NodeConfig::new("position")
+        .with_config(NetworkConfig::<Blocking, Tcp>::default().set_host_addr(addr))
         .build()?;
     // Nodes use strict typestates; without using the activate() method first,
     // the compiler won't let allow publish() or request() methods on an Idle Node
-    let node: Node<Udp, Active, Coordinate> = node.activate()?;
+    let node: Node<Blocking, Tcp, Active, Coordinate> = node.activate()?;
 
     // Since Nodes are statically-typed, the following lines would fail at
     // compile-time due to type errors
@@ -39,8 +40,7 @@ fn main() -> Result<(), meadow::Error> {
 
     // Nodes can also be subscribers, which will request topic updates from the Host
     // at a given rate
-    let subscriber = NodeConfig::<Tcp, Coordinate>::new("position")
-        .with_config(node::NetworkConfig::<Tcp>::default().set_host_addr(addr))
+    let subscriber = NodeConfig::<Blocking, Udp, Coordinate>::new("position")
         .build()?
         .subscribe(std::time::Duration::from_micros(100))?;
 
@@ -91,7 +91,7 @@ As mentioned above, this library should be considered *experimental*. While the 
 
 ## Additional Resources
 The following projects are built with Meadow:
-- [Tutlesim](https://github.com/quietlychris/turtlesim): Simple 2D autonomy simulator
+- [Turtlesim](https://github.com/quietlychris/turtlesim): Simple 2D autonomy simulator
 - [Orientation](https://github.com/quietlychris/orientation): Real-time 3D orientation visualization of a BNO055 IMU using Meadow and Bevy
 
 ## License

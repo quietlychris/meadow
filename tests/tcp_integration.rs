@@ -1,6 +1,6 @@
 #![deny(unused_must_use)]
 
-use meadow::*;
+use meadow::prelude::*;
 mod common;
 use common::Pose;
 
@@ -16,7 +16,7 @@ fn integrate_host_and_single_node_tcp() {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let node: Node<N, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
+    let node: Node<Blocking, N, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
     let node = node.activate().unwrap();
 
     for i in 0..5 {
@@ -42,7 +42,7 @@ fn request_non_existent_topic_tcp() {
     println!("Host should be running in the background");
 
     // Get the host up and running
-    let node: Node<N, Idle, Pose> = NodeConfig::new("doesnt_exist").build().unwrap();
+    let node: Node<Blocking, N, Idle, Pose> = NodeConfig::new("doesnt_exist").build().unwrap();
     let node = node.activate().unwrap();
 
     // Requesting a topic that doesn't exist should return a recoverable error
@@ -60,12 +60,12 @@ fn node_send_options_tcp() {
     host.start().unwrap();
 
     // Get the host up and running
-    let node_a = NodeConfig::<N, Option<f32>>::new("pose")
+    let node_a = NodeConfig::<Blocking, N, Option<f32>>::new("pose")
         .build()
         .unwrap()
         .activate()
         .unwrap();
-    let node_b = NodeConfig::<N, Option<f32>>::new("pose")
+    let node_b = NodeConfig::<Blocking, N, Option<f32>>::new("pose")
         .build()
         .unwrap()
         .activate()
@@ -90,7 +90,7 @@ fn subscription_usize_tcp() {
     host.start().unwrap();
 
     // Get the host up and running
-    let writer = NodeConfig::<N, usize>::new("subscription")
+    let writer = NodeConfig::<Blocking, N, usize>::new("subscription")
         .build()
         .unwrap()
         .activate()
@@ -120,7 +120,7 @@ fn no_subscribed_value_tcp() {
     host.start().unwrap();
 
     // Create a subscription node with a query rate of 10 Hz
-    let reader = NodeConfig::<N, usize>::new("subscription")
+    let reader = NodeConfig::<Blocking, N, usize>::new("subscription")
         .build()
         .unwrap()
         .subscribe(Duration::from_millis(100))
@@ -144,7 +144,7 @@ fn topics_list_tcp() {
     dbg!(&topics);
     let mut nodes = Vec::with_capacity(topics.len());
     for topic in topics.clone() {
-        let node: Node<N, Idle, usize> = NodeConfig::new(topic).build().unwrap();
+        let node: Node<Blocking, N, Idle, usize> = NodeConfig::new(topic).build().unwrap();
         let node = node.activate().unwrap();
         nodes.push(node);
     }

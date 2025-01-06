@@ -1,4 +1,4 @@
-use meadow::*;
+use meadow::prelude::*;
 use std::thread;
 use std::time::Duration;
 // For logging
@@ -21,7 +21,7 @@ fn main() -> Result<(), meadow::Error> {
             // If we wanted to keep the logs, we'd make this `false`
             .temporary(true);
         HostConfig::default()
-            .with_udp_config(Some(host::UdpConfig::default("lo")))
+            .with_udp_config(Some(UdpConfig::default("lo")))
             .with_tcp_config(None)
             .with_sled_config(sled_cfg)
             .build()?
@@ -29,13 +29,13 @@ fn main() -> Result<(), meadow::Error> {
     host.start()?;
     println!("Started host");
 
-    let node = NodeConfig::<Udp, f32>::new("num")
+    let node = NodeConfig::<Blocking, Udp, f32>::new("num")
         .build()
         .unwrap()
         .activate()?;
     node.publish(0 as f32)?;
 
-    let subscriber = NodeConfig::<Udp, f32>::new("num")
+    let subscriber = NodeConfig::<Blocking, Udp, f32>::new("num")
         .build()
         .unwrap()
         .subscribe(Duration::from_millis(1))?;

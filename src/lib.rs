@@ -50,9 +50,20 @@ pub use crate::error::Error;
 pub use crate::host::{Host, HostConfig};
 pub use crate::msg::{GenericMsg, Message, Msg, MsgType};
 pub use crate::networks::get_ip;
-#[cfg(feature = "quic")]
-pub use crate::node::Quic;
-pub use crate::node::{
-    tcp::await_response, tcp::send_msg, Active, Idle, NetworkConfig, Node, NodeConfig,
-    Subscription, Tcp, Udp,
-};
+
+pub mod prelude {
+    pub use crate::host::{Host, HostConfig, UdpConfig};
+    pub use crate::node::config::NodeConfig;
+    pub use crate::node::config::RuntimeConfig;
+    pub use crate::node::network_config::{Blocking, NetworkConfig, Nonblocking, Tcp, Udp};
+    pub use crate::node::{Active, Idle, Node, Subscription};
+
+    pub use crate::Msg;
+    pub use crate::SledConfig;
+    pub use serde::{Deserialize, Serialize};
+
+    #[cfg(feature = "quic")]
+    pub use crate::host::{generate_certs, QuicConfig};
+    #[cfg(feature = "quic")]
+    pub use crate::node::network_config::Quic;
+}

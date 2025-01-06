@@ -1,5 +1,4 @@
-use meadow::node::RuntimeConfig;
-use meadow::*;
+use meadow::prelude::*;
 use std::{fs::File, sync::Arc};
 use tracing::*;
 use tracing_subscriber::{filter, prelude::*};
@@ -37,7 +36,7 @@ fn main() -> Result<(), meadow::Error> {
     let runtime = tokio::runtime::Runtime::new()?;
     let handle = runtime.handle().clone();
     // Get the host up and running
-    let node: Node<Tcp, Idle, Pose> = NodeConfig::new("pose")
+    let node: Node<Blocking, Tcp, Idle, Pose> = NodeConfig::new("pose")
         .with_runtime_config(
             RuntimeConfig::default()
                 .with_owned_runtime(false)
@@ -70,7 +69,7 @@ fn main() -> Result<(), meadow::Error> {
         node.publish(pose.clone())?;
         println!("published {}", i);
         thread::sleep(Duration::from_millis(250));
-        let result: Msg<Pose> = node.request().unwrap();
+        let result: Msg<Pose> = node.request()?;
         dbg!(node.topics()?); // .unwrap();
         println!("Got position: {:?}", result.data);
 
