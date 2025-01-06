@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, ci ]
   pull_request:
     branches: [ main ]
     types:
@@ -16,16 +16,32 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
+    name: build-${{ matrix.toolchain }}
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain:
+          - 1.78.0
+          - stable
+    
     steps:
-    - uses: actions/checkout@v2
-      with:
-        profile: minimal
-        toolchain: stable
-        components: clippy
-    - name: Default CI
-      run: cargo run -p ci
-    - name: QUIC CI
-      run: cargo run -p ci --features quic
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          profile: minimal
+          components: clippy
+      
+      - name: Fmt
+        run: rustup component add rustfmt
+      
+      - name: Default CI
+        run: cargo run -p ci
+      
+      - name: QUIC CI
+        run: cargo run -p ci --features quic
