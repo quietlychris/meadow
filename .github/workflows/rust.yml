@@ -37,6 +37,9 @@ jobs:
           profile: minimal
           components: clippy
       
+      - name: Fmt
+        run: rustup component add rustfmt
+      
       - name: Default CI
         run: cargo run -p ci
       
