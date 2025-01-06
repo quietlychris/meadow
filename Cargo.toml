@@ -49,6 +49,7 @@ rand = "0.8"
 # Make tokio macro available
 tokio = { version = "1", features = ["macros", "signal"] }
 rayon = "1"
+async-trait = "0.1"
 
 [[bench]]
 name = "criterion"

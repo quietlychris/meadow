@@ -91,3 +91,12 @@ pub struct Node<B: Block, I: Interface + Default, State, T: Message> {
     pub subscription_data: Arc<TokioMutex<Option<Msg<T>>>>,
     pub task_subscribe: Option<JoinHandle<()>>,
 }
+
+use crate::node::network_config::{Blocking, Nonblocking};
+pub trait ToActive<I: Interface, T: Message> {
+    fn activate(self) -> Result<Node<Blocking, I, Active, T>, Error>;
+}
+
+pub trait ToActiveAsync<I: Interface, T: Message> {
+    async fn activate(self) -> Result<Node<Nonblocking, I, Active, T>, Error>;
+}

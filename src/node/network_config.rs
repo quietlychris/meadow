@@ -10,6 +10,7 @@ pub trait Block: private::Sealed + Default + Sized {}
 #[derive(Debug, Clone, Default)]
 pub struct Tcp {}
 impl Interface for Tcp {}
+
 #[derive(Debug, Clone, Default)]
 pub struct Udp {}
 impl Interface for Udp {}

@@ -3,6 +3,7 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(rustdoc::missing_crate_level_docs)]
 #![allow(unused_imports)]
+#![allow(async_fn_in_trait)]
 
 //! `meadow` is an experimental robotics-focused publish/request middleware
 //! for embedded Linux. It is built with a high preference for catching errors

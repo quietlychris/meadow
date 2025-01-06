@@ -73,6 +73,29 @@ impl<T: Message> From<Node<Nonblocking, Tcp, Idle, T>> for Node<Nonblocking, Tcp
 use crate::node::tcp::handshake;
 use tokio::net::TcpStream;
 
+impl<T: Message> ToActiveAsync<Tcp, T> for Node<Nonblocking, Tcp, Idle, T> {
+    #[tracing::instrument(skip_all)]
+    async fn activate(mut self) -> Result<Node<Nonblocking, Tcp, Active, T>, Error> {
+        let addr = self.cfg.network_cfg.host_addr;
+        let topic = self.topic.clone();
+
+        let stream: Result<TcpStream, Error> = {
+            let stream = try_connection(addr).await?;
+            let stream = handshake(stream, topic).await?;
+            Ok(stream)
+        };
+        if let Ok(stream) = stream {
+            debug!(
+                "Established Node<=>Host TCP stream: {:?}",
+                stream.local_addr()
+            );
+            self.stream = Some(stream);
+        }
+
+        Ok(Node::<Nonblocking, Tcp, Active, T>::from(self))
+    }
+}
+
 impl<T: Message + 'static> Node<Nonblocking, Tcp, Idle, T> {
     /// Attempt connection from the Node to the Host located at the specified address
     #[tracing::instrument(skip_all)]
@@ -229,11 +252,10 @@ impl<T: Message> From<Node<Blocking, Tcp, Idle, T>> for Node<Blocking, Tcp, Subs
     }
 }
 
-use crate::node::network_config::Blocking;
-impl<T: Message + 'static> Node<Blocking, Tcp, Idle, T> {
+impl<T: Message> ToActive<Tcp, T> for Node<Blocking, Tcp, Idle, T> {
     /// Attempt connection from the Node to the Host located at the specified address
     #[tracing::instrument(skip_all)]
-    pub fn activate(mut self) -> Result<Node<Blocking, Tcp, Active, T>, Error> {
+    fn activate(mut self) -> Result<Node<Blocking, Tcp, Active, T>, Error> {
         let addr = self.cfg.network_cfg.host_addr;
         let topic = self.topic.clone();
 
@@ -257,7 +279,10 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Idle, T> {
 
         Ok(Node::<Blocking, Tcp, Active, T>::from(self))
     }
+}
 
+use crate::node::network_config::Blocking;
+impl<T: Message + 'static> Node<Blocking, Tcp, Idle, T> {
     #[tracing::instrument]
     pub fn subscribe(
         mut self,
@@ -309,43 +334,3 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Idle, T> {
         Ok(subscription_node)
     }
 }
-
-/* async fn run_subscription_sync<T: Message>(
-    packet: GenericMsg,
-    buffer: Arc<TokioMutex<Vec<u8>>>,
-    stream: &TcpStream,
-    data: Arc<TokioMutex<Option<Msg<T>>>>,
-) -> Result<(), Error> {
-    let packet_as_bytes = to_allocvec(&packet)?;
-    send_msg(stream, packet_as_bytes).await?;
-
-    let mut buffer = buffer.lock().await;
-    loop {
-        match await_response::<T>(stream, &mut buffer).await {
-            Ok(msg) => {
-                let mut data = data.lock().await;
-                use std::ops::DerefMut;
-                match data.deref_mut() {
-                    Some(existing) => {
-                        let delta = msg.timestamp - existing.timestamp;
-                        // println!("The time difference between msg tx/rx is: {} us",delta);
-                        if delta <= chrono::Duration::zero() {
-                            // println!("Data is not newer, skipping to next subscription iteration");
-                            continue;
-                        }
-
-                        *data = Some(msg);
-                    }
-                    None => {
-                        *data = Some(msg);
-                    }
-                }
-            }
-            Err(e) => {
-                error!("Subscription Error: {:?}", e);
-                continue;
-            }
-        };
-    }
-}
- */
