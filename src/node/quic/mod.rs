@@ -8,7 +8,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use crate::error::Quic::*;
-use crate::Error;
+use crate::prelude::*;
 
 use quinn::ClientConfig;
 use rustls::Certificate;

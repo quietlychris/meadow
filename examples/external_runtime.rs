@@ -1,5 +1,4 @@
-use meadow::node::RuntimeConfig;
-use meadow::*;
+use meadow::prelude::*;
 use std::{fs::File, sync::Arc};
 use tracing::*;
 use tracing_subscriber::{filter, prelude::*};
@@ -37,7 +36,7 @@ fn main() -> Result<(), meadow::Error> {
     let runtime = tokio::runtime::Runtime::new()?;
     let handle = runtime.handle().clone();
     // Get the host up and running
-    let node: Node<Tcp, Idle, Pose> = NodeConfig::new("pose")
+    let node: Node<Blocking, Tcp, Idle, Pose> = NodeConfig::new("pose")
         .with_runtime_config(
             RuntimeConfig::default()
                 .with_owned_runtime(false)
@@ -48,7 +47,8 @@ fn main() -> Result<(), meadow::Error> {
     let node = node.activate()?;
     println!(
         "Node's runtime: {:?}, using handle {:?}",
-        &node.runtime, &node.rt_handle
+        node.runtime(),
+        node.rt_handle()
     );
     debug!("Node should now be connected");
     println!(
@@ -70,7 +70,7 @@ fn main() -> Result<(), meadow::Error> {
         node.publish(pose.clone())?;
         println!("published {}", i);
         thread::sleep(Duration::from_millis(250));
-        let result: Msg<Pose> = node.request().unwrap();
+        let result: Msg<Pose> = node.request()?;
         dbg!(node.topics()?); // .unwrap();
         println!("Got position: {:?}", result.data);
 
@@ -83,7 +83,7 @@ fn main() -> Result<(), meadow::Error> {
     );
     let topics = host.topics();
     for topic in &topics {
-        let db = host.store.clone();
+        let db = host.db();
         let tree = db.open_tree(topic.as_bytes()).unwrap();
         println!("Topic {} has {} stored values", topic, tree.len());
     }

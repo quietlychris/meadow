@@ -1,10 +1,7 @@
 #[cfg(feature = "quic")]
-use meadow::host::quic::generate_certs;
-
-#[cfg(feature = "quic")]
 fn main() -> Result<(), meadow::Error> {
     use meadow::host::quic::QuicCertGenConfig;
-    use meadow::*;
+    use meadow::prelude::*;
     use std::thread;
     use std::time::Duration;
     use tracing::*;
@@ -12,19 +9,17 @@ fn main() -> Result<(), meadow::Error> {
     logging();
 
     generate_certs(QuicCertGenConfig::default());
-    let mut host: Host = HostConfig::default()
-        .with_tcp_config(None)
-        .with_udp_config(None)
-        .with_quic_config(Some(host::QuicConfig::default()))
-        .build()?;
+    let mut host: Host = HostConfig::default().build()?;
     host.start()?;
     debug!("Host should be running in the background");
 
     // Get the writer up and running
-    let node = NodeConfig::<Quic, usize>::new("pose").build()?.activate()?;
+    let node = NodeConfig::<Blocking, Quic, usize>::new("pose")
+        .build()?
+        .activate()?;
 
     // Create a subscription node with a query rate of 10 Hz
-    let reader = NodeConfig::<Quic, usize>::new("pose")
+    let reader = NodeConfig::<Blocking, Quic, usize>::new("pose")
         .build()?
         .subscribe(Duration::from_millis(50))?;
 

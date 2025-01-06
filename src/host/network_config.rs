@@ -68,6 +68,7 @@ impl Default for QuicConfig {
 }
 
 impl QuicConfig {
+    /// Create a new `QuicConfig` on a defined network interface
     pub fn new(interface: impl Into<String>) -> Self {
         QuicConfig {
             network_cfg: NetworkConfig {

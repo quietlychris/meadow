@@ -1,7 +1,9 @@
 // Tokio for async
 use tokio::net::UdpSocket;
-use tokio::sync::Mutex; // as TokioMutex;
-                        // Tracing for logging
+use tokio::runtime::Handle;
+use tokio::sync::Mutex;
+use tokio::time::{sleep, Duration}; // as TokioMutex;
+                                    // Tracing for logging
 use tracing::*;
 // Postcard is the default de/serializer
 use postcard::*;
@@ -10,51 +12,54 @@ use std::sync::Arc;
 // Misc other imports
 use chrono::Utc;
 
-use crate::*;
+use crate::prelude::*;
+use std::convert::TryInto;
 
 /// Host process for handling incoming connections from Nodes
-#[tracing::instrument]
+#[tracing::instrument(skip(db))]
 #[inline]
 pub async fn process_udp(
+    rt_handle: Handle,
     socket: UdpSocket,
     db: sled::Db,
-    count: Arc<Mutex<usize>>,
     max_buffer_size: usize,
 ) {
-    // let mut buf = [0u8; 10_000];
     let mut buf = vec![0u8; max_buffer_size];
+    let s = Arc::new(socket);
+
     // TO_DO_PART_B: Tried to with try_read_buf(), but seems to panic?
     // let mut buf = Vec::with_capacity(max_buffer_size);
     loop {
         // dbg!(&count);
-        match socket.recv_from(&mut buf).await {
+        let s = s.clone();
+        match s.recv_from(&mut buf).await {
             Ok((0, _)) => break, // TO_DO: break or continue?
             Ok((n, return_addr)) => {
                 let bytes = &buf[..n];
-                let msg: Msg<&[u8]> = match from_bytes(bytes) {
+                let msg: GenericMsg = match from_bytes(bytes) {
                     Ok(msg) => msg,
                     Err(e) => {
                         error!("Had received Msg of {} bytes: {:?}, Error: {}", n, bytes, e);
-                        panic!("{}", e);
+                        continue;
                     }
                 };
-                // dbg!(&msg);
 
                 match msg.msg_type {
                     MsgType::SET => {
-                        // println!("received {} bytes, to be assigned to: {}", n, &msg.name);
+                        info!("Received SET message: {:?}", &msg);
                         let tree = db
                             .open_tree(msg.topic.as_bytes())
                             .expect("Error opening tree");
-                        let _db_result =
+
+                        let _db_result = {
                             match tree.insert(msg.timestamp.to_string().as_bytes(), bytes) {
                                 Ok(_prev_msg) => {
-                                    let mut count = count.lock().await;
-                                    *count += 1;
-                                    "SUCCESS".to_string()
+                                    info!("{:?}", msg.data);
+                                    crate::error::HostOperation::SUCCESS
                                 }
-                                Err(e) => e.to_string(),
-                            };
+                                Err(_e) => crate::error::HostOperation::FAILURE,
+                            }
+                        };
                     }
                     MsgType::GET => {
                         let tree = db
@@ -72,15 +77,54 @@ pub async fn process_udp(
                                 }
                             };
 
-                            if let Ok(()) = socket.writable().await {
-                                if let Err(e) = socket.try_send_to(&return_bytes, return_addr) {
+                            if let Ok(()) = s.writable().await {
+                                if let Err(e) = s.try_send_to(&return_bytes, return_addr) {
                                     error!("Error sending data back on UDP/GET: {}", e)
                                 };
                             };
                         }
                     }
+                    MsgType::SUBSCRIBE => {
+                        let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
+                        let rate = specialized.data;
+                        info!("Received SUBSCRIBE message: {:?}", &msg);
+                        info!("Received subscription @ rate {:?}", rate);
+
+                        let db = db.clone();
+
+                        rt_handle.spawn(async move {
+                            loop {
+                                let tree = db
+                                    .open_tree(msg.topic.as_bytes())
+                                    .expect("Error opening tree");
+                                if let Ok(topic) = tree.last() {
+                                    let return_bytes = match topic {
+                                        Some(msg) => msg.1,
+                                        None => {
+                                            let e: String = format!(
+                                                "Error: no topic \"{}\" exists",
+                                                &msg.topic
+                                            );
+                                            error!("{}", &e);
+                                            e.as_bytes().into()
+                                        }
+                                    };
+                                    let return_msg = from_bytes::<GenericMsg>(&return_bytes);
+                                    info!("Host sending return to subscriber: {:?}", return_msg);
+
+                                    if let Ok(()) = s.writable().await {
+                                        if let Err(e) = s.try_send_to(&return_bytes, return_addr) {
+                                            error!("Error sending data back on UDP/GET: {}", e)
+                                        };
+                                    };
+                                }
+                                sleep(rate).await;
+                            }
+                        });
+                    }
                     MsgType::TOPICS => {
                         let names = db.tree_names();
+
                         let mut strings = Vec::new();
                         for name in names {
                             match std::str::from_utf8(&name[..]) {
@@ -92,19 +136,36 @@ pub async fn process_udp(
                                 }
                             }
                         }
-                        if let Ok(data) = to_allocvec(&strings) {
-                            let packet: GenericMsg = GenericMsg {
-                                msg_type: MsgType::TOPICS,
-                                timestamp: Utc::now(),
-                                topic: "".to_string(),
-                                data_type: std::any::type_name::<Vec<String>>().to_string(),
-                                data,
-                            };
+                        // Remove default sled tree name
+                        let index = strings
+                            .iter()
+                            .position(|x| *x == "__sled__default")
+                            .unwrap();
+                        strings.remove(index);
 
-                            if let Ok(bytes) = to_allocvec(&packet) {
-                                if let Err(e) = socket.try_send_to(&bytes, return_addr) {
-                                    error!("Error sending data back on UDP/TOPICS: {:?}", e);
+                        match to_allocvec(&strings) {
+                            Ok(data) => {
+                                let packet: GenericMsg = GenericMsg {
+                                    msg_type: MsgType::TOPICS,
+                                    timestamp: Utc::now(),
+                                    topic: "".to_string(),
+                                    data_type: std::any::type_name::<Vec<String>>().to_string(),
+                                    data,
+                                };
+
+                                if let Ok(bytes) = to_allocvec(&packet) {
+                                    if let Ok(()) = s.writable().await {
+                                        if let Err(e) = s.try_send_to(&bytes, return_addr) {
+                                            error!(
+                                                "Error sending data back on UDP/TOPICS: {:?}",
+                                                e
+                                            );
+                                        }
+                                    }
                                 }
+                            }
+                            Err(e) => {
+                                error!("{:?}", e);
                             }
                         }
                     }

@@ -1,4 +1,6 @@
 // Tokio for async
+use sled::Db;
+use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::net::UdpSocket;
 use tokio::runtime::Runtime;
@@ -31,7 +33,8 @@ use crate::host::quic::*;
 
 use crate::host::tcp::*;
 use crate::host::udp::*;
-use crate::Error;
+use crate::prelude::*;
+use crate::prelude::*;
 use crate::*;
 
 /// Named task handle for each Hosted connection
@@ -45,31 +48,62 @@ pub struct Connection {
 /// Central coordination process, which stores published data and responds to requests
 #[derive(Debug)]
 pub struct Host {
-    pub cfg: HostConfig,
-    pub runtime: Runtime,
-    pub task_listen_tcp: Option<JoinHandle<()>>,
-    pub connections: Arc<StdMutex<Vec<Connection>>>,
-    pub task_listen_udp: Option<JoinHandle<()>>,
+    pub(crate) cfg: HostConfig,
+    pub(crate) runtime: Runtime,
+    pub(crate) task_listen_tcp: Option<JoinHandle<()>>,
+    pub(crate) connections: Arc<StdMutex<Vec<Connection>>>,
+    pub(crate) task_listen_udp: Option<JoinHandle<()>>,
     #[cfg(feature = "quic")]
-    pub task_listen_quic: Option<JoinHandle<()>>,
-    pub store: sled::Db,
-    pub reply_count: Arc<Mutex<usize>>,
+    pub(crate) task_listen_quic: Option<JoinHandle<()>>,
+    pub(crate) store: sled::Db,
+}
+
+impl Drop for Host {
+    fn drop(&mut self) {
+        if let Some(task) = &self.task_listen_tcp {
+            task.abort();
+            self.task_listen_tcp = None;
+        }
+        if let Some(task) = &self.task_listen_udp {
+            task.abort();
+            self.task_listen_udp = None;
+        }
+        #[cfg(feature = "quic")]
+        if let Some(task) = &self.task_listen_quic {
+            task.abort();
+            self.task_listen_quic = None;
+        }
+        if let Ok(mut connections) = self.connections.lock() {
+            for connection in &mut *connections {
+                connection.handle.abort();
+            }
+        }
+    }
 }
 
 impl Host {
+    /// Get a reference to the `Host`'s configuration
+    pub fn config(&self) -> &HostConfig {
+        &self.cfg
+    }
+
+    /// Get access to the underlying `sled::Db` storage engine
+    pub fn db(&self) -> Db {
+        self.store.clone()
+    }
+
     /// Allow Host to begin accepting incoming connections
     #[tracing::instrument(skip(self))]
     pub fn start(&mut self) -> Result<(), crate::Error> {
         let connections = self.connections.clone();
 
         let db = self.store.clone();
-        let counter = self.reply_count.clone();
 
         // Start up the UDP process
-        match &self.cfg.udp_cfg {
+        match &self.config().udp_cfg {
             None => warn!("Host has no UDP configuration"),
             Some(udp_cfg) => {
-                let ip = match crate::get_ip(&udp_cfg.interface) {
+                let ip = match get_ip(&udp_cfg.interface) {
                     Ok(ip) => ip,
                     Err(_e) => return Err(Error::InvalidInterface),
                 };
@@ -77,14 +111,17 @@ impl Host {
                 let addr = SocketAddr::new(IpAddr::V4(ip), udp_cfg.socket_num);
 
                 let db = db.clone();
-                let counter = counter.clone();
 
                 // Start the UDP listening socket
                 let (max_buffer_size_udp, _max_name_size_udp) =
                     (udp_cfg.max_buffer_size, udp_cfg.max_name_size);
+                let rt_handle = self.runtime.handle().clone();
                 let task_listen_udp = self.runtime.spawn(async move {
                     match UdpSocket::bind(addr).await {
-                        Ok(socket) => process_udp(socket, db, counter, max_buffer_size_udp).await,
+                        Ok(socket) => {
+                            process_udp(rt_handle.clone(), socket, db.clone(), max_buffer_size_udp)
+                                .await
+                        }
                         Err(e) => {
                             error!("{}", e);
                         }
@@ -95,10 +132,10 @@ impl Host {
         }
 
         // Start the TCP process
-        match &self.cfg.tcp_cfg {
+        match &self.config().tcp_cfg {
             None => warn!("Host has no TCP configuration"),
             Some(tcp_cfg) => {
-                let ip = match crate::get_ip(&tcp_cfg.interface) {
+                let ip = match get_ip(&tcp_cfg.interface) {
                     Ok(ip) => ip,
                     Err(_e) => return Err(Error::InvalidInterface),
                 };
@@ -107,7 +144,6 @@ impl Host {
 
                 let (max_buffer_size_tcp, max_name_size_tcp) =
                     (tcp_cfg.max_buffer_size, tcp_cfg.max_name_size);
-                let counter = counter.clone();
                 let db = db.clone();
                 let connections = Arc::clone(&connections);
 
@@ -129,12 +165,11 @@ impl Host {
                                 };
                                 debug!("Host received connection from {:?}", &name);
 
-                                let counter = counter.clone();
                                 let connections = Arc::clone(&connections.clone());
                                 let db = db.clone();
 
                                 let handle = tokio::spawn(async move {
-                                    process_tcp(stream, db, counter, max_buffer_size_tcp).await;
+                                    process_tcp(stream, db, max_buffer_size_tcp).await;
                                 });
                                 let connection = Connection {
                                     handle,
@@ -155,10 +190,10 @@ impl Host {
 
         // Start the QUIC process
         #[cfg(feature = "quic")]
-        match &self.cfg.quic_cfg {
+        match &self.config().quic_cfg {
             None => warn!("Host has no QUIC configuration"),
             Some(quic_cfg) => {
-                let ip = match crate::get_ip(&quic_cfg.network_cfg.interface) {
+                let ip = match get_ip(&quic_cfg.network_cfg.interface) {
                     Ok(ip) => ip,
                     Err(_e) => return Err(Error::InvalidInterface),
                 };
@@ -183,7 +218,6 @@ impl Host {
                         );
                         let connections = Arc::clone(&connections.clone());
                         loop {
-                            let counter = counter.clone();
                             if let Some(conn) = endpoint.accept().await {
                                 if let Ok(connection) = conn.await {
                                     let db = db.clone();
@@ -200,7 +234,6 @@ impl Host {
                                             // TO_DO: Instead of having these buffers, is there a way that we can just use sled 
                                             // to hold our buffer space instead, removing the additional allocation?
                                             let mut buf = vec![0u8; max_buffer_size_quic];
-                                            let counter = counter.clone();
                                             match connection.accept_bi().await {
                                                 Ok((send, recv)) => {
                                                     debug!("Host successfully received bi-directional stream from {}",connection.remote_address());
@@ -209,7 +242,6 @@ impl Host {
                                                             (send, recv),
                                                             db.clone(),
                                                             &mut buf,
-                                                            counter.clone(),
                                                         )
                                                         .await;
                                                     });
@@ -267,12 +299,15 @@ impl Host {
                 strings.push(name.to_string());
             }
         }
-
+        // Remove default sled tree name
+        let index = strings.iter().position(|x| *x == "__sled__default");
+        if let Some(n) = index {
+            strings.remove(n);
+        }
         strings
     }
 
     /// Print information about all Host connections
-    #[no_mangle]
     pub fn print_connections(&mut self) -> Result<(), crate::Error> {
         match self.connections.lock() {
             Ok(connections) => {

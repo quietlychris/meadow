@@ -1,12 +1,12 @@
-use crate::Error;
+use crate::prelude::*;
 use std::result::Result;
 use std::sync::Arc;
 use tokio::runtime::Handle;
 use tokio::sync::Mutex as TokioMutex;
 
 use crate::node::network_config::*;
-use crate::node::{Active, Idle, Message, Node};
-use crate::node::{Interface, NetworkConfig};
+use crate::node::Node;
+use crate::node::{Active, Idle};
 use std::default::Default;
 use std::marker::PhantomData;
 use std::sync::Mutex;
@@ -43,29 +43,29 @@ impl RuntimeConfig {
 
 /// Configuration of strongly-typed Node
 #[derive(Debug, Clone)]
-pub struct NodeConfig<I: Interface + Default, T: Message> {
+pub struct NodeConfig<B: Block, I: Interface + Default, T: Message> {
     pub __data_type: PhantomData<T>,
     pub topic: Option<String>,
-    pub network_cfg: NetworkConfig<I>,
+    pub network_cfg: NetworkConfig<B, I>,
     pub runtime_cfg: RuntimeConfig,
 }
 
-impl<I: Interface + Default + Clone, T: Message> NodeConfig<I, T>
+impl<B: Block, I: Interface + Default + Clone, T: Message> NodeConfig<B, I, T>
 where
-    NetworkConfig<I>: Default,
+    NetworkConfig<B, I>: Default,
 {
     /// Create a named, strongly-typed Node without an assigned topic
-    pub fn new(topic: impl Into<String>) -> NodeConfig<I, T> {
+    pub fn new(topic: impl Into<String>) -> NodeConfig<B, I, T> {
         NodeConfig {
             __data_type: PhantomData,
             topic: Some(topic.into()),
-            network_cfg: NetworkConfig::<I>::default(),
+            network_cfg: NetworkConfig::<B, I>::default(),
             runtime_cfg: RuntimeConfig::default(),
         }
     }
 
     /// Configure the TCP connection parameteres
-    pub fn with_config(mut self, network_cfg: NetworkConfig<I>) -> Self {
+    pub fn with_config(mut self, network_cfg: NetworkConfig<B, I>) -> Self {
         self.network_cfg = network_cfg;
         self
     }
@@ -74,9 +74,11 @@ where
         self.runtime_cfg = runtime_cfg;
         self
     }
+}
 
+impl<I: Interface + Default + Clone, T: Message> NodeConfig<Blocking, I, T> {
     /// Construct a Node from the specified configuration
-    pub fn build(self) -> Result<Node<I, Idle, T>, Error> {
+    pub fn build(self) -> Result<Node<Blocking, I, Idle, T>, Error> {
         let (runtime, rt_handle) = {
             if self.runtime_cfg.owned_runtime {
                 let runtime = match tokio::runtime::Builder::new_multi_thread()
@@ -87,9 +89,9 @@ where
                     Err(_e) => return Err(Error::RuntimeCreation),
                 };
                 let handle = runtime.handle().clone();
-                (Some(runtime), handle)
+                (Some(runtime), Some(handle))
             } else if let Some(rt_handle) = self.runtime_cfg.rt_handle.clone() {
-                (None, rt_handle)
+                (None, Some(rt_handle))
             } else {
                 return Err(Error::RuntimeCreation);
             }
@@ -102,12 +104,12 @@ where
 
         let max_buffer_size = self.network_cfg.max_buffer_size;
 
-        Ok(Node::<I, Idle, T> {
+        Ok(Node::<Blocking, I, Idle, T> {
             __state: PhantomData::<Idle>,
             __data_type: PhantomData::<T>,
-            cfg: self,
             runtime,
             rt_handle,
+            cfg: self,
             stream: None,
             socket: None,
             buffer: Arc::new(TokioMutex::new(vec![0u8; max_buffer_size])),

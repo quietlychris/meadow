@@ -1,10 +1,8 @@
-use meadow::*;
-use std::{fs::File, sync::Arc};
-use tracing::*;
-use tracing_subscriber::{filter, prelude::*};
-
+use meadow::prelude::*;
 use std::thread;
 use std::time::Duration;
+
+use tracing::*;
 
 /// Example test struct for docs and tests
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -16,6 +14,15 @@ struct Pose {
 fn main() -> Result<(), meadow::Error> {
     logging();
 
+    #[cfg(feature = "quic")]
+    {
+        use meadow::host::generate_certs;
+        use meadow::host::quic::QuicCertGenConfig;
+
+        generate_certs(QuicCertGenConfig::default());
+    }
+
+    type N = Tcp;
     // Configure the Host with logging
     let mut host = {
         let date = chrono::Utc::now();
@@ -28,14 +35,25 @@ fn main() -> Result<(), meadow::Error> {
             .path(format!("./logs/{}", stamp))
             // If we wanted to keep the logs, we'd make this `false`
             .temporary(true);
-        HostConfig::default().with_sled_config(sled_cfg).build()?
+        let mut config = HostConfig::default().with_sled_config(sled_cfg);
+        #[cfg(feature = "quic")]
+        {
+            config = config
+                .with_udp_config(None)
+                .with_quic_config(Some(QuicConfig::default()))
+        }
+        config.build()?
     };
     host.start()?;
     println!("Host should be running in the background");
 
+    // thread::sleep(Duration::from_secs(60));
+
+    println!("Starting node");
     // Get the host up and running
-    let node: Node<Tcp, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
-    let node = node.activate()?;
+    let node: Node<Blocking, N, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
+    println!("Idle node built");
+    let node = node.activate().unwrap();
     debug!("Node should now be connected");
     println!(
         "The size of an active meadow Node is: {}",
@@ -67,17 +85,15 @@ fn main() -> Result<(), meadow::Error> {
         "The size of an a meadow Host before shutdown is: {}",
         std::mem::size_of_val(&host)
     );
-    let topics = host.topics();
-    for topic in &topics {
-        let db = host.store.clone();
-        let tree = db.open_tree(topic.as_bytes()).unwrap();
-        println!("Topic {} has {} stored values", topic, tree.len());
-    }
+    assert_eq!(host.topics(), node.topics()?.data);
 
     Ok(())
 }
 
 fn logging() {
+    use std::{fs::File, sync::Arc};
+    use tracing_subscriber::{filter, prelude::*};
+
     // A layer that logs events to a file.
     let file = File::create("logs/debug.log");
     let file = match file {

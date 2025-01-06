@@ -1,4 +1,4 @@
-use meadow::*;
+use meadow::prelude::*;
 use rand::Rng;
 // use rayon::par_iter;
 use std::thread;
@@ -37,7 +37,7 @@ fn main() -> Result<(), meadow::Error> {
 
     let topics = host.topics();
     for topic in &topics {
-        let db = host.store.clone();
+        let db = host.db();
         let tree = db.open_tree(topic.as_bytes()).unwrap();
         println!("Topic {} has {} stored values", topic, tree.len());
     }
@@ -49,7 +49,7 @@ fn run_tcp(n: usize, duration: Duration) -> Result<(), meadow::Error> {
     let mut nodes = Vec::with_capacity(n);
     for i in 0..n {
         let topic = format!("tcp_{}", i);
-        let node = NodeConfig::<Tcp, f32>::new(topic).build()?;
+        let node = NodeConfig::<Blocking, Tcp, f32>::new(topic).build()?;
         let node = node.activate()?;
         nodes.push(node);
     }
@@ -69,7 +69,7 @@ fn run_udp(n: usize, duration: Duration) -> Result<(), meadow::Error> {
     let mut nodes = Vec::with_capacity(n);
     for i in 0..n {
         let topic = format!("udp_{}", i);
-        let node = NodeConfig::<Udp, f32>::new(topic).build()?;
+        let node = NodeConfig::<Blocking, Udp, f32>::new(topic).build()?;
         let node = node.activate()?;
         nodes.push(node);
     }

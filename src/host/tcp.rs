@@ -1,8 +1,9 @@
 use tokio::io::AsyncWriteExt;
 // Tokio for async
 use tokio::net::TcpStream;
-use tokio::sync::Mutex; // as TokioMutex;
-                        // Tracing for logging
+use tokio::sync::Mutex;
+use tokio::time::{sleep, Duration}; // as TokioMutex;
+                                    // Tracing for logging
 use tracing::*;
 // Postcard is the default de/serializer
 use postcard::*;
@@ -12,7 +13,8 @@ use std::sync::Arc;
 use chrono::Utc;
 
 use crate::error::{Error, HostOperation::*};
-use crate::*;
+use crate::prelude::*;
+use std::convert::TryInto;
 use std::result::Result;
 
 /// Initiate a TCP connection with a Node
@@ -38,14 +40,9 @@ pub async fn handshake(
 }
 
 /// Host process for handling incoming connections from Nodes
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 #[inline]
-pub async fn process_tcp(
-    stream: TcpStream,
-    db: sled::Db,
-    count: Arc<Mutex<usize>>,
-    max_buffer_size: usize,
-) {
+pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize) {
     let mut buf = vec![0u8; max_buffer_size];
     loop {
         if let Err(e) = stream.readable().await {
@@ -60,7 +57,7 @@ pub async fn process_tcp(
                 }
 
                 let bytes = &buf[..n];
-                let msg: Msg<&[u8]> = match from_bytes(bytes) {
+                let msg: GenericMsg = match from_bytes(bytes) {
                     Ok(msg) => {
                         info!("{:?}", msg);
                         msg
@@ -94,8 +91,6 @@ pub async fn process_tcp(
                             loop {
                                 match stream.try_write(&bytes) {
                                     Ok(_n) => {
-                                        let mut count = count.lock().await;
-                                        *count += 1;
                                         break;
                                     }
                                     Err(_e) => {
@@ -125,15 +120,45 @@ pub async fn process_tcp(
                             if let Ok(()) = stream.writable().await {
                                 if let Err(e) = stream.try_write(&return_bytes) {
                                     error!("Error sending data back on TCP/TOPICS: {:?}", e);
-                                } else {
-                                    let mut count = count.lock().await;
-                                    *count += 1;
+                                }
+                            }
+                        }
+                    }
+                    MsgType::SUBSCRIBE => {
+                        let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
+                        let rate = specialized.data;
+
+                        if let Ok(tree) = db.open_tree(msg.topic.as_bytes()) {
+                            loop {
+                                if let Ok(topic) = tree.last() {
+                                    let return_bytes = match topic {
+                                        Some(msg) => msg.1,
+                                        None => {
+                                            let e: String = format!(
+                                                "Error: no topic \"{}\" exists",
+                                                &msg.topic
+                                            );
+                                            error!("{}", &e);
+                                            e.clone().as_bytes().into()
+                                        }
+                                    };
+
+                                    if let Ok(()) = stream.writable().await {
+                                        if let Err(e) = stream.try_write(&return_bytes) {
+                                            error!(
+                                                "Error sending data back on TCP/TOPICS: {:?}",
+                                                e
+                                            );
+                                        }
+                                    }
+                                    sleep(rate).await;
                                 }
                             }
                         }
                     }
                     MsgType::TOPICS => {
                         let names = db.tree_names();
+
                         let mut strings = Vec::new();
                         for name in names {
                             match std::str::from_utf8(&name[..]) {
@@ -145,21 +170,36 @@ pub async fn process_tcp(
                                 }
                             }
                         }
-                        if let Ok(data) = to_allocvec(&strings) {
-                            let packet: GenericMsg = GenericMsg {
-                                msg_type: MsgType::TOPICS,
-                                timestamp: Utc::now(),
-                                topic: "".to_string(),
-                                data_type: std::any::type_name::<Vec<String>>().to_string(),
-                                data,
-                            };
+                        // Remove default sled tree name
+                        let index = strings
+                            .iter()
+                            .position(|x| *x == "__sled__default")
+                            .unwrap();
+                        strings.remove(index);
 
-                            if let Ok(bytes) = to_allocvec(&packet) {
-                                if let Ok(()) = stream.writable().await {
-                                    if let Err(e) = stream.try_write(&bytes) {
-                                        error!("Error sending data back on TCP/TOPICS: {:?}", e);
+                        match to_allocvec(&strings) {
+                            Ok(data) => {
+                                let packet: GenericMsg = GenericMsg {
+                                    msg_type: MsgType::TOPICS,
+                                    timestamp: Utc::now(),
+                                    topic: "".to_string(),
+                                    data_type: std::any::type_name::<Vec<String>>().to_string(),
+                                    data,
+                                };
+
+                                if let Ok(bytes) = to_allocvec(&packet) {
+                                    if let Ok(()) = stream.writable().await {
+                                        if let Err(e) = stream.try_write(&bytes) {
+                                            error!(
+                                                "Error sending data back on TCP/TOPICS: {:?}",
+                                                e
+                                            );
+                                        }
                                     }
                                 }
+                            }
+                            Err(e) => {
+                                error!("{:?}", e);
                             }
                         }
                     }
