@@ -74,10 +74,12 @@ where
         self.runtime_cfg = runtime_cfg;
         self
     }
+}
 
+impl<I: Interface + Default + Clone, T: Message> NodeConfig<Blocking, I, T> {
     /// Construct a Node from the specified configuration
-    pub fn build(self) -> Result<Node<B, I, Idle, T>, Error> {
-        /*         let (runtime, rt_handle) = {
+    pub fn build(self) -> Result<Node<Blocking, I, Idle, T>, Error> {
+        let (runtime, rt_handle) = {
             if self.runtime_cfg.owned_runtime {
                 let runtime = match tokio::runtime::Builder::new_multi_thread()
                     .enable_all()
@@ -87,13 +89,13 @@ where
                     Err(_e) => return Err(Error::RuntimeCreation),
                 };
                 let handle = runtime.handle().clone();
-                (Some(runtime), handle)
+                (Some(runtime), Some(handle))
             } else if let Some(rt_handle) = self.runtime_cfg.rt_handle.clone() {
-                (None, rt_handle)
+                (None, Some(rt_handle))
             } else {
                 return Err(Error::RuntimeCreation);
             }
-        }; */
+        };
 
         let topic = match &self.topic {
             Some(topic) => topic.to_owned(),
@@ -102,11 +104,11 @@ where
 
         let max_buffer_size = self.network_cfg.max_buffer_size;
 
-        Ok(Node::<B, I, Idle, T> {
+        Ok(Node::<Blocking, I, Idle, T> {
             __state: PhantomData::<Idle>,
             __data_type: PhantomData::<T>,
-            runtime: None,
-            rt_handle: None,
+            runtime,
+            rt_handle,
             cfg: self,
             stream: None,
             socket: None,

@@ -14,7 +14,6 @@ impl Interface for Tcp {}
 pub struct Udp {}
 impl Interface for Udp {}
 
-// #[cfg(feature = "quic")]
 #[derive(Debug, Clone, Default)]
 pub struct Quic {}
 #[cfg(feature = "quic")]

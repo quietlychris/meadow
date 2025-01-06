@@ -3,6 +3,9 @@ pub mod network_config;
 pub mod tcp;
 pub mod udp;
 
+#[cfg(feature = "quic")]
+pub mod quic;
+
 /// State marker for a Node that has not been connected to a Host
 #[derive(Debug)]
 pub struct Idle;

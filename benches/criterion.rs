@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main};
-use meadow::*;
+use meadow::prelude::*;
 use rand::prelude::*;
 
 /*
@@ -33,7 +33,9 @@ fn tcp_message_sending(c: &mut criterion::Criterion) {
     let mut host = HostConfig::default().build().unwrap();
     host.start().unwrap();
     // Create and activate a Node
-    let node = NodeConfig::<Tcp, usize>::new("number").build().unwrap();
+    let node = NodeConfig::<Blocking, Tcp, usize>::new("number")
+        .build()
+        .unwrap();
     let node = node.activate().unwrap();
     let val = 1;
 
@@ -43,12 +45,12 @@ fn tcp_message_sending(c: &mut criterion::Criterion) {
         });
     });
 
-    let tx = NodeConfig::<Tcp, f32>::new("number")
+    let tx = NodeConfig::<Blocking, Tcp, f32>::new("number")
         .build()
         .unwrap()
         .activate()
         .unwrap();
-    let rx = NodeConfig::<Tcp, f32>::new("number")
+    let rx = NodeConfig::<Blocking, Tcp, f32>::new("number")
         .build()
         .unwrap()
         .activate()
@@ -75,12 +77,12 @@ fn tcp_message_sending(c: &mut criterion::Criterion) {
         let bench_name = "msg_".to_owned() + &size.to_string();
         let mut rng = rand::thread_rng();
         // Create and activate a Node
-        let tx = NodeConfig::<Tcp, Vec<f32>>::new("number")
+        let tx = NodeConfig::<Blocking, Tcp, Vec<f32>>::new("number")
             .build()
             .unwrap()
             .activate()
             .unwrap();
-        let rx = NodeConfig::<Tcp, Vec<f32>>::new("number")
+        let rx = NodeConfig::<Blocking, Tcp, Vec<f32>>::new("number")
             .build()
             .unwrap()
             .activate()

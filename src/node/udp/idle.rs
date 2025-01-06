@@ -135,3 +135,106 @@ async fn run_subscription<T: Message>(
         info!("Inserted new subscription data!");
     }
 }
+
+//--------
+
+use crate::node::network_config::Blocking;
+
+impl<T: Message> From<Node<Blocking, Udp, Idle, T>> for Node<Blocking, Udp, Subscription, T> {
+    fn from(node: Node<Blocking, Udp, Idle, T>) -> Self {
+        Self {
+            __state: PhantomData,
+            __data_type: PhantomData,
+            cfg: node.cfg,
+            runtime: node.runtime,
+            rt_handle: node.rt_handle,
+            stream: node.stream,
+            topic: node.topic,
+            socket: node.socket,
+            buffer: node.buffer,
+            #[cfg(feature = "quic")]
+            endpoint: node.endpoint,
+            #[cfg(feature = "quic")]
+            connection: node.connection,
+            subscription_data: node.subscription_data,
+            task_subscribe: None,
+        }
+    }
+}
+
+impl<T: Message + 'static> Node<Blocking, Udp, Idle, T> {
+    #[tracing::instrument(skip(self))]
+    pub fn activate(mut self) -> Result<Node<Blocking, Udp, Active, T>, Error> {
+        let handle = match &self.rt_handle {
+            Some(handle) => handle,
+            None => return Err(Error::HandleAccess),
+        };
+
+        match handle.block_on(async move {
+            match UdpSocket::bind("[::]:0").await {
+                Ok(socket) => {
+                    info!("Bound to socket: {:?}", &socket);
+                    Ok(socket)
+                }
+                Err(_e) => Err(Error::AccessSocket),
+            }
+        }) {
+            Ok(socket) => self.socket = Some(socket),
+            Err(e) => return Err(e),
+        };
+
+        Ok(Node::<Blocking, Udp, Active, T>::from(self))
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn subscribe(
+        mut self,
+        rate: Duration,
+    ) -> Result<Node<Blocking, Udp, Subscription, T>, Error> {
+        let topic = self.topic.clone();
+        let subscription_data: Arc<TokioMutex<Option<Msg<T>>>> = Arc::new(TokioMutex::new(None));
+        let data = Arc::clone(&subscription_data);
+        let addr = self.cfg.network_cfg.host_addr;
+        let buffer = self.buffer.clone();
+
+        let packet = GenericMsg {
+            msg_type: MsgType::SUBSCRIBE,
+            timestamp: Utc::now(),
+            topic: topic.clone(),
+            data_type: std::any::type_name::<T>().to_string(),
+            data: to_allocvec(&rate)?,
+        };
+
+        let handle = match &self.rt_handle {
+            Some(handle) => handle,
+            None => return Err(Error::HandleAccess),
+        };
+
+        let task_subscribe = handle.spawn(async move {
+            if let Ok(socket) = UdpSocket::bind("[::]:0").await {
+                info!("Bound to socket: {:?}", &socket);
+                loop {
+                    if let Err(e) = run_subscription::<T>(
+                        packet.clone(),
+                        buffer.clone(),
+                        &socket,
+                        data.clone(),
+                        addr,
+                    )
+                    .await
+                    {
+                        // dbg!(&e);
+                        error!("{:?}", e);
+                    }
+                }
+            }
+        });
+
+        self.task_subscribe = Some(task_subscribe);
+
+        let mut subscription_node = Node::<Blocking, Udp, Subscription, T>::from(self);
+        subscription_node.subscription_data = subscription_data;
+
+        Ok(subscription_node)
+    }
+}
