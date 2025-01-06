@@ -1,4 +1,5 @@
 // Tokio for async
+use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::net::UdpSocket;
 use tokio::runtime::Runtime;
@@ -45,7 +46,7 @@ pub struct Connection {
 /// Central coordination process, which stores published data and responds to requests
 #[derive(Debug)]
 pub struct Host {
-    pub cfg: HostConfig,
+    pub(crate) cfg: HostConfig,
     pub runtime: Runtime,
     pub task_listen_tcp: Option<JoinHandle<()>>,
     pub connections: Arc<StdMutex<Vec<Connection>>>,
@@ -55,7 +56,35 @@ pub struct Host {
     pub store: sled::Db,
 }
 
+impl Drop for Host {
+    fn drop(&mut self) {
+        if let Some(task) = &self.task_listen_tcp {
+            task.abort();
+            self.task_listen_tcp = None;
+        }
+        if let Some(task) = &self.task_listen_udp {
+            task.abort();
+            self.task_listen_udp = None;
+        }
+        #[cfg(feature = "quic")]
+        if let Some(task) = &self.task_listen_quic {
+            task.abort();
+            self.task_listen_quic = None;
+        }
+        if let Ok(mut connections) = self.connections.lock() {
+            for connection in &mut *connections {
+                connection.handle.abort();
+            }
+        }
+    }
+}
+
 impl Host {
+    /// Get a reference to the `Host`'s configuration
+    pub fn config(&self) -> &HostConfig {
+        &self.cfg
+    }
+
     /// Allow Host to begin accepting incoming connections
     #[tracing::instrument(skip(self))]
     pub fn start(&mut self) -> Result<(), crate::Error> {
@@ -64,7 +93,7 @@ impl Host {
         let db = self.store.clone();
 
         // Start up the UDP process
-        match &self.cfg.udp_cfg {
+        match &self.config().udp_cfg {
             None => warn!("Host has no UDP configuration"),
             Some(udp_cfg) => {
                 let ip = match crate::get_ip(&udp_cfg.interface) {
@@ -96,7 +125,7 @@ impl Host {
         }
 
         // Start the TCP process
-        match &self.cfg.tcp_cfg {
+        match &self.config().tcp_cfg {
             None => warn!("Host has no TCP configuration"),
             Some(tcp_cfg) => {
                 let ip = match crate::get_ip(&tcp_cfg.interface) {
@@ -154,7 +183,7 @@ impl Host {
 
         // Start the QUIC process
         #[cfg(feature = "quic")]
-        match &self.cfg.quic_cfg {
+        match &self.config().quic_cfg {
             None => warn!("Host has no QUIC configuration"),
             Some(quic_cfg) => {
                 let ip = match crate::get_ip(&quic_cfg.network_cfg.interface) {

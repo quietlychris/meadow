@@ -34,6 +34,7 @@ mod private {
     impl Sealed for Nonblocking {}
 }
 
+use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpStream, UdpSocket};
 use tokio::runtime::{Handle, Runtime};
 use tokio::sync::Mutex as TokioMutex;

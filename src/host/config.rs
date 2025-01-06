@@ -34,12 +34,22 @@ impl Default for HostConfig {
             .path(format!("./logs/{}.sled", stamp))
             .temporary(true);
 
-        HostConfig {
-            sled_cfg,
-            tcp_cfg: Some(host::TcpConfig::default("lo")),
-            udp_cfg: Some(host::UdpConfig::default("lo")),
-            #[cfg(feature = "quic")]
-            quic_cfg: Some(host::QuicConfig::default()),
+        #[cfg(feature = "quic")]
+        {
+            return HostConfig {
+                sled_cfg,
+                tcp_cfg: Some(host::TcpConfig::default("lo")),
+                udp_cfg: None,
+                quic_cfg: Some(host::QuicConfig::default()),
+            };
+        }
+        #[cfg(not(feature = "quic"))]
+        {
+            return HostConfig {
+                sled_cfg,
+                tcp_cfg: Some(host::TcpConfig::default("lo")),
+                udp_cfg: Some(host::UdpConfig::default("lo")),
+            };
         }
     }
 }
