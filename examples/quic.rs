@@ -9,11 +9,7 @@ fn main() -> Result<(), meadow::Error> {
     logging();
 
     generate_certs(QuicCertGenConfig::default());
-    let mut host: Host = HostConfig::default()
-        .with_tcp_config(None)
-        .with_udp_config(None)
-        .with_quic_config(Some(QuicConfig::default()))
-        .build()?;
+    let mut host: Host = HostConfig::default().build()?;
     host.start()?;
     debug!("Host should be running in the background");
 
