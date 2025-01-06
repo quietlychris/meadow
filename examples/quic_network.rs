@@ -1,9 +1,7 @@
-use meadow::prelude::*;
-
 #[cfg(feature = "quic")]
 fn main() -> Result<(), meadow::Error> {
     use meadow::host::quic::QuicCertGenConfig;
-    use meadow::*;
+    use meadow::prelude::*;
     use std::thread;
     use std::time::Duration;
     use tracing::*;
@@ -14,7 +12,7 @@ fn main() -> Result<(), meadow::Error> {
     let mut host: Host = HostConfig::default()
         .with_tcp_config(None)
         .with_udp_config(None)
-        .with_quic_config(Some(host::QuicConfig::default()))
+        .with_quic_config(Some(QuicConfig::default()))
         .build()?;
     host.start()?;
     debug!("Host should be running in the background");

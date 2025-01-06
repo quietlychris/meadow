@@ -38,6 +38,34 @@ pub struct Msg<T> {
     pub data: T,
 }
 
+impl<T: Message> Msg<T> {
+    /// Create a new strongly-typed message (default timestamp is from `SystemTime` in UTC)
+    pub fn new(msg_type: MsgType, topic: impl Into<String>, data: T) -> Self {
+        Msg {
+            msg_type,
+            timestamp: Utc::now(),
+            topic: topic.into(),
+            data_type: std::any::type_name::<T>().to_string(),
+            data,
+        }
+    }
+
+    /// Set the message's topic
+    pub fn set_topic(&mut self, topic: impl Into<String>) {
+        self.topic = topic.into();
+    }
+
+    /// Set the message's timestamp
+    pub fn set_timestamp(&mut self, timestamp: DateTime<Utc>) {
+        self.timestamp = timestamp;
+    }
+
+    /// Set the message's data payload
+    pub fn set_data(&mut self, data: T) {
+        self.data = data;
+    }
+}
+
 /// Message format containing a generic `Vec<u8>` data payload and associated metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[repr(C)]

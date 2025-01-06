@@ -28,6 +28,10 @@ fn main() {
         .run()
         .expect("Please check that all documentation follows rustdoc standards");
 
+    cmd!(sh, "cargo build --examples --all --features=quic")
+        .run()
+        .expect("Please check that all documentation follows rustdoc standards");
+
     // Run tests
     cmd!(sh, "cargo test --workspace -- --nocapture --test-threads=1")
         .run()
