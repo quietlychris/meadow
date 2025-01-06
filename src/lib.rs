@@ -55,7 +55,7 @@ pub mod prelude {
     pub use crate::host::{Host, HostConfig, UdpConfig};
     pub use crate::node::config::NodeConfig;
     pub use crate::node::config::RuntimeConfig;
-    pub use crate::node::network_config::{Blocking, Nonblocking, Tcp, Udp};
+    pub use crate::node::network_config::{Blocking, NetworkConfig, Nonblocking, Tcp, Udp};
     pub use crate::node::{Active, Idle, Node, Subscription};
 
     pub use crate::Msg;

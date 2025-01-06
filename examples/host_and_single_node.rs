@@ -22,7 +22,7 @@ fn main() -> Result<(), meadow::Error> {
         generate_certs(QuicCertGenConfig::default());
     }
 
-    type N = Quic;
+    type N = Tcp;
     // Configure the Host with logging
     let mut host = {
         let date = chrono::Utc::now();
