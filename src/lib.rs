@@ -52,7 +52,7 @@ pub use crate::msg::{GenericMsg, Message, Msg, MsgType};
 pub use crate::networks::get_ip;
 
 pub mod prelude {
-    pub use crate::host::HostConfig;
+    pub use crate::host::{Host, HostConfig, UdpConfig};
     pub use crate::node::config::NodeConfig;
     pub use crate::node::config::RuntimeConfig;
     pub use crate::node::network_config::{Blocking, Nonblocking, Tcp, Udp};
@@ -63,7 +63,7 @@ pub mod prelude {
     pub use serde::{Deserialize, Serialize};
 
     #[cfg(feature = "quic")]
-    pub use crate::host::QuicConfig;
+    pub use crate::host::{generate_certs, QuicConfig};
     #[cfg(feature = "quic")]
     pub use crate::node::network_config::Quic;
 }

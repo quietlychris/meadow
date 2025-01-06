@@ -1,5 +1,4 @@
-#[cfg(feature = "quic")]
-use meadow::host::quic::generate_certs;
+use meadow::prelude::*;
 
 #[cfg(feature = "quic")]
 fn main() -> Result<(), meadow::Error> {
@@ -21,10 +20,12 @@ fn main() -> Result<(), meadow::Error> {
     debug!("Host should be running in the background");
 
     // Get the writer up and running
-    let node = NodeConfig::<Quic, usize>::new("pose").build()?.activate()?;
+    let node = NodeConfig::<Blocking, Quic, usize>::new("pose")
+        .build()?
+        .activate()?;
 
     // Create a subscription node with a query rate of 10 Hz
-    let reader = NodeConfig::<Quic, usize>::new("pose")
+    let reader = NodeConfig::<Blocking, Quic, usize>::new("pose")
         .build()?
         .subscribe(Duration::from_millis(50))?;
 
