@@ -1,6 +1,6 @@
 #![deny(unused_must_use)]
 
-use meadow::*;
+use meadow::prelude::*;
 
 /// Example test struct for docs and tests
 #[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]

@@ -92,6 +92,11 @@ impl Host {
         self.store.clone()
     }
 
+    /// Access Host's Tokio `Runtime`
+    pub fn runtime(&self) -> &Runtime {
+        &self.runtime
+    }
+
     /// Allow Host to begin accepting incoming connections
     #[tracing::instrument(skip(self))]
     pub fn start(&mut self) -> Result<(), crate::Error> {

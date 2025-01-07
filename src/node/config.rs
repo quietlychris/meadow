@@ -76,9 +76,9 @@ where
     }
 }
 
-impl<I: Interface + Default + Clone, T: Message> NodeConfig<Blocking, I, T> {
+impl<B: Block, I: Interface + Default + Clone, T: Message> NodeConfig<B, I, T> {
     /// Construct a Node from the specified configuration
-    pub fn build(self) -> Result<Node<Blocking, I, Idle, T>, Error> {
+    pub fn build(self) -> Result<Node<B, I, Idle, T>, Error> {
         let (runtime, rt_handle) = {
             if self.runtime_cfg.owned_runtime {
                 let runtime = match tokio::runtime::Builder::new_multi_thread()
@@ -104,7 +104,7 @@ impl<I: Interface + Default + Clone, T: Message> NodeConfig<Blocking, I, T> {
 
         let max_buffer_size = self.network_cfg.max_buffer_size;
 
-        Ok(Node::<Blocking, I, Idle, T> {
+        Ok(Node::<B, I, Idle, T> {
             __state: PhantomData::<Idle>,
             __data_type: PhantomData::<T>,
             runtime,

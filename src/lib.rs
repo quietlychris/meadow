@@ -47,9 +47,12 @@ pub use crate::error::Error;
 
 pub mod prelude {
 
+    pub use crate::{Deserialize, Serialize};
+    pub use chrono::*;
+
+    pub use crate::error::Error;
     pub use crate::msg::{GenericMsg, Message, Msg, MsgType};
     pub use crate::networks::get_ip;
-    pub use crate::*;
 
     pub use crate::host::{Host, HostConfig, SledConfig, UdpConfig};
     pub use crate::node::config::NodeConfig;
