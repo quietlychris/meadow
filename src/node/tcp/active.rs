@@ -68,6 +68,44 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Active, T> {
         Ok(())
     }
 
+    #[tracing::instrument]
+    #[inline]
+    pub async fn publish_raw_msg(&self, msg: Msg<T>) -> Result<(), Error> {
+        let generic: GenericMsg = msg.try_into()?;
+        let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
+
+        let stream = match self.stream.as_ref() {
+            Some(stream) => stream,
+            None => return Err(Error::AccessStream),
+        };
+
+        // Send the publish message
+        send_msg(stream, packet_as_bytes).await?;
+
+        // Wait for the publish acknowledgement
+        let mut buf = self.buffer.lock().await;
+        loop {
+            if let Ok(()) = stream.readable().await {
+                match stream.try_read(&mut buf) {
+                    Ok(0) => continue,
+                    Ok(n) => {
+                        let bytes = &buf[..n];
+                        if let Ok(HostOperation::FAILURE) = from_bytes::<HostOperation>(bytes) {
+                            error!("Host-side error on publish");
+                        }
+
+                        break;
+                    }
+                    Err(_e) => {
+                        // if e.kind() == std::io::ErrorKind::WouldBlock {}
+                        continue;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Request data from host on Node's assigned topic
     #[tracing::instrument]
     #[inline]
@@ -136,6 +174,51 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
             data,
         };
 
+        let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
+
+        let stream = match self.stream.as_ref() {
+            Some(stream) => stream,
+            None => return Err(Error::AccessStream),
+        };
+
+        let handle = match &self.rt_handle {
+            Some(handle) => handle,
+            None => return Err(Error::HandleAccess),
+        };
+
+        handle.block_on(async {
+            // Send the publish message
+            send_msg(stream, packet_as_bytes).await?;
+
+            // Wait for the publish acknowledgement
+            let mut buf = self.buffer.lock().await;
+            loop {
+                if let Ok(()) = stream.readable().await {
+                    match stream.try_read(&mut buf) {
+                        Ok(0) => continue,
+                        Ok(n) => {
+                            let bytes = &buf[..n];
+                            if let Ok(HostOperation::FAILURE) = from_bytes::<HostOperation>(bytes) {
+                                error!("Host-side error on publish");
+                            }
+
+                            break;
+                        }
+                        Err(_e) => {
+                            // if e.kind() == std::io::ErrorKind::WouldBlock {}
+                            continue;
+                        }
+                    }
+                }
+            }
+            Ok(())
+        })
+    }
+
+    #[tracing::instrument]
+    #[inline]
+    pub fn publish_raw_msg(&self, msg: Msg<T>) -> Result<(), Error> {
+        let generic: GenericMsg = msg.try_into()?;
         let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
 
         let stream = match self.stream.as_ref() {

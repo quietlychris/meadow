@@ -1,5 +1,6 @@
 use crate::Error;
 use chrono::{DateTime, Utc};
+use postcard::to_allocvec;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::convert::{Into, TryInto};
 
@@ -88,6 +89,21 @@ impl<T: Message> TryInto<Msg<T>> for GenericMsg {
     fn try_into(self) -> Result<Msg<T>, Error> {
         let data = postcard::from_bytes::<T>(&self.data[..])?;
         Ok(Msg {
+            msg_type: self.msg_type,
+            timestamp: self.timestamp,
+            topic: self.topic.clone(),
+            data_type: self.data_type.clone(),
+            data,
+        })
+    }
+}
+
+impl<T: Message> TryInto<GenericMsg> for Msg<T> {
+    type Error = crate::Error;
+
+    fn try_into(self) -> Result<GenericMsg, Error> {
+        let data = postcard::to_allocvec(&self.data)?;
+        Ok(GenericMsg {
             msg_type: self.msg_type,
             timestamp: self.timestamp,
             topic: self.topic.clone(),
