@@ -53,3 +53,8 @@ rayon = "1"
 [[bench]]
 name = "criterion"
 harness = false
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
