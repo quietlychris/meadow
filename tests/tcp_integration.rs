@@ -3,7 +3,7 @@
 use meadow::prelude::*;
 mod common;
 use common::Pose;
-use rand::{thread_rng, Rng};
+use rand::thread_rng;
 
 use std::thread;
 use std::time::Duration;
@@ -12,7 +12,8 @@ type N = Tcp;
 
 #[test]
 fn integrate_host_and_single_node_tcp() {
-    let mut host: Host = HostConfig::default().build().unwrap();
+    let sc = SledConfig::new().temporary(true);
+    let mut host = HostConfig::default().with_sled_config(sc).build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
 
@@ -38,8 +39,8 @@ fn integrate_host_and_single_node_tcp() {
 
 #[test]
 fn custom_msg() {
-    let mut rng = thread_rng();
-    let mut host: Host = HostConfig::default().build().unwrap();
+    let sc = SledConfig::new().temporary(true);
+    let mut host = HostConfig::default().with_sled_config(sc).build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
 
@@ -68,7 +69,8 @@ fn custom_msg() {
 
 #[test]
 fn request_non_existent_topic_tcp() {
-    let mut host: Host = HostConfig::default().build().unwrap();
+    let sc = SledConfig::new().temporary(true);
+    let mut host = HostConfig::default().with_sled_config(sc).build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
 
@@ -87,7 +89,8 @@ fn request_non_existent_topic_tcp() {
 
 #[test]
 fn node_send_options_tcp() {
-    let mut host: Host = HostConfig::default().build().unwrap();
+    let sc = SledConfig::new().temporary(true);
+    let mut host = HostConfig::default().with_sled_config(sc).build().unwrap();
     host.start().unwrap();
 
     // Get the host up and running
@@ -117,7 +120,8 @@ fn node_send_options_tcp() {
 
 #[test]
 fn subscription_usize_tcp() {
-    let mut host: Host = HostConfig::default().build().unwrap();
+    let sc = SledConfig::new().temporary(true);
+    let mut host = HostConfig::default().with_sled_config(sc).build().unwrap();
     host.start().unwrap();
 
     // Get the host up and running
@@ -147,7 +151,8 @@ fn subscription_usize_tcp() {
 #[test]
 #[should_panic]
 fn no_subscribed_value_tcp() {
-    let mut host: Host = HostConfig::default().build().unwrap();
+    let sc = SledConfig::new().temporary(true);
+    let mut host = HostConfig::default().with_sled_config(sc).build().unwrap();
     host.start().unwrap();
 
     // Create a subscription node with a query rate of 10 Hz
@@ -163,7 +168,8 @@ fn no_subscribed_value_tcp() {
 
 #[test]
 fn topics_list_tcp() {
-    let mut host: Host = HostConfig::default().build().unwrap();
+    let sc = SledConfig::new().temporary(true);
+    let mut host = HostConfig::default().with_sled_config(sc).build().unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
 

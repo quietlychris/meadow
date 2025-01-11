@@ -32,8 +32,12 @@ type N = Quic;
 #[test]
 fn integrate_host_and_single_node_quic() {
     generate_certs(QuicCertGenConfig::default());
-
-    let mut host: Host = HostConfig::default().with_udp_config(None).build().unwrap();
+    let sc = SledConfig::new().temporary(true);
+    let mut host = HostConfig::default()
+        .with_sled_config(sc)
+        .with_udp_config(None)
+        .build()
+        .unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
 
@@ -62,7 +66,12 @@ fn integrate_host_and_single_node_quic() {
 fn request_non_existent_topic_quic() {
     generate_certs(QuicCertGenConfig::default());
 
-    let mut host: Host = HostConfig::default().with_udp_config(None).build().unwrap();
+    let sc = SledConfig::new().temporary(true);
+    let mut host = HostConfig::default()
+        .with_sled_config(sc)
+        .with_udp_config(None)
+        .build()
+        .unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
 
@@ -84,7 +93,12 @@ fn request_non_existent_topic_quic() {
 fn node_send_options_quic() {
     generate_certs(QuicCertGenConfig::default());
 
-    let mut host: Host = HostConfig::default().with_udp_config(None).build().unwrap();
+    let sc = SledConfig::new().temporary(true);
+    let mut host = HostConfig::default()
+        .with_sled_config(sc)
+        .with_udp_config(None)
+        .build()
+        .unwrap();
     host.start().unwrap();
 
     // Get the host up and running
@@ -117,7 +131,12 @@ fn node_send_options_quic() {
 fn subscription_usize_quic() {
     generate_certs(QuicCertGenConfig::default());
 
-    let mut host: Host = HostConfig::default().with_udp_config(None).build().unwrap();
+    let sc = SledConfig::new().temporary(true);
+    let mut host = HostConfig::default()
+        .with_sled_config(sc)
+        .with_udp_config(None)
+        .build()
+        .unwrap();
     host.start().unwrap();
 
     // Get the host up and running
@@ -150,7 +169,12 @@ fn subscription_usize_quic() {
 fn no_subscribed_value_quic() {
     generate_certs(QuicCertGenConfig::default());
 
-    let mut host: Host = HostConfig::default().with_udp_config(None).build().unwrap();
+    let sc = SledConfig::new().temporary(true);
+    let mut host = HostConfig::default()
+        .with_sled_config(sc)
+        .with_udp_config(None)
+        .build()
+        .unwrap();
     host.start().unwrap();
 
     // Create a subscription node with a query rate of 10 Hz
@@ -169,7 +193,12 @@ fn no_subscribed_value_quic() {
 fn topics_list_quic() {
     generate_certs(QuicCertGenConfig::default());
 
-    let mut host: Host = HostConfig::default().with_udp_config(None).build().unwrap();
+    let sc = SledConfig::new().temporary(true);
+    let mut host = HostConfig::default()
+        .with_sled_config(sc)
+        .with_udp_config(None)
+        .build()
+        .unwrap();
     host.start().unwrap();
     println!("Host should be running in the background");
 

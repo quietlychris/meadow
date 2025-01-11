@@ -3,7 +3,8 @@ use rand::{random, Rng};
 
 #[test]
 fn host_only_ops() {
-    let mut host = HostConfig::default().build().unwrap();
+    let sc = SledConfig::new().temporary(true);
+    let mut host = HostConfig::default().with_sled_config(sc).build().unwrap();
     let mut rng = rand::thread_rng();
     for i in 0..10 {
         let data: usize = rng.gen();

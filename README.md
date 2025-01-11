@@ -87,7 +87,7 @@ Under the hood, `meadow` relies on:
 * [`postcard`](https://github.com/jamesmunns/postcard): Efficient `#![no_std]`-compatible, [serde](https://serde.rs/)-based de/serializer designed for embedded or constrained environments. `meadow` should be able to operate native on any `serde`-compatible data types.  
 
 ## Benchmarks
-Preliminary benchmark data is showing round-trip message times (publish-request-reply) on `locahost` using the `--release` compilation profile, on the README's `Coordinate` data (strongly-typed, 8 bytes) to be <100 microseconds. Statistical benchmarks on different data profiles can be run via [`criterion`](https://github.com/bheisler/criterion.rs) via `cargo bench`.
+Preliminary benchmark data is showing round-trip message times (publish-request-reply) on `localhost` using the `--release` compilation profile, on the README's `Coordinate` data (strongly-typed, 8 bytes) to be <100 microseconds. Statistical benchmarks on different data profiles can be run via [`criterion`](https://github.com/bheisler/criterion.rs) via `cargo bench`.
 
 If you are doing robotics development, `meadow` is probably fast enough to move your data around (unless you're trying to do something like video streaming, in which case you should probably be using dedicated endpoints). 
 

@@ -1,4 +1,5 @@
 #![deny(unused_must_use)]
+#![cfg(not(feature = "quic"))]
 
 use meadow::prelude::*;
 mod common;
