@@ -83,6 +83,43 @@ pub struct GenericMsg {
     pub data: Vec<u8>,
 }
 
+impl GenericMsg {
+    #[inline]
+    pub fn set<T: Message>(topic: impl Into<String>, data: Vec<u8>) -> Self {
+        GenericMsg {
+            msg_type: MsgType::SET,
+            timestamp: Utc::now(),
+            topic: topic.into(),
+            data_type: std::any::type_name::<T>().to_string(),
+            data,
+        }
+    }
+
+    /// Create a default `MsgType::GET` message for requests
+    #[inline]
+    pub fn get<T: Message>(topic: impl Into<String>) -> Self {
+        GenericMsg {
+            msg_type: MsgType::GET,
+            timestamp: Utc::now(),
+            topic: topic.into(),
+            data_type: std::any::type_name::<T>().to_string(),
+            data: Vec::new(),
+        }
+    }
+
+    /// Create a default `MsgType::TOPICS` message
+    #[inline]
+    pub fn topics() -> Self {
+        GenericMsg {
+            msg_type: MsgType::TOPICS,
+            timestamp: Utc::now(),
+            topic: String::new(),
+            data_type: std::any::type_name::<()>().to_string(),
+            data: Vec::new(),
+        }
+    }
+}
+
 impl<T: Message> TryInto<Msg<T>> for GenericMsg {
     type Error = crate::Error;
 

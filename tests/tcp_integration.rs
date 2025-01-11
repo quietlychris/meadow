@@ -57,7 +57,7 @@ fn custom_msg() {
         let mut msg: Msg<Pose> = Msg::new(MsgType::SET, "pose", pose.clone());
         msg.set_timestamp(Utc::now());
 
-        node.publish_raw_msg(msg).unwrap();
+        node.publish_msg(msg).unwrap();
         thread::sleep(Duration::from_millis(10));
         let result = node.request().unwrap();
         println!("Got position: {:?}", result);
