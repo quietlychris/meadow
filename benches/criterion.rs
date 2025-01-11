@@ -2,6 +2,8 @@ use criterion::{criterion_group, criterion_main};
 use meadow::prelude::*;
 use rand::prelude::*;
 
+pub const KB: usize = 1024;
+
 /*
 fn meadow_instantiation(c: &mut criterion::Criterion) {
     /*
@@ -30,7 +32,8 @@ fn meadow_instantiation(c: &mut criterion::Criterion) {
 
 fn tcp_message_sending(c: &mut criterion::Criterion) {
     // Open a Host
-    let mut host = HostConfig::default().build().unwrap();
+    let sc = SledConfig::new().temporary(true);
+    let mut host = HostConfig::default().with_sled_config(sc).build().unwrap();
     host.start().unwrap();
     // Create and activate a Node
     let node = NodeConfig::<Blocking, Tcp, usize>::new("number")
@@ -71,9 +74,7 @@ fn tcp_message_sending(c: &mut criterion::Criterion) {
         });
     });
 
-    static KB: usize = 1024;
-
-    for size in [1, KB, 2 * KB, 4 * KB, 8 * KB].iter() {
+    for size in [1, KB, 2 * KB, 4 * KB, 8 * KB, 64 * KB].iter() {
         let bench_name = "msg_".to_owned() + &size.to_string();
         let mut rng = rand::thread_rng();
         // Create and activate a Node
@@ -107,27 +108,31 @@ fn tcp_message_sending(c: &mut criterion::Criterion) {
     host.stop().unwrap();
 }
 
-criterion_group!(benches, tcp_message_sending);
-criterion_main!(benches);
-
-/*
-/// Helper function for creating a simple network
-fn create_meadow_triple() -> (Host, Node<Tcp, Active, f32>, Node<Tcp, Active, f32>) {
-    let mut host = HostConfig::default().build().unwrap();
+fn host_inserts(c: &mut criterion::Criterion) {
+    let sc = SledConfig::new().temporary(true);
+    let mut host = HostConfig::default().with_sled_config(sc).build().unwrap();
     host.start().unwrap();
-    // Create and activate a Node
-    let tx = NodeConfig::<Tcp, f32>::new("TX")
-        .topic("number")
-        .build()
-        .unwrap()
-        .activate()
-        .unwrap();
-    let rx = NodeConfig::<Tcp, f32>::new("RX")
-        .topic("number")
-        .build()
-        .unwrap()
-        .activate()
-        .unwrap();
-    (host, tx, rx)
+
+    for size in [1, KB, 2 * KB, 4 * KB, 8 * KB, 64 * KB].iter() {
+        let bench_name = "host_insert_".to_owned() + &size.to_string();
+
+        let mut rng = rand::thread_rng();
+        let mut nums: Vec<f32> = Vec::with_capacity(*size);
+        for _ in 0..nums.len() {
+            nums.push(rng.gen());
+        }
+
+        c.bench_function(&bench_name, |b| {
+            b.iter(|| {
+                host.insert("number", nums.clone()).unwrap();
+            });
+
+            let result: Msg<Vec<f32>> = host.get("number").unwrap();
+            assert_eq!(nums, result.data);
+            // host.stop().unwrap();
+        });
+    }
 }
-*/
+
+criterion_group!(benches, tcp_message_sending, host_inserts);
+criterion_main!(benches);

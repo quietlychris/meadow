@@ -1,3 +1,4 @@
+use postcard::to_allocvec;
 // Tokio for async
 use sled::Db;
 use std::time::Duration;
@@ -22,6 +23,7 @@ use tracing::*;
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 // Misc other imports
+use std::convert::TryInto;
 use std::net::{IpAddr, SocketAddr};
 
 use std::result::Result;
@@ -95,6 +97,43 @@ impl Host {
     /// Access Host's Tokio `Runtime`
     pub fn runtime(&self) -> &Runtime {
         &self.runtime
+    }
+
+    /// Insert a raw `Msg<T>`
+    pub fn insert_msg<T: Message>(&mut self, msg: Msg<T>) -> Result<(), crate::Error> {
+        let generic: GenericMsg = msg.try_into()?;
+        let bytes = to_allocvec(&generic)?;
+
+        let tree = self.db().open_tree(generic.topic.as_bytes())?;
+        tree.insert(generic.timestamp.to_string().as_bytes(), bytes)?;
+
+        Ok(())
+    }
+
+    /// Insert a value using a default `Msg`
+    pub fn insert<T: Message>(
+        &mut self,
+        topic: impl Into<String>,
+        data: T,
+    ) -> Result<(), crate::Error> {
+        let msg = Msg::new(MsgType::SET, topic, data);
+        self.insert_msg(msg)?;
+        Ok(())
+    }
+
+    /// Retrieve last message on a given topic
+    pub fn get<T: Message>(&self, topic: impl Into<String>) -> Result<Msg<T>, crate::Error> {
+        let topic: String = topic.into();
+        let tree = self.db().open_tree(topic.as_bytes())?;
+
+        match tree.last()? {
+            Some((_timestamp, bytes)) => {
+                let generic: GenericMsg = postcard::from_bytes(&bytes)?;
+                let msg: Msg<T> = generic.try_into()?;
+                Ok(msg)
+            }
+            None => Err(Error::HostOperation(error::HostError::NonExistentTopic)),
+        }
     }
 
     /// Allow Host to begin accepting incoming connections
