@@ -36,6 +36,12 @@ fn main() {
     cmd!(sh, "cargo test --workspace -- --nocapture --test-threads=1")
         .run()
         .expect("Please fix failing tests in output above.");
+    cmd!(
+        sh,
+        "cargo test --workspace --features=quic quic -- --nocapture --test-threads=1"
+    )
+    .run()
+    .expect("Please fix failing tests in output above.");
 
     // Run doc tests: these are ignored by `cargo test`
     cmd!(sh, "cargo test --doc --workspace")
