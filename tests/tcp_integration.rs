@@ -3,7 +3,6 @@
 use meadow::prelude::*;
 mod common;
 use common::Pose;
-use rand::thread_rng;
 
 use std::thread;
 use std::time::Duration;
@@ -55,7 +54,7 @@ fn custom_msg() {
             y: i as f32,
         };
 
-        let mut msg: Msg<Pose> = Msg::new(MsgType::SET, "pose", pose.clone());
+        let mut msg: Msg<Pose> = Msg::new(MsgType::Set, "pose", pose.clone());
         msg.set_timestamp(Utc::now());
 
         node.publish_msg(msg).unwrap();

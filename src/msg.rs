@@ -14,13 +14,15 @@ impl<T> Message for T where T: Serialize + DeserializeOwned + Debug + Sync + Sen
 #[repr(C)]
 pub enum MsgType {
     /// Request SET operation on Host
-    SET,
+    Set,
     /// Request GET operation on Host
-    GET,
+    Get,
+    /// Request GET operation on Host
+    GetNth(usize),
     /// Request list of topics from Host  
-    TOPICS,
+    Topics,
     /// Request start of subscribe operation from Host
-    SUBSCRIBE,
+    Subscribe,
 }
 
 /// Message format containing a strongly-typed data payload and associated metadata
@@ -84,10 +86,11 @@ pub struct GenericMsg {
 }
 
 impl GenericMsg {
+    /// Create a default `MsgType::Set` message for published messages
     #[inline]
     pub fn set<T: Message>(topic: impl Into<String>, data: Vec<u8>) -> Self {
         GenericMsg {
-            msg_type: MsgType::SET,
+            msg_type: MsgType::Set,
             timestamp: Utc::now(),
             topic: topic.into(),
             data_type: std::any::type_name::<T>().to_string(),
@@ -95,11 +98,11 @@ impl GenericMsg {
         }
     }
 
-    /// Create a default `MsgType::GET` message for requests
+    /// Create a default `MsgType::Get` message for requests
     #[inline]
     pub fn get<T: Message>(topic: impl Into<String>) -> Self {
         GenericMsg {
-            msg_type: MsgType::GET,
+            msg_type: MsgType::Get,
             timestamp: Utc::now(),
             topic: topic.into(),
             data_type: std::any::type_name::<T>().to_string(),
@@ -107,11 +110,23 @@ impl GenericMsg {
         }
     }
 
-    /// Create a default `MsgType::TOPICS` message
+    /// Create a `MsgType::GetNth` message for requests
+    #[inline]
+    pub fn get_nth<T: Message>(topic: impl Into<String>, n: usize) -> Self {
+        GenericMsg {
+            msg_type: MsgType::GetNth(n),
+            timestamp: Utc::now(),
+            topic: topic.into(),
+            data_type: std::any::type_name::<T>().to_string(),
+            data: Vec::new(),
+        }
+    }
+
+    /// Create a default `MsgType::Topics` message
     #[inline]
     pub fn topics() -> Self {
         GenericMsg {
-            msg_type: MsgType::TOPICS,
+            msg_type: MsgType::Topics,
             timestamp: Utc::now(),
             topic: String::new(),
             data_type: std::any::type_name::<()>().to_string(),

@@ -45,7 +45,7 @@ impl<T: Message + 'static> Node<Nonblocking, Udp, Active, T> {
     #[tracing::instrument]
     #[inline]
     pub async fn publish(&self, val: T) -> Result<(), Error> {
-        let msg: Msg<T> = Msg::new(MsgType::SET, self.topic.clone(), val);
+        let msg: Msg<T> = Msg::new(MsgType::Set, self.topic.clone(), val);
         let generic: GenericMsg = msg.try_into()?;
 
         let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
@@ -141,7 +141,7 @@ impl<T: Message + 'static> Node<Blocking, Udp, Active, T> {
     #[tracing::instrument]
     #[inline]
     pub fn publish(&self, val: T) -> Result<(), Error> {
-        let msg: Msg<T> = Msg::new(MsgType::SET, self.topic.clone(), val);
+        let msg: Msg<T> = Msg::new(MsgType::Set, self.topic.clone(), val);
         let generic: GenericMsg = msg.try_into()?;
         let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
 

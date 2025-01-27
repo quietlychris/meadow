@@ -18,6 +18,9 @@ pub enum HostError {
     /// Topic does not exist on Host
     #[error("Topic does not exist")]
     NonExistentTopic,
+    /// Topic does not have value at specific n'th position
+    #[error("Topic does not have value at specific n'th position")]
+    NoNthValue,
 }
 
 /// Enum for successful/failed Host operations

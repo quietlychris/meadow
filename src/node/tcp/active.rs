@@ -24,7 +24,7 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Active, T> {
     #[tracing::instrument]
     #[inline]
     pub async fn publish(&self, val: T) -> Result<(), Error> {
-        let msg: Msg<T> = Msg::new(MsgType::SET, self.topic.clone(), val);
+        let msg: Msg<T> = Msg::new(MsgType::Set, self.topic.clone(), val);
 
         let generic: GenericMsg = msg.try_into()?;
 
@@ -144,7 +144,7 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
     #[tracing::instrument]
     #[inline]
     pub fn publish(&self, val: T) -> Result<(), Error> {
-        let msg = Msg::new(MsgType::SET, self.topic.clone(), val);
+        let msg = Msg::new(MsgType::Set, self.topic.clone(), val);
         let generic: GenericMsg = msg.try_into()?;
 
         let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
@@ -243,7 +243,7 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
         };
 
         let packet: GenericMsg = GenericMsg {
-            msg_type: MsgType::GET,
+            msg_type: MsgType::Get,
             timestamp: Utc::now(),
             topic: self.topic.to_string(),
             data_type: std::any::type_name::<T>().to_string(),
@@ -274,7 +274,7 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
         };
 
         let packet: GenericMsg = GenericMsg {
-            msg_type: MsgType::TOPICS,
+            msg_type: MsgType::Topics,
             timestamp: Utc::now(),
             topic: "".to_string(),
             data_type: std::any::type_name::<()>().to_string(),

@@ -116,7 +116,7 @@ impl Host {
         topic: impl Into<String>,
         data: T,
     ) -> Result<(), crate::Error> {
-        let msg = Msg::new(MsgType::SET, topic, data);
+        let msg = Msg::new(MsgType::Set, topic, data);
         self.insert_msg(msg)?;
         Ok(())
     }
@@ -133,6 +133,28 @@ impl Host {
                 Ok(msg)
             }
             None => Err(Error::HostOperation(error::HostError::NonExistentTopic)),
+        }
+    }
+
+    /// Retrieve n'th message on a given topic, if it exists
+    pub fn get_nth_back<T: Message>(
+        &self,
+        topic: impl Into<String>,
+        n: usize,
+    ) -> Result<Msg<T>, crate::Error> {
+        let topic: String = topic.into();
+        let tree = self.db().open_tree(topic.as_bytes())?;
+
+        match tree.iter().nth_back(n) {
+            Some(n) => match n {
+                Ok((_timestamp, bytes)) => {
+                    let generic: GenericMsg = postcard::from_bytes(&bytes)?;
+                    let msg: Msg<T> = generic.try_into()?;
+                    Ok(msg)
+                }
+                Err(e) => Err(Error::Sled(e)),
+            },
+            None => Err(Error::HostOperation(error::HostError::NoNthValue)),
         }
     }
 

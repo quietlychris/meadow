@@ -45,7 +45,7 @@ pub async fn process_udp(
                 };
 
                 match msg.msg_type {
-                    MsgType::SET => {
+                    MsgType::Set => {
                         info!("Received SET message: {:?}", &msg);
                         let tree = db
                             .open_tree(msg.topic.as_bytes())
@@ -61,7 +61,7 @@ pub async fn process_udp(
                             }
                         };
                     }
-                    MsgType::GET => {
+                    MsgType::Get => {
                         let tree = db
                             .open_tree(msg.topic.as_bytes())
                             .expect("Error opening tree");
@@ -84,7 +84,10 @@ pub async fn process_udp(
                             };
                         }
                     }
-                    MsgType::SUBSCRIBE => {
+                    MsgType::GetNth(n) => {
+                        todo!()
+                    }
+                    MsgType::Subscribe => {
                         let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
                         let rate = specialized.data;
                         info!("Received SUBSCRIBE message: {:?}", &msg);
@@ -122,7 +125,7 @@ pub async fn process_udp(
                             }
                         });
                     }
-                    MsgType::TOPICS => {
+                    MsgType::Topics => {
                         let names = db.tree_names();
 
                         let mut strings = Vec::new();
@@ -146,7 +149,7 @@ pub async fn process_udp(
                         match to_allocvec(&strings) {
                             Ok(data) => {
                                 let packet: GenericMsg = GenericMsg {
-                                    msg_type: MsgType::TOPICS,
+                                    msg_type: MsgType::Topics,
                                     timestamp: Utc::now(),
                                     topic: "".to_string(),
                                     data_type: std::any::type_name::<Vec<String>>().to_string(),

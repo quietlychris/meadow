@@ -20,7 +20,7 @@ use tracing::*;
 impl<T: Message + 'static> Node<Nonblocking, Quic, Active, T> {
     #[tracing::instrument(skip(self))]
     pub async fn publish(&self, val: T) -> Result<(), Error> {
-        let msg = Msg::new(MsgType::SET, self.topic.clone(), val);
+        let msg = Msg::new(MsgType::Set, self.topic.clone(), val);
         let generic: GenericMsg = msg.try_into()?;
         let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
 
@@ -109,7 +109,7 @@ impl<T: Message + 'static> Node<Nonblocking, Quic, Active, T> {
 
     pub async fn topics(&self) -> Result<Msg<Vec<String>>, Error> {
         let packet = GenericMsg {
-            msg_type: MsgType::TOPICS,
+            msg_type: MsgType::Topics,
             timestamp: Utc::now(),
             topic: self.topic.to_string(),
             data_type: std::any::type_name::<()>().to_string(),
@@ -149,7 +149,7 @@ impl<T: Message + 'static> Node<Blocking, Quic, Active, T> {
         let data: Vec<u8> = to_allocvec(&val)?;
 
         let generic = GenericMsg {
-            msg_type: MsgType::SET,
+            msg_type: MsgType::Set,
             timestamp: Utc::now(),
             topic: self.topic.to_string(),
             data_type: std::any::type_name::<T>().to_string(),
