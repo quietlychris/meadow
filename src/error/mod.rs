@@ -47,7 +47,7 @@ pub enum Error {
     StreamConnection,
     /// Errors based on Host operations
     #[error(transparent)]
-    HostOperation(crate::error::host_operation::HostError),
+    HostOperation(#[from] crate::error::host_operation::HostError),
     /// Transparent QUIC-related errors
     #[cfg(feature = "quic")]
     #[error(transparent)]

@@ -108,15 +108,7 @@ impl<T: Message + 'static> Node<Nonblocking, Quic, Active, T> {
     }
 
     pub async fn topics(&self) -> Result<Msg<Vec<String>>, Error> {
-        let packet = GenericMsg {
-            msg_type: MsgType::Topics,
-            timestamp: Utc::now(),
-            topic: self.topic.to_string(),
-            data_type: std::any::type_name::<()>().to_string(),
-            data: Vec::new(),
-        };
-
-        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
+        let packet = GenericMsg::topics().as_bytes()?;
 
         let mut buf = self.buffer.lock().await;
 
@@ -124,7 +116,7 @@ impl<T: Message + 'static> Node<Nonblocking, Quic, Active, T> {
 
         let (mut send, mut recv) = connection.open_bi().await.map_err(ConnectionError)?;
         debug!("Node succesfully opened stream from connection");
-        send.write_all(&packet_as_bytes).await.map_err(WriteError)?;
+        send.write_all(&packet).await.map_err(WriteError)?;
         send.finish().await.map_err(WriteError)?;
 
         let n = recv
@@ -146,17 +138,9 @@ use crate::node::network_config::Blocking;
 impl<T: Message + 'static> Node<Blocking, Quic, Active, T> {
     #[tracing::instrument(skip(self))]
     pub fn publish(&self, val: T) -> Result<(), Error> {
-        let data: Vec<u8> = to_allocvec(&val)?;
-
-        let generic = GenericMsg {
-            msg_type: MsgType::Set,
-            timestamp: Utc::now(),
-            topic: self.topic.to_string(),
-            data_type: std::any::type_name::<T>().to_string(),
-            data,
-        };
-
-        let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
+        let packet_as_bytes = Msg::new(MsgType::Set, self.topic.clone(), val)
+            .to_generic()?
+            .as_bytes()?;
 
         let handle = match &self.rt_handle {
             Some(handle) => handle,

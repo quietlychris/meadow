@@ -1,8 +1,10 @@
+use crate::error::HostError;
+use crate::error::HostOperation;
 use crate::Error;
 use chrono::{DateTime, Utc};
 use postcard::to_allocvec;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::convert::{Into, TryInto};
+use std::convert::{Into, TryFrom, TryInto};
 
 use std::fmt::Debug;
 /// Trait for Meadow-compatible data, requiring serde De\Serialize, Debug, and Clone
@@ -13,16 +15,18 @@ impl<T> Message for T where T: Serialize + DeserializeOwned + Debug + Sync + Sen
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[repr(C)]
 pub enum MsgType {
-    /// Request SET operation on Host
+    /// Request `Set` operation on Host
     Set,
-    /// Request GET operation on Host
+    /// Request `Get` operation on Host
     Get,
-    /// Request GET operation on Host
+    /// Request `GetNth` operation on Host
     GetNth(usize),
     /// Request list of topics from Host  
     Topics,
     /// Request start of subscribe operation from Host
     Subscribe,
+    /// Communicate success or failure of certain Host-side operations
+    HostOperation(HostOperation),
 }
 
 /// Message format containing a strongly-typed data payload and associated metadata
@@ -66,6 +70,11 @@ impl<T: Message> Msg<T> {
     /// Set the message's data payload
     pub fn set_data(&mut self, data: T) {
         self.data = data;
+    }
+
+    /// Attempt conversion to `GenericMsg`
+    pub fn to_generic(self) -> Result<GenericMsg, crate::Error> {
+        self.try_into()
     }
 }
 
@@ -132,6 +141,22 @@ impl GenericMsg {
             data_type: std::any::type_name::<()>().to_string(),
             data: Vec::new(),
         }
+    }
+
+    /// Create a generic
+    pub fn host_operation(op: HostOperation) -> Self {
+        GenericMsg {
+            msg_type: MsgType::HostOperation(op),
+            timestamp: Utc::now(),
+            topic: String::new(),
+            data_type: std::any::type_name::<()>().to_string(),
+            data: Vec::new(),
+        }
+    }
+
+    /// Convert `GenericMsg` into a `postcard`-encoded byte string
+    pub fn as_bytes(&self) -> Result<Vec<u8>, postcard::Error> {
+        postcard::to_allocvec(&self)
     }
 }
 

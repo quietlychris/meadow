@@ -86,16 +86,20 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
         };
         info!("{:?}", &msg);
         match msg.msg_type {
+            MsgType::HostOperation(op) => {
+                // This should really never be received by Host
+                error!("Received HostOperation: {:?}", op);
+            }
             MsgType::Set => {
                 let tree = db
                     .open_tree(msg.topic.as_bytes())
                     .expect("Error opening tree");
 
                 let db_result = match tree.insert(msg.timestamp.to_string(), bytes) {
-                    Ok(_prev_msg) => crate::error::HostOperation::SUCCESS, //"SUCCESS".to_string(),
+                    Ok(_prev_msg) => crate::error::HostOperation::Success, //"SUCCESS".to_string(),
                     Err(_e) => {
                         error!("{:?}", _e);
-                        crate::error::HostOperation::FAILURE
+                        crate::error::HostOperation::Failure
                     }
                 };
 

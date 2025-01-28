@@ -45,6 +45,10 @@ pub async fn process_udp(
                 };
 
                 match msg.msg_type {
+                    MsgType::HostOperation(op) => {
+                        // This should really never be received by Host
+                        error!("Received HostOperation: {:?}", op);
+                    }
                     MsgType::Set => {
                         info!("Received SET message: {:?}", &msg);
                         let tree = db
@@ -55,9 +59,9 @@ pub async fn process_udp(
                             match tree.insert(msg.timestamp.to_string().as_bytes(), bytes) {
                                 Ok(_prev_msg) => {
                                     info!("{:?}", msg.data);
-                                    crate::error::HostOperation::SUCCESS
+                                    crate::error::HostOperation::Success
                                 }
-                                Err(_e) => crate::error::HostOperation::FAILURE,
+                                Err(_e) => crate::error::HostOperation::Failure,
                             }
                         };
                     }

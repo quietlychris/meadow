@@ -60,6 +60,79 @@ pub struct Host {
     pub(crate) store: sled::Db,
 }
 
+pub trait Store {
+    fn insert_msg<T: Message>(&mut self, msg: Msg<T>) -> Result<(), crate::Error>;
+    fn insert<T: Message>(&mut self, topic: impl Into<String>, data: T)
+        -> Result<(), crate::Error>;
+    fn get<T: Message>(&self, topic: impl Into<String>) -> Result<Msg<T>, crate::Error>;
+    fn get_nth_back<T: Message>(
+        &self,
+        topic: impl Into<String>,
+        n: usize,
+    ) -> Result<Msg<T>, crate::Error>;
+}
+
+impl Store for sled::Db {
+    /// Insert a raw `Msg<T>`
+    fn insert_msg<T: Message>(&mut self, msg: Msg<T>) -> Result<(), crate::Error> {
+        let generic: GenericMsg = msg.try_into()?;
+        let bytes = to_allocvec(&generic)?;
+
+        let tree = self.open_tree(generic.topic.as_bytes())?;
+        tree.insert(generic.timestamp.to_string().as_bytes(), bytes)?;
+
+        Ok(())
+    }
+
+    /// Insert a value using a default `Msg`
+    fn insert<T: Message>(
+        &mut self,
+        topic: impl Into<String>,
+        data: T,
+    ) -> Result<(), crate::Error> {
+        let msg = Msg::new(MsgType::Set, topic, data);
+        self.insert_msg(msg)?;
+        Ok(())
+    }
+
+    /// Retrieve last message on a given topic
+    fn get<T: Message>(&self, topic: impl Into<String>) -> Result<Msg<T>, crate::Error> {
+        let topic: String = topic.into();
+        let tree = self.open_tree(topic.as_bytes())?;
+
+        match tree.last()? {
+            Some((_timestamp, bytes)) => {
+                let generic: GenericMsg = postcard::from_bytes(&bytes)?;
+                let msg: Msg<T> = generic.try_into()?;
+                Ok(msg)
+            }
+            None => Err(Error::HostOperation(error::HostError::NonExistentTopic)),
+        }
+    }
+
+    /// Retrieve n'th message on a given topic, if it exists
+    fn get_nth_back<T: Message>(
+        &self,
+        topic: impl Into<String>,
+        n: usize,
+    ) -> Result<Msg<T>, crate::Error> {
+        let topic: String = topic.into();
+        let tree = self.open_tree(topic.as_bytes())?;
+
+        match tree.iter().nth_back(n) {
+            Some(n) => match n {
+                Ok((_timestamp, bytes)) => {
+                    let generic: GenericMsg = postcard::from_bytes(&bytes)?;
+                    let msg: Msg<T> = generic.try_into()?;
+                    Ok(msg)
+                }
+                Err(e) => Err(Error::Sled(e)),
+            },
+            None => Err(Error::HostOperation(error::HostError::NoNthValue)),
+        }
+    }
+}
+
 impl Drop for Host {
     fn drop(&mut self) {
         if let Some(task) = &self.task_listen_tcp {
@@ -80,6 +153,36 @@ impl Drop for Host {
                 connection.handle.abort();
             }
         }
+    }
+}
+
+impl Store for Host {
+    /// Insert a raw `Msg<T>`
+    fn insert_msg<T: Message>(&mut self, msg: Msg<T>) -> Result<(), crate::Error> {
+        self.db().insert_msg(msg)
+    }
+
+    /// Insert a value using a default `Msg`
+    fn insert<T: Message>(
+        &mut self,
+        topic: impl Into<String>,
+        data: T,
+    ) -> Result<(), crate::Error> {
+        self.db().insert(topic, data)
+    }
+
+    /// Retrieve last message on a given topic
+    fn get<T: Message>(&self, topic: impl Into<String>) -> Result<Msg<T>, crate::Error> {
+        self.db().get(topic)
+    }
+
+    /// Retrieve n'th message on a given topic, if it exists
+    fn get_nth_back<T: Message>(
+        &self,
+        topic: impl Into<String>,
+        n: usize,
+    ) -> Result<Msg<T>, crate::Error> {
+        self.db().get_nth_back(topic, n)
     }
 }
 

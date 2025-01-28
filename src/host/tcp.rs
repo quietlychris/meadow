@@ -39,6 +39,93 @@ pub async fn handshake(
     Ok((stream, name))
 }
 
+pub async fn pt(
+    stream: TcpStream,
+    db: sled::Db,
+    max_buffer_size: usize,
+) -> Result<(), crate::error::Error> {
+    let mut buf = vec![0u8; max_buffer_size];
+    loop {
+        if let Err(e) = stream.readable().await {
+            error!("{}", e);
+        }
+        match stream.try_read(&mut buf) {
+            Ok(0) => return Ok(()),
+            Ok(n) => {
+                if let Err(e) = stream.writable().await {
+                    error!("{}", e);
+                }
+
+                let bytes = &buf[..n];
+                let msg = from_bytes::<GenericMsg>(bytes)?;
+                // process_msg(msg, stream, db, &mut buf);
+
+                return Ok(());
+            }
+            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                // println!("Error::WouldBlock: {:?}", e);
+                continue;
+            }
+            Err(e) => {
+                error!("Error: {:?}", e);
+                return Err(Error::Io(e));
+            }
+        }
+    }
+}
+
+fn process_msg(
+    msg: GenericMsg,
+    stream: TcpStream,
+    db: sled::Db,
+    buf: &mut Vec<u8>,
+) -> Result<(), crate::Error> {
+    match msg.msg_type {
+        MsgType::Set => {
+            // set(msg, db)?;
+        }
+        MsgType::Get => {}
+        MsgType::GetNth(n) => {}
+        MsgType::Subscribe => {}
+        MsgType::Topics => {}
+        MsgType::HostOperation(host_op) => {}
+    }
+
+    Ok(())
+}
+
+/* fn set(msg: GenericMsg, db: sled::Db) -> Result<(), crate::Error> {
+    // println!("received {} bytes, to be assigned to: {}", n, &msg.name);
+    let tree = db
+        .open_tree(msg.topic.as_bytes())
+        .expect("Error opening tree");
+
+    let host_op = {
+        match tree.insert(msg.timestamp.to_string().as_bytes(), bytes) {
+            Ok(_prev_msg) => {
+                info!("{:?}", msg.data);
+                crate::error::HostOperation::Success
+            }
+            Err(_e) => crate::error::HostOperation::Failure,
+        }
+    };
+
+    if let Ok(bytes) = GenericMsg::host_operation(host_op).as_bytes() {
+        loop {
+            match stream.try_write(&bytes) {
+                Ok(_n) => {
+                    break;
+                }
+                Err(_e) => {
+                    // if e.kind() == std::io::ErrorKind::WouldBlock {}
+                    continue;
+                }
+            }
+        }
+    }
+    Ok(())
+} */
+
 /// Host process for handling incoming connections from Nodes
 #[tracing::instrument(skip_all)]
 #[inline]
@@ -71,23 +158,27 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                 info!("{:?}", msg.msg_type);
 
                 match msg.msg_type {
+                    MsgType::HostOperation(op) => {
+                        // This should really never be received by Host
+                        error!("Received HostOperation: {:?}", op);
+                    }
                     MsgType::Set => {
                         // println!("received {} bytes, to be assigned to: {}", n, &msg.name);
                         let tree = db
                             .open_tree(msg.topic.as_bytes())
                             .expect("Error opening tree");
 
-                        let db_result = {
+                        let host_op = {
                             match tree.insert(msg.timestamp.to_string().as_bytes(), bytes) {
                                 Ok(_prev_msg) => {
                                     info!("{:?}", msg.data);
-                                    crate::error::HostOperation::SUCCESS
+                                    crate::error::HostOperation::Success
                                 }
-                                Err(_e) => crate::error::HostOperation::FAILURE,
+                                Err(_e) => crate::error::HostOperation::Failure,
                             }
                         };
 
-                        if let Ok(bytes) = postcard::to_allocvec(&db_result) {
+                        if let Ok(bytes) = GenericMsg::host_operation(host_op).as_bytes() {
                             loop {
                                 match stream.try_write(&bytes) {
                                     Ok(_n) => {
@@ -179,6 +270,9 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                             .position(|x| *x == "__sled__default")
                             .unwrap();
                         strings.remove(index);
+
+                        // let packet = Msg::new(MsgType::Topics, "", strings).to_generic()?.as_bytes()?;
+                        // if let Ok(generic) = Msg::new(MsgType::Topics, "", strings).to_generic()
 
                         match to_allocvec(&strings) {
                             Ok(data) => {

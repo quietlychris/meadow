@@ -46,7 +46,7 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Active, T> {
                     Ok(0) => continue,
                     Ok(n) => {
                         let bytes = &buf[..n];
-                        if let Ok(HostOperation::FAILURE) = from_bytes::<HostOperation>(bytes) {
+                        if let Ok(HostOperation::Failure) = from_bytes::<HostOperation>(bytes) {
                             error!("Host-side error on publish");
                         }
 
@@ -84,7 +84,7 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Active, T> {
                     Ok(0) => continue,
                     Ok(n) => {
                         let bytes = &buf[..n];
-                        if let Ok(HostOperation::FAILURE) = from_bytes::<HostOperation>(bytes) {
+                        if let Ok(HostOperation::Failure) = from_bytes::<HostOperation>(bytes) {
                             error!("Host-side error on publish");
                         }
 
@@ -171,7 +171,7 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
                         Ok(0) => continue,
                         Ok(n) => {
                             let bytes = &buf[..n];
-                            if let Ok(HostOperation::FAILURE) = from_bytes::<HostOperation>(bytes) {
+                            if let Ok(HostOperation::Failure) = from_bytes::<HostOperation>(bytes) {
                                 error!("Host-side error on publish");
                             }
 
@@ -216,7 +216,7 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
                         Ok(0) => continue,
                         Ok(n) => {
                             let bytes = &buf[..n];
-                            if let Ok(HostOperation::FAILURE) = from_bytes::<HostOperation>(bytes) {
+                            if let Ok(HostOperation::Failure) = from_bytes::<HostOperation>(bytes) {
                                 error!("Host-side error on publish");
                             }
 

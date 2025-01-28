@@ -24,10 +24,10 @@ pub enum HostError {
 }
 
 /// Enum for successful/failed Host operations
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq)]
 pub enum HostOperation {
     /// Successful Host-side operation
-    SUCCESS,
+    Success,
     /// Failed Host-side operation
-    FAILURE,
+    Failure,
 }
