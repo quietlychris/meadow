@@ -12,7 +12,7 @@ use std::sync::Arc;
 // Misc other imports
 use chrono::Utc;
 
-use crate::error::{Error, HostOperation::*};
+use crate::error::{Error, HostOperation::{self, *}};
 use crate::prelude::*;
 use std::convert::TryInto;
 use std::result::Result;
@@ -58,7 +58,15 @@ pub async fn pt(
 
                 let bytes = &buf[..n];
                 let msg = from_bytes::<GenericMsg>(bytes)?;
-                // process_msg(msg, stream, db, &mut buf);
+                let op = process_msg(msg, stream, db, &mut buf);
+                match op {
+                    Ok(()) => {
+                        let return_bytes = GenericMsg::host_operation(HostOperation::Success).as_bytes();
+                    }
+                    Err(_e) => {
+
+                    }
+                }
 
                 return Ok(());
             }
@@ -74,15 +82,16 @@ pub async fn pt(
     }
 }
 
+use crate::host::Store;
 fn process_msg(
     msg: GenericMsg,
     stream: TcpStream,
-    db: sled::Db,
+    mut db: sled::Db,
     buf: &mut Vec<u8>,
 ) -> Result<(), crate::Error> {
     match msg.msg_type {
         MsgType::Set => {
-            // set(msg, db)?;
+            db.insert(msg.topic.clone(), msg.as_bytes()?)?;             
         }
         MsgType::Get => {}
         MsgType::GetNth(n) => {}
@@ -93,6 +102,7 @@ fn process_msg(
 
     Ok(())
 }
+
 
 /* fn set(msg: GenericMsg, db: sled::Db) -> Result<(), crate::Error> {
     // println!("received {} bytes, to be assigned to: {}", n, &msg.name);
