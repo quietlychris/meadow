@@ -64,7 +64,6 @@ fn integrate_host_and_single_node_quic() {
 #[cfg(feature = "quic")]
 #[test]
 fn request_non_existent_topic_quic() {
-<<<<<<< HEAD
     generate_certs(QuicCertGenConfig::default());
 
     let sc = SledConfig::new().temporary(true);
@@ -73,18 +72,11 @@ fn request_non_existent_topic_quic() {
         .with_udp_config(None)
         .build()
         .unwrap();
-=======
-    let mut host: Host = HostConfig::default().with_udp_config(None).build().unwrap();
->>>>>>> a87fa69 (Update UDP and QUIC test suites to match TCP)
     host.start().unwrap();
     println!("Host should be running in the background");
 
     // Get the host up and running
-<<<<<<< HEAD
     let node: Node<Blocking, N, Idle, Pose> = NodeConfig::new("doesnt_exist").build().unwrap();
-=======
-    let node: Node<N, Idle, Pose> = NodeConfig::new("doesnt_exist").build().unwrap();
->>>>>>> a87fa69 (Update UDP and QUIC test suites to match TCP)
     let node = node.activate().unwrap();
 
     // Requesting a topic that doesn't exist should return a recoverable error
@@ -99,7 +91,6 @@ fn request_non_existent_topic_quic() {
 #[cfg(feature = "quic")]
 #[test]
 fn node_send_options_quic() {
-<<<<<<< HEAD
     generate_certs(QuicCertGenConfig::default());
 
     let sc = SledConfig::new().temporary(true);
@@ -112,22 +103,11 @@ fn node_send_options_quic() {
 
     // Get the host up and running
     let node_a = NodeConfig::<Blocking, N, Option<f32>>::new("pose")
-=======
-    let mut host: Host = HostConfig::default().with_udp_config(None).build().unwrap();
-    host.start().unwrap();
-
-    // Get the host up and running
-    let node_a = NodeConfig::<N, Option<f32>>::new("pose")
->>>>>>> a87fa69 (Update UDP and QUIC test suites to match TCP)
         .build()
         .unwrap()
         .activate()
         .unwrap();
-<<<<<<< HEAD
     let node_b = NodeConfig::<Blocking, N, Option<f32>>::new("pose")
-=======
-    let node_b = NodeConfig::<N, Option<f32>>::new("pose")
->>>>>>> a87fa69 (Update UDP and QUIC test suites to match TCP)
         .build()
         .unwrap()
         .activate()
@@ -149,7 +129,6 @@ fn node_send_options_quic() {
 #[cfg(feature = "quic")]
 #[test]
 fn subscription_usize_quic() {
-<<<<<<< HEAD
     generate_certs(QuicCertGenConfig::default());
 
     let sc = SledConfig::new().temporary(true);
@@ -162,13 +141,6 @@ fn subscription_usize_quic() {
 
     // Get the host up and running
     let writer = NodeConfig::<Blocking, N, usize>::new("subscription")
-=======
-    let mut host: Host = HostConfig::default().with_udp_config(None).build().unwrap();
-    host.start().unwrap();
-
-    // Get the host up and running
-    let writer = NodeConfig::<N, usize>::new("subscription")
->>>>>>> a87fa69 (Update UDP and QUIC test suites to match TCP)
         .build()
         .unwrap()
         .activate()
@@ -176,11 +148,7 @@ fn subscription_usize_quic() {
 
     // Create a subscription node with a query rate of 100 Hz
     let reader = writer
-<<<<<<< HEAD
         .config()
-=======
-        .cfg
->>>>>>> a87fa69 (Update UDP and QUIC test suites to match TCP)
         .clone()
         .build()
         .unwrap()
@@ -191,16 +159,7 @@ fn subscription_usize_quic() {
         let test_value = i as usize;
         writer.publish(test_value).unwrap();
         std::thread::sleep(std::time::Duration::from_millis(100));
-<<<<<<< HEAD
         assert_eq!(reader.get_subscribed_data().unwrap().data, test_value);
-=======
-        // let result = reader.get_subscribed_data();
-        match reader.get_subscribed_data() {
-            Ok(result) => assert_eq!(test_value, result.data),
-            Err(e) => println!("{:?}", e),
-        }
-        // dbg!(result);
->>>>>>> a87fa69 (Update UDP and QUIC test suites to match TCP)
     }
 }
 
@@ -208,7 +167,6 @@ fn subscription_usize_quic() {
 #[test]
 #[should_panic]
 fn no_subscribed_value_quic() {
-<<<<<<< HEAD
     generate_certs(QuicCertGenConfig::default());
 
     let sc = SledConfig::new().temporary(true);
@@ -221,13 +179,6 @@ fn no_subscribed_value_quic() {
 
     // Create a subscription node with a query rate of 10 Hz
     let reader = NodeConfig::<Blocking, N, usize>::new("subscription")
-=======
-    let mut host: Host = HostConfig::default().with_udp_config(None).build().unwrap();
-    host.start().unwrap();
-
-    // Create a subscription node with a query rate of 10 Hz
-    let reader = NodeConfig::<N, usize>::new("subscription")
->>>>>>> a87fa69 (Update UDP and QUIC test suites to match TCP)
         .build()
         .unwrap()
         .subscribe(Duration::from_millis(100))
@@ -240,7 +191,6 @@ fn no_subscribed_value_quic() {
 #[cfg(feature = "quic")]
 #[test]
 fn topics_list_quic() {
-<<<<<<< HEAD
     generate_certs(QuicCertGenConfig::default());
 
     let sc = SledConfig::new().temporary(true);
@@ -249,9 +199,6 @@ fn topics_list_quic() {
         .with_udp_config(None)
         .build()
         .unwrap();
-=======
-    let mut host: Host = HostConfig::default().with_udp_config(None).build().unwrap();
->>>>>>> a87fa69 (Update UDP and QUIC test suites to match TCP)
     host.start().unwrap();
     println!("Host should be running in the background");
 
@@ -263,11 +210,7 @@ fn topics_list_quic() {
     dbg!(&topics);
     let mut nodes = Vec::with_capacity(topics.len());
     for topic in topics.clone() {
-<<<<<<< HEAD
         let node: Node<Blocking, N, Idle, usize> = NodeConfig::new(topic).build().unwrap();
-=======
-        let node: Node<N, Idle, usize> = NodeConfig::new(topic).build().unwrap();
->>>>>>> a87fa69 (Update UDP and QUIC test suites to match TCP)
         let node = node.activate().unwrap();
         nodes.push(node);
     }

@@ -12,7 +12,11 @@ use std::sync::Arc;
 // Misc other imports
 use chrono::Utc;
 
-use crate::error::{Error, HostOperation::{self, *}};
+use crate::error::{
+    Error,
+    HostOperation::{self, *},
+};
+use crate::host::host::GenericStore;
 use crate::prelude::*;
 use std::convert::TryInto;
 use std::result::Result;
@@ -40,11 +44,13 @@ pub async fn handshake(
 }
 
 pub async fn pt(
-    stream: TcpStream,
+    mut stream: TcpStream,
     db: sled::Db,
     max_buffer_size: usize,
 ) -> Result<(), crate::error::Error> {
     let mut buf = vec![0u8; max_buffer_size];
+    let success = GenericMsg::host_operation(HostOperation::Success).as_bytes()?;
+    let failure = GenericMsg::host_operation(HostOperation::Failure).as_bytes()?;
     loop {
         if let Err(e) = stream.readable().await {
             error!("{}", e);
@@ -58,13 +64,14 @@ pub async fn pt(
 
                 let bytes = &buf[..n];
                 let msg = from_bytes::<GenericMsg>(bytes)?;
-                let op = process_msg(msg, stream, db, &mut buf);
+                let op = process_msg(msg, &stream, db, &mut buf);
                 match op {
                     Ok(()) => {
-                        let return_bytes = GenericMsg::host_operation(HostOperation::Success).as_bytes();
+                        stream.try_write(&success)?;
                     }
-                    Err(_e) => {
-
+                    Err(e) => {
+                        error!("{}", e);
+                        stream.try_write(&failure)?;
                     }
                 }
 
@@ -85,16 +92,20 @@ pub async fn pt(
 use crate::host::Store;
 fn process_msg(
     msg: GenericMsg,
-    stream: TcpStream,
+    stream: &TcpStream,
     mut db: sled::Db,
     buf: &mut Vec<u8>,
 ) -> Result<(), crate::Error> {
     match msg.msg_type {
         MsgType::Set => {
-            db.insert(msg.topic.clone(), msg.as_bytes()?)?;             
+            db.insert(msg.topic.clone(), msg.as_bytes()?)?;
         }
-        MsgType::Get => {}
-        MsgType::GetNth(n) => {}
+        MsgType::Get => {
+            let msg: GenericMsg = db.get_generic(msg.topic)?;
+        }
+        MsgType::GetNth(n) => {
+            let msg = db.get_generic_nth(msg.topic, n)?;
+        }
         MsgType::Subscribe => {}
         MsgType::Topics => {}
         MsgType::HostOperation(host_op) => {}
@@ -102,7 +113,6 @@ fn process_msg(
 
     Ok(())
 }
-
 
 /* fn set(msg: GenericMsg, db: sled::Db) -> Result<(), crate::Error> {
     // println!("received {} bytes, to be assigned to: {}", n, &msg.name);

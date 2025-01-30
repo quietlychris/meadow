@@ -72,14 +72,62 @@ pub trait Store {
     ) -> Result<Msg<T>, crate::Error>;
 }
 
+pub(crate) trait GenericStore {
+    fn insert_generic(&mut self, msg: GenericMsg) -> Result<(), crate::Error>;
+    fn get_generic(&self, topic: impl Into<String>) -> Result<GenericMsg, crate::Error>;
+    fn get_generic_nth(
+        &self,
+        topic: impl Into<String>,
+        n: usize,
+    ) -> Result<GenericMsg, crate::Error>;
+}
+
+impl GenericStore for sled::Db {
+    fn insert_generic(&mut self, msg: GenericMsg) -> Result<(), crate::Error> {
+        let bytes = to_allocvec(&msg)?;
+        let tree = self.open_tree(msg.topic.as_bytes())?;
+        tree.insert(msg.timestamp.to_string().as_bytes(), bytes)?;
+        Ok(())
+    }
+
+    fn get_generic(&self, topic: impl Into<String>) -> Result<GenericMsg, crate::Error> {
+        let topic = topic.into();
+        let tree = self.open_tree(topic.as_bytes())?;
+        match tree.last()? {
+            Some((_timestamp, bytes)) => {
+                let msg: GenericMsg = postcard::from_bytes(&bytes)?;
+                Ok(msg)
+            }
+            None => Err(Error::HostOperation(error::HostError::NonExistentTopic)),
+        }
+    }
+
+    fn get_generic_nth(
+        &self,
+        topic: impl Into<String>,
+        n: usize,
+    ) -> Result<GenericMsg, crate::Error> {
+        let topic: String = topic.into();
+        let tree = self.open_tree(topic.as_bytes())?;
+
+        match tree.iter().nth_back(n) {
+            Some(n) => match n {
+                Ok((_timestamp, bytes)) => {
+                    let msg: GenericMsg = postcard::from_bytes(&bytes)?;
+                    Ok(msg)
+                }
+                Err(e) => Err(Error::Sled(e)),
+            },
+            None => Err(Error::HostOperation(error::HostError::NoNthValue)),
+        }
+    }
+}
+
 impl Store for sled::Db {
     /// Insert a raw `Msg<T>`
     fn insert_msg<T: Message>(&mut self, msg: Msg<T>) -> Result<(), crate::Error> {
         let generic: GenericMsg = msg.try_into()?;
-        let bytes = to_allocvec(&generic)?;
-
-        let tree = self.open_tree(generic.topic.as_bytes())?;
-        tree.insert(generic.timestamp.to_string().as_bytes(), bytes)?;
+        self.insert_generic(generic)?;
 
         Ok(())
     }
@@ -97,17 +145,9 @@ impl Store for sled::Db {
 
     /// Retrieve last message on a given topic
     fn get<T: Message>(&self, topic: impl Into<String>) -> Result<Msg<T>, crate::Error> {
-        let topic: String = topic.into();
-        let tree = self.open_tree(topic.as_bytes())?;
-
-        match tree.last()? {
-            Some((_timestamp, bytes)) => {
-                let generic: GenericMsg = postcard::from_bytes(&bytes)?;
-                let msg: Msg<T> = generic.try_into()?;
-                Ok(msg)
-            }
-            None => Err(Error::HostOperation(error::HostError::NonExistentTopic)),
-        }
+        let generic = self.get_generic(topic.into())?;
+        let msg: Msg<T> = generic.try_into()?;
+        Ok(msg)
     }
 
     /// Retrieve n'th message on a given topic, if it exists
@@ -116,20 +156,9 @@ impl Store for sled::Db {
         topic: impl Into<String>,
         n: usize,
     ) -> Result<Msg<T>, crate::Error> {
-        let topic: String = topic.into();
-        let tree = self.open_tree(topic.as_bytes())?;
-
-        match tree.iter().nth_back(n) {
-            Some(n) => match n {
-                Ok((_timestamp, bytes)) => {
-                    let generic: GenericMsg = postcard::from_bytes(&bytes)?;
-                    let msg: Msg<T> = generic.try_into()?;
-                    Ok(msg)
-                }
-                Err(e) => Err(Error::Sled(e)),
-            },
-            None => Err(Error::HostOperation(error::HostError::NoNthValue)),
-        }
+        let generic = self.get_generic_nth(topic.into(), n)?;
+        let msg: Msg<T> = generic.try_into()?;
+        Ok(msg)
     }
 }
 
@@ -226,17 +255,9 @@ impl Host {
 
     /// Retrieve last message on a given topic
     pub fn get<T: Message>(&self, topic: impl Into<String>) -> Result<Msg<T>, crate::Error> {
-        let topic: String = topic.into();
-        let tree = self.db().open_tree(topic.as_bytes())?;
-
-        match tree.last()? {
-            Some((_timestamp, bytes)) => {
-                let generic: GenericMsg = postcard::from_bytes(&bytes)?;
-                let msg: Msg<T> = generic.try_into()?;
-                Ok(msg)
-            }
-            None => Err(Error::HostOperation(error::HostError::NonExistentTopic)),
-        }
+        let generic = self.db().get_generic(topic)?;
+        let msg: Msg<T> = generic.try_into()?;
+        Ok(msg)
     }
 
     /// Retrieve n'th message on a given topic, if it exists
@@ -245,20 +266,9 @@ impl Host {
         topic: impl Into<String>,
         n: usize,
     ) -> Result<Msg<T>, crate::Error> {
-        let topic: String = topic.into();
-        let tree = self.db().open_tree(topic.as_bytes())?;
-
-        match tree.iter().nth_back(n) {
-            Some(n) => match n {
-                Ok((_timestamp, bytes)) => {
-                    let generic: GenericMsg = postcard::from_bytes(&bytes)?;
-                    let msg: Msg<T> = generic.try_into()?;
-                    Ok(msg)
-                }
-                Err(e) => Err(Error::Sled(e)),
-            },
-            None => Err(Error::HostOperation(error::HostError::NoNthValue)),
-        }
+        let generic = self.db().get_generic_nth(topic, n)?;
+        let msg: Msg<T> = generic.try_into()?;
+        Ok(msg)
     }
 
     /// Allow Host to begin accepting incoming connections
