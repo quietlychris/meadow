@@ -70,6 +70,7 @@ pub trait Store {
         topic: impl Into<String>,
         n: usize,
     ) -> Result<Msg<T>, crate::Error>;
+    fn get_topics(&self) -> Result<Vec<String>, crate::Error>;
 }
 
 pub(crate) trait GenericStore {
@@ -160,6 +161,28 @@ impl Store for sled::Db {
         let msg: Msg<T> = generic.try_into()?;
         Ok(msg)
     }
+
+    fn get_topics(&self) -> Result<Vec<String>, crate::Error> {
+        let names = self.tree_names();
+        let mut strings = Vec::new();
+        for name in names {
+            match std::str::from_utf8(&name[..]) {
+                Ok(name) => {
+                    strings.push(name.to_string());
+                }
+                Err(_e) => {
+                    error!("Error converting topic name {:?} to UTF-8 bytes", name);
+                }
+            }
+        }
+        // Remove default sled tree name
+        let index = strings
+            .iter()
+            .position(|x| *x == "__sled__default")
+            .unwrap();
+        strings.remove(index);
+        Ok(strings)
+    }
 }
 
 impl Drop for Host {
@@ -212,6 +235,10 @@ impl Store for Host {
         n: usize,
     ) -> Result<Msg<T>, crate::Error> {
         self.db().get_nth_back(topic, n)
+    }
+
+    fn get_topics(&self) -> Result<Vec<String>, crate::Error> {
+        self.db().get_topics()
     }
 }
 
