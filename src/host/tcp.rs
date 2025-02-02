@@ -64,7 +64,7 @@ pub async fn pt(
 
                 let bytes = &buf[..n];
                 let msg = from_bytes::<GenericMsg>(bytes)?;
-                let op = process_msg(msg, &stream, db, &mut buf);
+                let op = process_msg(msg, &stream, db).await;
                 match op {
                     Ok(()) => {
                         stream.try_write(&success)?;
@@ -90,25 +90,65 @@ pub async fn pt(
 }
 
 use crate::host::Store;
-fn process_msg(
+async fn process_msg(
     msg: GenericMsg,
     stream: &TcpStream,
     mut db: sled::Db,
-    buf: &mut Vec<u8>,
+    // buf: &mut Vec<u8>,
 ) -> Result<(), crate::Error> {
     match msg.msg_type {
         MsgType::Set => {
             db.insert(msg.topic.clone(), msg.as_bytes()?)?;
+            let msg = GenericMsg::host_operation(HostOperation::Success);
+            stream.try_write(&msg.as_bytes()?)?;
         }
         MsgType::Get => {
             let msg: GenericMsg = db.get_generic(msg.topic)?;
+            stream.try_write(&msg.as_bytes()?)?;
         }
         MsgType::GetNth(n) => {
             let msg = db.get_generic_nth(msg.topic, n)?;
+            stream.try_write(&msg.as_bytes()?)?;
         }
-        MsgType::Subscribe => {}
-        MsgType::Topics => {}
-        MsgType::HostOperation(host_op) => {}
+        MsgType::Subscribe => {
+            let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
+            let rate = specialized.data;
+            loop {
+                if let Ok(msg) = db.get_generic(&msg.topic) {
+                    if let Ok(bytes) = msg.as_bytes() {
+                        if let Err(e) = stream.try_write(&bytes) {
+                            error!("{}", e);
+                        }
+                    }
+                }
+                sleep(rate).await;
+            }
+        }
+        MsgType::Topics => {
+            let names = db.tree_names();
+            let mut strings = Vec::new();
+            for name in names {
+                match std::str::from_utf8(&name[..]) {
+                    Ok(name) => {
+                        strings.push(name.to_string());
+                    }
+                    Err(_e) => {
+                        error!("Error converting topic name {:?} to UTF-8 bytes", name);
+                    }
+                }
+            }
+            // Remove default sled tree name
+            let index = strings
+                .iter()
+                .position(|x| *x == "__sled__default")
+                .unwrap();
+            strings.remove(index);
+            let msg = Msg::new(MsgType::Topics, "", strings).to_generic()?;
+            stream.try_write(&msg.as_bytes()?)?;
+        }
+        MsgType::HostOperation(_host_op) => {
+            error!("Shouldn't have gotten HostOperation");
+        }
     }
 
     Ok(())
@@ -174,10 +214,13 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                         panic!("Had received Msg of {} bytes: {:?}, Error: {}", n, bytes, e);
                     }
                 };
+                if let Err(e) = process_msg(msg, &stream, db.clone()).await {
+                    error!("{}", e);
+                }
 
-                info!("{:?}", msg.msg_type);
+                // info!("{:?}", msg.msg_type);
 
-                match msg.msg_type {
+                /*                 match msg.msg_type {
                     MsgType::HostOperation(op) => {
                         // This should really never be received by Host
                         error!("Received HostOperation: {:?}", op);
@@ -236,7 +279,9 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                         }
                     }
                     MsgType::GetNth(n) => {
-                        todo!()
+                        if let Ok(generic) = db.get_generic_nth(msg.topic, n) {
+                            if let Err(e) = stream.try_write(generic.as_bytes()) {}
+                        }
                     }
                     MsgType::Subscribe => {
                         let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
@@ -320,7 +365,7 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                             }
                         }
                     }
-                }
+                } */
             }
             Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                 // println!("Error::WouldBlock: {:?}", e);

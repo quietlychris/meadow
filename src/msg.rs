@@ -154,6 +154,11 @@ impl GenericMsg {
         }
     }
 
+    /// Directly insert a data payload of `u8` bytes into a `GenericMsg`
+    pub fn set_data(&mut self, data: Vec<u8>) {
+        self.data = data;
+    }
+
     /// Convert `GenericMsg` into a `postcard`-encoded byte string
     pub fn as_bytes(&self) -> Result<Vec<u8>, postcard::Error> {
         postcard::to_allocvec(&self)
