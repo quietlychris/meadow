@@ -62,12 +62,18 @@ pub struct Host {
 
 pub trait Store {
     fn insert_msg<T: Message>(&mut self, msg: Msg<T>) -> Result<(), crate::Error>;
-    fn insert<T: Message>(&mut self, topic: impl Into<String>, data: T)
-        -> Result<(), crate::Error>;
-    fn get<T: Message>(&self, topic: impl Into<String>) -> Result<Msg<T>, crate::Error>;
+    fn insert<T: Message>(
+        &mut self,
+        topic: impl Into<String> + std::fmt::Debug,
+        data: T,
+    ) -> Result<(), crate::Error>;
+    fn get<T: Message>(
+        &self,
+        topic: impl Into<String> + std::fmt::Debug,
+    ) -> Result<Msg<T>, crate::Error>;
     fn get_nth_back<T: Message>(
         &self,
-        topic: impl Into<String>,
+        topic: impl Into<String> + std::fmt::Debug,
         n: usize,
     ) -> Result<Msg<T>, crate::Error>;
     fn topics(&self) -> Result<Vec<String>, crate::Error>;
@@ -75,23 +81,31 @@ pub trait Store {
 
 pub(crate) trait GenericStore {
     fn insert_generic(&mut self, msg: GenericMsg) -> Result<(), crate::Error>;
-    fn get_generic(&self, topic: impl Into<String>) -> Result<GenericMsg, crate::Error>;
+    fn get_generic(
+        &self,
+        topic: impl Into<String> + std::fmt::Debug,
+    ) -> Result<GenericMsg, crate::Error>;
     fn get_generic_nth(
         &self,
-        topic: impl Into<String>,
+        topic: impl Into<String> + std::fmt::Debug,
         n: usize,
     ) -> Result<GenericMsg, crate::Error>;
 }
 
 impl GenericStore for sled::Db {
+    #[tracing::instrument]
     fn insert_generic(&mut self, msg: GenericMsg) -> Result<(), crate::Error> {
-        let bytes = to_allocvec(&msg)?;
+        let bytes = msg.as_bytes()?;
         let tree = self.open_tree(msg.topic.as_bytes())?;
         tree.insert(msg.timestamp.to_string().as_bytes(), bytes)?;
         Ok(())
     }
 
-    fn get_generic(&self, topic: impl Into<String>) -> Result<GenericMsg, crate::Error> {
+    #[tracing::instrument]
+    fn get_generic(
+        &self,
+        topic: impl Into<String> + std::fmt::Debug,
+    ) -> Result<GenericMsg, crate::Error> {
         let topic = topic.into();
         let tree = self.open_tree(topic.as_bytes())?;
         match tree.last()? {
@@ -103,9 +117,10 @@ impl GenericStore for sled::Db {
         }
     }
 
+    #[tracing::instrument]
     fn get_generic_nth(
         &self,
-        topic: impl Into<String>,
+        topic: impl Into<String> + std::fmt::Debug,
         n: usize,
     ) -> Result<GenericMsg, crate::Error> {
         let topic: String = topic.into();
@@ -126,6 +141,7 @@ impl GenericStore for sled::Db {
 
 impl Store for sled::Db {
     /// Insert a raw `Msg<T>`
+    #[inline]
     fn insert_msg<T: Message>(&mut self, msg: Msg<T>) -> Result<(), crate::Error> {
         let generic: GenericMsg = msg.try_into()?;
         self.insert_generic(generic)?;
@@ -134,6 +150,7 @@ impl Store for sled::Db {
     }
 
     /// Insert a value using a default `Msg`
+    #[inline]
     fn insert<T: Message>(
         &mut self,
         topic: impl Into<String>,
@@ -145,6 +162,7 @@ impl Store for sled::Db {
     }
 
     /// Retrieve last message on a given topic
+    #[inline]
     fn get<T: Message>(&self, topic: impl Into<String>) -> Result<Msg<T>, crate::Error> {
         let generic = self.get_generic(topic.into())?;
         let msg: Msg<T> = generic.try_into()?;
@@ -152,6 +170,7 @@ impl Store for sled::Db {
     }
 
     /// Retrieve n'th message on a given topic, if it exists
+    #[inline]
     fn get_nth_back<T: Message>(
         &self,
         topic: impl Into<String>,
@@ -162,6 +181,7 @@ impl Store for sled::Db {
         Ok(msg)
     }
 
+    #[inline]
     fn topics(&self) -> Result<Vec<String>, crate::Error> {
         let names = self.tree_names();
         let mut strings = Vec::new();
@@ -210,33 +230,41 @@ impl Drop for Host {
 
 impl Store for Host {
     /// Insert a raw `Msg<T>`
+    #[inline]
     fn insert_msg<T: Message>(&mut self, msg: Msg<T>) -> Result<(), crate::Error> {
         self.db().insert_msg(msg)
     }
 
     /// Insert a value using a default `Msg`
+    #[inline]
     fn insert<T: Message>(
         &mut self,
-        topic: impl Into<String>,
+        topic: impl Into<String> + std::fmt::Debug,
         data: T,
     ) -> Result<(), crate::Error> {
         self.db().insert(topic, data)
     }
 
     /// Retrieve last message on a given topic
-    fn get<T: Message>(&self, topic: impl Into<String>) -> Result<Msg<T>, crate::Error> {
+    #[inline]
+    fn get<T: Message>(
+        &self,
+        topic: impl Into<String> + std::fmt::Debug,
+    ) -> Result<Msg<T>, crate::Error> {
         self.db().get(topic)
     }
 
     /// Retrieve n'th message on a given topic, if it exists
+    #[inline]
     fn get_nth_back<T: Message>(
         &self,
-        topic: impl Into<String>,
+        topic: impl Into<String> + std::fmt::Debug,
         n: usize,
     ) -> Result<Msg<T>, crate::Error> {
         self.db().get_nth_back(topic, n)
     }
 
+    #[inline]
     fn topics(&self) -> Result<Vec<String>, crate::Error> {
         self.db().topics()
     }
@@ -256,46 +284,6 @@ impl Host {
     /// Access Host's Tokio `Runtime`
     pub fn runtime(&self) -> &Runtime {
         &self.runtime
-    }
-
-    /// Insert a raw `Msg<T>`
-    pub fn insert_msg<T: Message>(&mut self, msg: Msg<T>) -> Result<(), crate::Error> {
-        let generic: GenericMsg = msg.try_into()?;
-        let bytes = to_allocvec(&generic)?;
-
-        let tree = self.db().open_tree(generic.topic.as_bytes())?;
-        tree.insert(generic.timestamp.to_string().as_bytes(), bytes)?;
-
-        Ok(())
-    }
-
-    /// Insert a value using a default `Msg`
-    pub fn insert<T: Message>(
-        &mut self,
-        topic: impl Into<String>,
-        data: T,
-    ) -> Result<(), crate::Error> {
-        let msg = Msg::new(MsgType::Set, topic, data);
-        self.insert_msg(msg)?;
-        Ok(())
-    }
-
-    /// Retrieve last message on a given topic
-    pub fn get<T: Message>(&self, topic: impl Into<String>) -> Result<Msg<T>, crate::Error> {
-        let generic = self.db().get_generic(topic)?;
-        let msg: Msg<T> = generic.try_into()?;
-        Ok(msg)
-    }
-
-    /// Retrieve n'th message on a given topic, if it exists
-    pub fn get_nth_back<T: Message>(
-        &self,
-        topic: impl Into<String>,
-        n: usize,
-    ) -> Result<Msg<T>, crate::Error> {
-        let generic = self.db().get_generic_nth(topic, n)?;
-        let msg: Msg<T> = generic.try_into()?;
-        Ok(msg)
     }
 
     /// Allow Host to begin accepting incoming connections
@@ -507,5 +495,22 @@ impl Host {
             }
             Err(_) => Err(crate::Error::LockFailure),
         }
+    }
+}
+
+#[test]
+fn host_only_generic() {
+    use rand::Rng;
+    let sc = SledConfig::new().temporary(true);
+    let mut host = HostConfig::default().with_sled_config(sc).build().unwrap();
+    let mut rng = rand::thread_rng();
+    for _i in 0..10 {
+        let data: usize = rng.gen_range(0..10);
+        let msg = Msg::new(MsgType::Set, "test2", data);
+        host.insert_msg(msg.clone()).unwrap();
+        let back = host.db().get_generic("test2").unwrap();
+        dbg!(&back);
+        let back: Msg<usize> = back.try_into().unwrap();
+        assert_eq!(msg.data, back.data);
     }
 }

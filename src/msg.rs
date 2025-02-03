@@ -30,7 +30,7 @@ pub enum MsgType {
 }
 
 /// Message format containing a strongly-typed data payload and associated metadata
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[repr(C)]
 pub struct Msg<T> {
     /// Type of `meadow` message
@@ -79,7 +79,7 @@ impl<T: Message> Msg<T> {
 }
 
 /// Message format containing a generic `Vec<u8>` data payload and associated metadata
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[repr(C)]
 pub struct GenericMsg {
     /// Type of `meadow` message
@@ -193,4 +193,16 @@ impl<T: Message> TryInto<GenericMsg> for Msg<T> {
             data,
         })
     }
+}
+
+#[test]
+fn msg_conversions() {
+    let msg: Msg<i32> = Msg::new(MsgType::Set, "value", 0);
+    let generic = msg.clone().to_generic().unwrap();
+    let bytes = generic.clone().as_bytes().unwrap();
+    let generic_rc: GenericMsg = postcard::from_bytes(&bytes).unwrap();
+    dbg!(&generic_rc);
+    assert_eq!(generic, generic_rc);
+    let msg_rc: Msg<i32> = generic_rc.try_into().unwrap();
+    assert_eq!(msg, msg_rc);
 }

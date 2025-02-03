@@ -16,7 +16,7 @@ use crate::error::{
     Error,
     HostOperation::{self, *},
 };
-use crate::host::host::GenericStore;
+use crate::host::host::{GenericStore, Store};
 use crate::prelude::*;
 use std::convert::TryInto;
 use std::result::Result;
@@ -43,53 +43,8 @@ pub async fn handshake(
     Ok((stream, name))
 }
 
-pub async fn pt(
-    mut stream: TcpStream,
-    db: sled::Db,
-    max_buffer_size: usize,
-) -> Result<(), crate::error::Error> {
-    let mut buf = vec![0u8; max_buffer_size];
-    let success = GenericMsg::host_operation(HostOperation::Success).as_bytes()?;
-    let failure = GenericMsg::host_operation(HostOperation::Failure).as_bytes()?;
-    loop {
-        if let Err(e) = stream.readable().await {
-            error!("{}", e);
-        }
-        match stream.try_read(&mut buf) {
-            Ok(0) => return Ok(()),
-            Ok(n) => {
-                if let Err(e) = stream.writable().await {
-                    error!("{}", e);
-                }
-
-                let bytes = &buf[..n];
-                let msg = from_bytes::<GenericMsg>(bytes)?;
-                let op = process_msg(msg, &stream, db).await;
-                match op {
-                    Ok(()) => {
-                        stream.try_write(&success)?;
-                    }
-                    Err(e) => {
-                        error!("{}", e);
-                        stream.try_write(&failure)?;
-                    }
-                }
-
-                return Ok(());
-            }
-            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                // println!("Error::WouldBlock: {:?}", e);
-                continue;
-            }
-            Err(e) => {
-                error!("Error: {:?}", e);
-                return Err(Error::Io(e));
-            }
-        }
-    }
-}
-
-use crate::host::Store;
+#[inline]
+#[tracing::instrument]
 async fn process_msg(
     msg: GenericMsg,
     stream: &TcpStream,
@@ -98,7 +53,7 @@ async fn process_msg(
 ) -> Result<(), crate::Error> {
     match msg.msg_type {
         MsgType::Set => {
-            db.insert(msg.topic.clone(), msg.as_bytes()?)?;
+            db.insert_generic(msg)?;
             let msg = GenericMsg::host_operation(HostOperation::Success);
             stream.try_write(&msg.as_bytes()?)?;
         }
@@ -155,19 +110,18 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                 }
 
                 let bytes = &buf[..n];
-                let msg: GenericMsg = match from_bytes(bytes) {
+                match from_bytes(bytes) {
                     Ok(msg) => {
                         info!("{:?}", msg);
-                        msg
+                        if let Err(e) = process_msg(msg, &stream, db.clone()).await {
+                            error!("{}", e);
+                        }
                     }
                     Err(e) => {
                         error!("Had received Msg of {} bytes: {:?}, Error: {}", n, bytes, e);
                         panic!("Had received Msg of {} bytes: {:?}, Error: {}", n, bytes, e);
                     }
                 };
-                if let Err(e) = process_msg(msg, &stream, db.clone()).await {
-                    error!("{}", e);
-                }
             }
             Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                 // println!("Error::WouldBlock: {:?}", e);
