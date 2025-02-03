@@ -81,7 +81,7 @@ fn main() -> Result<(), meadow::Error> {
         "The size of an a meadow Host before shutdown is: {}",
         std::mem::size_of_val(&host)
     );
-    let topics = host.topics();
+    let topics = host.topics()?;
     for topic in &topics {
         let db = host.db();
         let tree = db.open_tree(topic.as_bytes()).unwrap();

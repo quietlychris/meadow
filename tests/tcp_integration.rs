@@ -187,7 +187,7 @@ fn topics_list_tcp() {
 
     for i in 0..topics.len() {
         nodes[i].publish(i).unwrap();
-        assert_eq!(host.topics(), nodes[i].topics().unwrap().data);
+        assert_eq!(host.topics().unwrap(), nodes[i].topics().unwrap().data);
         let t = if i == 0 {
             vec![topics[i].to_string()]
         } else {
