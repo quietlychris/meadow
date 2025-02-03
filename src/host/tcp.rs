@@ -125,7 +125,7 @@ async fn process_msg(
             }
         }
         MsgType::Topics => {
-            let topics = db.get_topics()?;
+            let topics = db.topics()?;
             let msg = Msg::new(MsgType::Topics, "", topics).to_generic()?;
             stream.try_write(&msg.as_bytes()?)?;
         }

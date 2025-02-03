@@ -70,7 +70,7 @@ pub trait Store {
         topic: impl Into<String>,
         n: usize,
     ) -> Result<Msg<T>, crate::Error>;
-    fn get_topics(&self) -> Result<Vec<String>, crate::Error>;
+    fn topics(&self) -> Result<Vec<String>, crate::Error>;
 }
 
 pub(crate) trait GenericStore {
@@ -162,7 +162,7 @@ impl Store for sled::Db {
         Ok(msg)
     }
 
-    fn get_topics(&self) -> Result<Vec<String>, crate::Error> {
+    fn topics(&self) -> Result<Vec<String>, crate::Error> {
         let names = self.tree_names();
         let mut strings = Vec::new();
         for name in names {
@@ -237,8 +237,8 @@ impl Store for Host {
         self.db().get_nth_back(topic, n)
     }
 
-    fn get_topics(&self) -> Result<Vec<String>, crate::Error> {
-        self.db().get_topics()
+    fn topics(&self) -> Result<Vec<String>, crate::Error> {
+        self.db().topics()
     }
 }
 
@@ -493,24 +493,6 @@ impl Host {
             }
             Err(_) => Err(crate::Error::LockFailure),
         }
-    }
-
-    /// Create a vector of topics based on UTF-8 Sled tree names
-    pub fn topics(&self) -> Vec<String> {
-        let db = self.store.clone();
-        let names = db.tree_names();
-        let mut strings = Vec::new();
-        for name in names {
-            if let Ok(name) = std::str::from_utf8(&name[..]) {
-                strings.push(name.to_string());
-            }
-        }
-        // Remove default sled tree name
-        let index = strings.iter().position(|x| *x == "__sled__default");
-        if let Some(n) = index {
-            strings.remove(n);
-        }
-        strings
     }
 
     /// Print information about all Host connections
