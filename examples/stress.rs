@@ -35,7 +35,7 @@ fn main() -> Result<(), meadow::Error> {
         println!("UDP error: {:?}", e);
     }
 
-    let topics = host.topics();
+    let topics = host.topics()?;
     for topic in &topics {
         let db = host.db();
         let tree = db.open_tree(topic.as_bytes()).unwrap();

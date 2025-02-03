@@ -85,7 +85,7 @@ fn main() -> Result<(), meadow::Error> {
         "The size of an a meadow Host before shutdown is: {}",
         std::mem::size_of_val(&host)
     );
-    assert_eq!(host.topics(), node.topics()?.data);
+    assert_eq!(host.topics()?, node.topics()?.data);
 
     Ok(())
 }
