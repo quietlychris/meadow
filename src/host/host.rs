@@ -28,6 +28,7 @@ use std::net::{IpAddr, SocketAddr};
 
 use std::result::Result;
 
+use crate::error::HostError;
 #[cfg(feature = "quic")]
 use crate::error::Quic::*;
 #[cfg(feature = "quic")]
@@ -113,7 +114,7 @@ impl GenericStore for sled::Db {
                 let msg: GenericMsg = postcard::from_bytes(&bytes)?;
                 Ok(msg)
             }
-            None => Err(Error::HostOperation(error::HostError::NonExistentTopic)),
+            None => Err(Error::Host(HostError::NonExistentTopic)),
         }
     }
 
@@ -134,7 +135,7 @@ impl GenericStore for sled::Db {
                 }
                 Err(e) => Err(Error::Sled(e)),
             },
-            None => Err(Error::HostOperation(error::HostError::NoNthValue)),
+            None => Err(Error::Host(HostError::NoNthValue)),
         }
     }
 }

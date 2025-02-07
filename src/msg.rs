@@ -1,5 +1,4 @@
-use crate::error::HostError;
-use crate::error::HostOperation;
+// use crate::error::HostOperation;
 use crate::Error;
 use chrono::{DateTime, Utc};
 use postcard::to_allocvec;
@@ -11,8 +10,10 @@ use std::fmt::Debug;
 pub trait Message: Serialize + DeserializeOwned + Debug + Sync + Send + Clone {}
 impl<T> Message for T where T: Serialize + DeserializeOwned + Debug + Sync + Send + Clone {}
 
+use crate::error::HostError;
+
 /// Msg definitions for publish or request of topic data
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[repr(C)]
 pub enum MsgType {
     /// Request `Set` operation on Host
@@ -26,7 +27,7 @@ pub enum MsgType {
     /// Request start of subscribe operation from Host
     Subscribe,
     /// Communicate success or failure of certain Host-side operations
-    HostOperation(HostOperation),
+    HostOperation(Result<(), HostError>),
 }
 
 /// Message format containing a strongly-typed data payload and associated metadata
@@ -144,7 +145,7 @@ impl GenericMsg {
     }
 
     /// Create a generic
-    pub fn host_operation(op: HostOperation) -> Self {
+    pub fn host_operation(op: Result<(), HostError>) -> Self {
         GenericMsg {
             msg_type: MsgType::HostOperation(op),
             timestamp: Utc::now(),

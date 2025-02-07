@@ -1,4 +1,4 @@
-use crate::error::HostOperation;
+use crate::error::HostError;
 use crate::node::network_config::Nonblocking;
 use crate::node::tcp::*;
 use crate::node::{Active, Node};
@@ -46,7 +46,7 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Active, T> {
                     Ok(0) => continue,
                     Ok(n) => {
                         let bytes = &buf[..n];
-                        if let Ok(HostOperation::Failure) = from_bytes::<HostOperation>(bytes) {
+                        if let Err(e) = from_bytes::<Result<(), HostError>>(bytes) {
                             error!("Host-side error on publish");
                         }
 
@@ -84,7 +84,7 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Active, T> {
                     Ok(0) => continue,
                     Ok(n) => {
                         let bytes = &buf[..n];
-                        if let Ok(HostOperation::Failure) = from_bytes::<HostOperation>(bytes) {
+                        if let Err(e) = from_bytes::<Result<(), HostError>>(bytes) {
                             error!("Host-side error on publish");
                         }
 
@@ -171,7 +171,7 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
                         Ok(0) => continue,
                         Ok(n) => {
                             let bytes = &buf[..n];
-                            if let Ok(HostOperation::Failure) = from_bytes::<HostOperation>(bytes) {
+                            if let Err(e) = from_bytes::<Result<(), HostError>>(bytes) {
                                 error!("Host-side error on publish");
                             }
 
@@ -216,7 +216,7 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
                         Ok(0) => continue,
                         Ok(n) => {
                             let bytes = &buf[..n];
-                            if let Ok(HostOperation::Failure) = from_bytes::<HostOperation>(bytes) {
+                            if let Err(e) = from_bytes::<Result<(), HostError>>(bytes) {
                                 error!("Host-side error on publish");
                             }
 

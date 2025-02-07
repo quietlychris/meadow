@@ -1,9 +1,9 @@
 use tokio::io::AsyncWriteExt;
 // Tokio for async
 use tokio::net::TcpStream;
-use tokio::sync::Mutex;
-use tokio::time::{sleep, Duration}; // as TokioMutex;
-                                    // Tracing for logging
+use tokio::sync::Mutex; // as TokioMutex;
+use tokio::time::{sleep, Duration};
+// Tracing for logging
 use tracing::*;
 // Postcard is the default de/serializer
 use postcard::*;
@@ -12,10 +12,8 @@ use std::sync::Arc;
 // Misc other imports
 use chrono::Utc;
 
-use crate::error::{
-    Error,
-    HostOperation::{self, *},
-};
+use crate::error::Error;
+use crate::error::*;
 use crate::host::host::{GenericStore, Store};
 use crate::prelude::*;
 use std::convert::TryInto;
@@ -45,25 +43,64 @@ pub async fn handshake(
 
 #[inline]
 #[tracing::instrument]
-async fn process_msg(
-    msg: GenericMsg,
-    stream: &TcpStream,
-    mut db: sled::Db,
-    // buf: &mut Vec<u8>,
-) -> Result<(), crate::Error> {
+async fn process_msg(msg: GenericMsg, stream: &TcpStream, mut db: sled::Db) -> GenericMsg {
     match msg.msg_type {
         MsgType::Set => {
-            db.insert_generic(msg)?;
-            let msg = GenericMsg::host_operation(HostOperation::Success);
-            stream.try_write(&msg.as_bytes()?)?;
+            match db.insert_generic(msg) {
+                Ok(()) => GenericMsg::host_operation(Ok(())),
+                Err(e) => {
+                    let e = match e {
+                        Error::Sled(e)
+                            if Into::<Sled>::into(e.clone()) == Sled::CollectionNotFound =>
+                        {
+                            HostError::NonExistentTopic
+                        }
+                        _ => HostError::Set,
+                    };
+                    GenericMsg::host_operation(Err(e))
+                }
+            }
+            // stream.try_write(&msg.as_bytes()?)?;
         }
         MsgType::Get => {
-            let msg: GenericMsg = db.get_generic(msg.topic)?;
-            stream.try_write(&msg.as_bytes()?)?;
+            // let msg: GenericMsg = db.get_generic(msg.topic)?;
+            match db.get_generic(msg.topic) {
+                Ok(msg) => msg,
+                Err(e) => {
+                    let e = match e {
+                        Error::Sled(e)
+                            if Into::<Sled>::into(e.clone()) == Sled::CollectionNotFound =>
+                        {
+                            HostError::NonExistentTopic
+                        }
+                        _ => HostError::Get,
+                    };
+                    GenericMsg::host_operation(Err(e))
+                }
+            }
+
+            // stream.try_write(&msg.as_bytes()?)?;
         }
         MsgType::GetNth(n) => {
-            let msg = db.get_generic_nth(msg.topic, n)?;
-            stream.try_write(&msg.as_bytes()?)?;
+            // let msg = db.get_generic_nth(msg.topic, n)?;
+
+            match db.get_generic_nth(msg.topic, n) {
+                Ok(msg) => msg,
+                Err(e) => {
+                    let e = match e {
+                        Error::Sled(e)
+                            if Into::<Sled>::into(e.clone()) == Sled::CollectionNotFound =>
+                        {
+                            HostError::NonExistentTopic
+                        }
+                        Error::Sled(e) => HostError::NoNthValue,
+                        _ => HostError::Get,
+                    };
+                    GenericMsg::host_operation(Err(e))
+                }
+            }
+
+            // stream.try_write(&msg.as_bytes()?)?;
         }
         MsgType::Subscribe => {
             let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
@@ -80,16 +117,26 @@ async fn process_msg(
             }
         }
         MsgType::Topics => {
-            let topics = db.topics()?;
-            let msg = Msg::new(MsgType::Topics, "", topics).to_generic()?;
-            stream.try_write(&msg.as_bytes()?)?;
+            // let topics = db.topics()?;
+            match db.topics() {
+                Ok(topics) => {
+                    let msg = Msg::new(MsgType::Topics, "", topics).to_generic().unwrap();
+
+                    msg
+                }
+                Err(e) => GenericMsg::host_operation(Err(HostError::Topics)),
+            }
+
+            /*             let msg = Msg::new(MsgType::Topics, "", topics).to_generic()?;
+            Ok(msg) */
+            // stream.try_write(&msg.as_bytes()?)?;
         }
         MsgType::HostOperation(_host_op) => {
             error!("Shouldn't have gotten HostOperation");
+            let msg = GenericMsg::host_operation(Err(HostError::RecvHostOp));
+            msg
         }
     }
-
-    Ok(())
 }
 
 /// Host process for handling incoming connections from Nodes
@@ -113,9 +160,33 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                 match from_bytes(bytes) {
                     Ok(msg) => {
                         info!("{:?}", msg);
-                        if let Err(e) = process_msg(msg, &stream, db.clone()).await {
-                            error!("{}", e);
+                        let msg = process_msg(msg, &stream, db.clone()).await;
+                        if let Ok(bytes) = msg.as_bytes() {
+                            if let Err(e) = stream.try_write(&bytes) {
+                                error!("{}", e);
+                            }
                         }
+                        /* match process_msg(msg, &stream, db.clone()).await {
+                            Ok(msg) => {
+                                if let Ok(bytes) = msg.as_bytes() {
+                                    if let Err(e) = stream.try_write(&bytes) {
+                                        error!("{}", e);
+                                    }
+                                }
+                                // stream.try_write(&msg.as_bytes()?)?;
+                            }
+                            Err(e) => {
+                                let msg = GenericMsg::host_operation(HostOperation::Failure);
+                                if let Ok(bytes) = msg.as_bytes() {
+                                    if let Err(e) = stream.try_write(&bytes) {
+                                        error!("{}", e);
+                                    }
+                                }
+                            }
+                        } */
+                        /*                         if let Err(e) = process_msg(msg, &stream, db.clone()).await {
+                            error!("{}", e);
+                        } */
                     }
                     Err(e) => {
                         error!("Had received Msg of {} bytes: {:?}, Error: {}", n, bytes, e);

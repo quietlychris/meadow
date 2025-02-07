@@ -1,7 +1,7 @@
 #![allow(unused_variables)]
 
-mod host_operation;
-pub use crate::error::host_operation::*;
+mod host;
+pub use crate::error::host::*;
 #[cfg(feature = "quic")]
 mod quic;
 #[cfg(feature = "quic")]
@@ -47,7 +47,7 @@ pub enum Error {
     StreamConnection,
     /// Errors based on Host operations
     #[error(transparent)]
-    HostOperation(#[from] crate::error::host_operation::HostError),
+    Host(#[from] crate::error::HostError),
     /// Transparent QUIC-related errors
     #[cfg(feature = "quic")]
     #[error(transparent)]
@@ -61,3 +61,40 @@ pub enum Error {
 
 /// This is the Result type used by meadow.
 pub type Result<T> = ::core::result::Result<T, Error>;
+
+#[derive(Debug, Clone, Serialize, Deserialize, Error, PartialEq, Eq)]
+pub enum Sled {
+    #[error("Collection not found")]
+    CollectionNotFound,
+    #[error("Unspecified sled-related error")]
+    Other,
+}
+
+impl From<sled::Error> for Sled {
+    fn from(value: sled::Error) -> Self {
+        match value {
+            sled::Error::CollectionNotFound(ivec) => Sled::CollectionNotFound,
+            _ => Sled::Other,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Error, PartialEq, Eq)]
+pub enum Postcard {
+    #[error("Serde serialization error")]
+    SerdeSerCustom,
+    #[error("Serde deserialization error")]
+    SerdeDeCustom,
+    #[error("Other Postcard error")]
+    Other,
+}
+
+impl From<postcard::Error> for Postcard {
+    fn from(value: postcard::Error) -> Self {
+        match value {
+            postcard::Error::SerdeDeCustom => Postcard::SerdeDeCustom,
+            postcard::Error::SerdeSerCustom => Postcard::SerdeSerCustom,
+            _ => Postcard::Other,
+        }
+    }
+}

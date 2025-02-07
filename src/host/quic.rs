@@ -1,5 +1,5 @@
 use crate::error::{
-    Error, HostOperation,
+    Error, HostError,
     Quic::{self, *},
 };
 use crate::prelude::*;
@@ -96,10 +96,10 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
                     .expect("Error opening tree");
 
                 let db_result = match tree.insert(msg.timestamp.to_string(), bytes) {
-                    Ok(_prev_msg) => crate::error::HostOperation::Success, //"SUCCESS".to_string(),
+                    Ok(_prev_msg) => Ok(()), //"SUCCESS".to_string(),
                     Err(_e) => {
                         error!("{:?}", _e);
-                        crate::error::HostOperation::Failure
+                        Err(HostError::Set)
                     }
                 };
 

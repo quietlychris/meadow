@@ -8,26 +8,23 @@ use thiserror::Error;
 pub enum HostError {
     /// Unsuccessful SET operation
     #[error("Unsuccessful Host-side SET operation")]
-    SetFailure,
+    Set,
     /// Unsuccessful Host-side GET operation
     #[error("Unsuccessful Host-side GET operation")]
-    GetFailure,
+    Get,
     /// Unsuccessful Host connection
     #[error("Unsuccessful Host connection")]
-    ConnectionError,
+    Connection,
+    /// Unable to create list of topics
+    #[error("Unable to create list of topics")]
+    Topics,
     /// Topic does not exist on Host
     #[error("Topic does not exist")]
     NonExistentTopic,
     /// Topic does not have value at specific n'th position
     #[error("Topic does not have value at specific n'th position")]
     NoNthValue,
-}
-
-/// Enum for successful/failed Host operations
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq)]
-pub enum HostOperation {
-    /// Successful Host-side operation
-    Success,
-    /// Failed Host-side operation
-    Failure,
+    /// Hosts should not be receiving MsgType::HostOperation
+    #[error("Hosts should not be receiving MsgType::HostOperation")]
+    RecvHostOp,
 }

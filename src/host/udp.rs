@@ -5,15 +5,64 @@ use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration}; // as TokioMutex;
                                     // Tracing for logging
 use tracing::*;
-// Postcard is the default de/serializer
-use postcard::*;
 // Multi-threading primitives
 use std::sync::Arc;
 // Misc other imports
 use chrono::Utc;
 
+use crate::error::Error;
+use crate::host::host::{GenericStore, Store};
 use crate::prelude::*;
 use std::convert::TryInto;
+use std::net::SocketAddr;
+
+async fn process_msg(
+    msg: GenericMsg,
+    socket: &UdpSocket,
+    return_addr: SocketAddr,
+    mut db: sled::Db,
+) -> Result<(), crate::Error> {
+    match msg.msg_type {
+        MsgType::Set => {
+            db.insert_generic(msg)?;
+            let msg = GenericMsg::host_operation(Ok(()));
+            // socket.write(&msg.as_bytes()?)?;
+            socket.try_send_to(&msg.as_bytes()?, return_addr)?;
+        }
+        MsgType::Get => {
+            let msg: GenericMsg = db.get_generic(msg.topic)?;
+            socket.try_send_to(&msg.as_bytes()?, return_addr)?;
+        }
+        MsgType::GetNth(n) => {
+            let msg = db.get_generic_nth(msg.topic, n)?;
+            socket.try_send_to(&msg.as_bytes()?, return_addr)?;
+        }
+        MsgType::Subscribe => {
+            let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
+            let rate = specialized.data;
+            loop {
+                if let Ok(msg) = db.get_generic(&msg.topic) {
+                    if let Ok(bytes) = msg.as_bytes() {
+                        if let Err(e) = socket.try_send_to(&bytes, return_addr) {
+                            error!("{}", e);
+                        }
+                    }
+                }
+                sleep(rate).await;
+            }
+        }
+        MsgType::Topics => {
+            let topics = db.topics()?;
+            let msg = Msg::new(MsgType::Topics, "", topics).to_generic()?;
+            socket.try_send_to(&msg.as_bytes()?, return_addr)?;
+        }
+        MsgType::HostOperation(_host_op) => {
+            error!("Shouldn't have gotten HostOperation");
+        }
+    }
+
+    Ok(())
+}
 
 /// Host process for handling incoming connections from Nodes
 #[tracing::instrument(skip(db))]
@@ -36,7 +85,7 @@ pub async fn process_udp(
             Ok((0, _)) => break, // TO_DO: break or continue?
             Ok((n, return_addr)) => {
                 let bytes = &buf[..n];
-                let msg: GenericMsg = match from_bytes(bytes) {
+                let msg: GenericMsg = match postcard::from_bytes(bytes) {
                     Ok(msg) => msg,
                     Err(e) => {
                         error!("Had received Msg of {} bytes: {:?}, Error: {}", n, bytes, e);
@@ -44,7 +93,11 @@ pub async fn process_udp(
                     }
                 };
 
-                match msg.msg_type {
+                if let Err(e) = process_msg(msg, &s, return_addr, db.clone()).await {
+                    error!("{}", e);
+                }
+
+                /*                 match msg.msg_type {
                     MsgType::HostOperation(op) => {
                         // This should really never be received by Host
                         error!("Received HostOperation: {:?}", op);
@@ -116,7 +169,7 @@ pub async fn process_udp(
                                             e.as_bytes().into()
                                         }
                                     };
-                                    let return_msg = from_bytes::<GenericMsg>(&return_bytes);
+                                    let return_msg = postcard::from_bytes::<GenericMsg>(&return_bytes);
                                     info!("Host sending return to subscriber: {:?}", return_msg);
 
                                     if let Ok(()) = s.writable().await {
@@ -150,7 +203,7 @@ pub async fn process_udp(
                             .unwrap();
                         strings.remove(index);
 
-                        match to_allocvec(&strings) {
+                        match postcard::to_allocvec(&strings) {
                             Ok(data) => {
                                 let packet: GenericMsg = GenericMsg {
                                     msg_type: MsgType::Topics,
@@ -160,7 +213,7 @@ pub async fn process_udp(
                                     data,
                                 };
 
-                                if let Ok(bytes) = to_allocvec(&packet) {
+                                if let Ok(bytes) = postcard::to_allocvec(&packet) {
                                     if let Ok(()) = s.writable().await {
                                         if let Err(e) = s.try_send_to(&bytes, return_addr) {
                                             error!(
@@ -176,7 +229,7 @@ pub async fn process_udp(
                             }
                         }
                     }
-                }
+                } */
             }
             Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                 // println!("Error::WouldBlock: {:?}", e);

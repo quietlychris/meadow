@@ -60,7 +60,7 @@ fn main() -> Result<(), meadow::Error> {
     let result = host.get_nth_back::<Pose>("pose", 10);
     match result {
         Err(e) => {
-            if let Error::HostOperation(meadow::error::HostError::NoNthValue) = e {
+            if let Error::Host(meadow::error::HostError::NoNthValue) = e {
                 // Good
                 ()
             } else {

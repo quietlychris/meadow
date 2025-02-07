@@ -39,7 +39,7 @@ fn host_only_back_n() {
         let result = host.get_nth_back::<usize>("test", 10);
         match result {
             Err(e) => {
-                if let Error::HostOperation(meadow::error::HostError::NoNthValue) = e {
+                if let Error::Host(meadow::error::HostError::NoNthValue) = e {
                     // Good
                 } else {
                     panic!("Wrong error: {}", e);
