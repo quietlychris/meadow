@@ -242,13 +242,7 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
             None => return Err(Error::AccessStream),
         };
 
-        let packet: GenericMsg = GenericMsg {
-            msg_type: MsgType::Get,
-            timestamp: Utc::now(),
-            topic: self.topic.to_string(),
-            data_type: std::any::type_name::<T>().to_string(),
-            data: Vec::new(),
-        };
+        let packet = GenericMsg::get::<T>(&self.topic);
 
         let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
 

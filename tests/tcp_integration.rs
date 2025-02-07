@@ -37,7 +37,7 @@ fn integrate_host_and_single_node_tcp() {
 }
 
 #[test]
-fn custom_msg() {
+fn custom_msg_tcp() {
     let sc = SledConfig::new().temporary(true);
     let mut host = HostConfig::default().with_sled_config(sc).build().unwrap();
     host.start().unwrap();

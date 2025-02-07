@@ -122,13 +122,21 @@ pub async fn await_response<T: Message>(
         if let Err(e) = stream.readable().await {
             error!("{}", e);
         }
+        use crate::prelude::MsgType;
         match stream.try_read(buf) {
             Ok(0) => continue,
             Ok(n) => {
                 let bytes = &buf[..n];
                 let generic = from_bytes::<GenericMsg>(bytes)?;
-                let specialized: Msg<T> = generic.try_into()?;
-                return Ok(specialized);
+                match generic.msg_type {
+                    MsgType::HostOperation(Err(e)) => {
+                        return Err(Error::Host(e));
+                    }
+                    _ => {
+                        let specialized: Msg<T> = generic.try_into()?;
+                        return Ok(specialized);
+                    }
+                }
             }
             Err(_e) => {
                 // if e.kind() == std::io::ErrorKind::WouldBlock {}
