@@ -11,7 +11,6 @@ use std::sync::Arc;
 use chrono::Utc;
 
 use crate::error::Error;
-use crate::error::HostError;
 use crate::host::host::{GenericStore, Store};
 use crate::prelude::*;
 use std::convert::TryInto;

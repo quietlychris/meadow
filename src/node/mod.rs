@@ -113,4 +113,9 @@ impl<B: Block, I: Interface + Default, State, T: Message> Node<B, I, State, T> {
     pub fn topic(&self) -> String {
         self.topic.clone()
     }
+
+    /// Change the `Node`'s topic after initial configuration
+    pub fn set_topic(&mut self, topic: impl Into<String>) {
+        self.topic = topic.into();
+    }
 }

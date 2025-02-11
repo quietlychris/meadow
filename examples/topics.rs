@@ -1,4 +1,8 @@
 use meadow::prelude::*;
+use std::thread;
+use std::time::Duration;
+
+use tracing::*;
 
 /// Example test struct for docs and tests
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -19,6 +23,7 @@ fn main() -> Result<(), meadow::Error> {
     }
 
     // Configure the Host with logging
+    type N = Tcp;
     let mut host = {
         let date = chrono::Utc::now();
         let stamp = format!(
@@ -39,29 +44,50 @@ fn main() -> Result<(), meadow::Error> {
         }
         config.build()?
     };
+    host.start()?;
+    println!("Host should be running in the background");
 
-    let n = 5;
-    for i in 0..n {
+    // thread::sleep(Duration::from_secs(60));
+
+    println!("Starting node");
+    // Get the host up and running
+    let topics = vec!["a", "b", "c", "d", "e", "f"];
+    let node: Node<Blocking, N, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
+    println!("Idle node built");
+    let mut node = node.activate().unwrap();
+    debug!("Node should now be connected");
+    println!(
+        "The size of an active meadow Node is: {}",
+        std::mem::size_of_val(&node)
+    );
+
+    // This following two functions should fail to compile
+    // node.publish(NotPose::default())?;
+    // let not_pose: NotPose = node.request()?;
+
+    for i in 0..topics.len() {
+        // Could get this by reading a GPS, for example
         let pose = Pose {
             x: i as f32,
             y: i as f32,
         };
-        host.insert("pose", pose.clone())?;
-        assert_eq!(host.get::<Pose>("pose")?.data, pose);
-        assert_eq!(host.get_nth_back::<Pose>("pose", 0)?.data, pose);
+        node.set_topic(topics[i]);
+
+        node.publish(pose.clone())?;
+        println!("published {}", i);
+        thread::sleep(Duration::from_millis(250));
+        let result: Msg<Pose> = node.request().unwrap();
+        dbg!(node.topics()?); // .unwrap();
+        println!("Got position: {:?}", result.data);
+
+        assert_eq!(pose, result.data);
     }
-    let back = 3;
-    let pose = Pose {
-        x: (n - back) as f32,
-        y: (n - back) as f32,
-    };
-    // We use "back + 1" because we're zero-indexed
-    assert_eq!(host.get_nth_back::<Pose>("pose", back - 1)?.data, pose);
-    let result = host.get_nth_back::<Pose>("pose", 10);
-    match result {
-        Err(Error::NoNthValue) => (),
-        _ => panic!("Should not be okay!"),
-    }
+
+    println!(
+        "The size of an a meadow Host before shutdown is: {}",
+        std::mem::size_of_val(&host)
+    );
+    assert_eq!(host.topics()?, node.topics()?.data);
 
     Ok(())
 }

@@ -96,7 +96,9 @@ pub async fn send_msg(stream: &TcpStream, packet_as_bytes: Vec<u8>) -> Result<()
 
     // Write the request
     // TO_DO: This should be a loop with a maximum number of attempts
-    loop {
+    let max_loops = 100;
+    let mut counter = 0;
+    for _ in 0..max_loops {
         match stream.try_write(&packet_as_bytes) {
             Ok(_n) => {
                 // debug!("Node successfully wrote {}-byte request to host",n);
@@ -107,12 +109,20 @@ pub async fn send_msg(stream: &TcpStream, packet_as_bytes: Vec<u8>) -> Result<()
                 continue;
             }
         }
+        counter += 1;
     }
-    Ok(())
+    if counter == max_loops {
+        Err(Error::Io {
+            error_kind: String::from("WriteError"),
+            raw_os_error: None,
+        })
+    } else {
+        Ok(())
+    }
 }
 
 /// Set Node to wait for response from Host, with data to be deserialized into `Msg<T>`-type
-// #[tracing::instrument]
+#[tracing::instrument]
 #[inline]
 pub async fn await_response<T: Message>(
     stream: &TcpStream,
@@ -124,7 +134,9 @@ pub async fn await_response<T: Message>(
             error!("{}", e);
         }
         match stream.try_read(buf) {
-            Ok(0) => continue,
+            Ok(0) => {
+                continue;
+            }
             Ok(n) => {
                 let bytes = &buf[..n];
                 let generic = from_bytes::<GenericMsg>(bytes)?;

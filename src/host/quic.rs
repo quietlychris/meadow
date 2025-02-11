@@ -1,5 +1,5 @@
 use crate::error::{
-    Error, HostError,
+    Error,
     Quic::{self, *},
 };
 use crate::prelude::*;
@@ -99,7 +99,7 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
                     Ok(_prev_msg) => Ok(()), //"SUCCESS".to_string(),
                     Err(_e) => {
                         error!("{:?}", _e);
-                        Err(HostError::Set)
+                        Err(Error::Undefined)
                     }
                 };
 

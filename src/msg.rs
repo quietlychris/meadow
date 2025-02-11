@@ -11,8 +11,6 @@ use std::fmt::Debug;
 pub trait Message: Serialize + DeserializeOwned + Debug + Sync + Send + Clone {}
 impl<T> Message for T where T: Serialize + DeserializeOwned + Debug + Sync + Send + Clone {}
 
-use crate::error::HostError;
-
 /// Msg definitions for publish or request of topic data
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[repr(C)]

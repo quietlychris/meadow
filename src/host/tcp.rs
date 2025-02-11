@@ -110,8 +110,20 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                     Ok(msg) => {
                         info!("{:?}", msg);
                         let response = match process_msg(msg, &stream, db.clone()).await {
-                            Ok(msg) => msg,
-                            Err(e) => Some(GenericMsg::error(e)),
+                            Ok(msg) => {
+                                if let None = msg {
+                                    info!("Successfully processed received message; no response needed");
+                                } else {
+                                    info!(
+                                        "Successfully processed received message; sending response"
+                                    );
+                                }
+                                msg
+                            }
+                            Err(e) => {
+                                error!("{}", e);
+                                Some(GenericMsg::error(e))
+                            }
                         };
                         if let Some(msg) = response {
                             if let Ok(bytes) = msg.as_bytes() {

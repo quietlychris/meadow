@@ -14,16 +14,16 @@ fn main() -> Result<(), meadow::Error> {
         .build()?;
     host.start()?;
 
-    let duration = Duration::from_secs(10);
-    let n = 10;
+    let duration = Duration::from_secs(1);
+    let n = 1;
 
     let tcp = thread::spawn(move || {
         run_tcp(n, duration).unwrap();
     });
 
-    let udp = thread::spawn(move || {
+    /*     let udp = thread::spawn(move || {
         run_udp(n, duration).unwrap();
-    });
+    }); */
 
     thread::sleep(duration);
 
@@ -31,9 +31,9 @@ fn main() -> Result<(), meadow::Error> {
         println!("TCP error: {:?}", e);
     }
 
-    if let Err(e) = udp.join() {
+    /*     if let Err(e) = udp.join() {
         println!("UDP error: {:?}", e);
-    }
+    } */
 
     let topics = host.topics()?;
     for topic in &topics {

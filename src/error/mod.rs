@@ -1,7 +1,5 @@
 #![allow(unused_variables)]
 
-mod host;
-pub use crate::error::host::*;
 #[cfg(feature = "quic")]
 mod quic;
 #[cfg(feature = "quic")]
@@ -45,9 +43,6 @@ pub enum Error {
     /// `TcpStream` connection attempt failure
     #[error("TcpStream connection attempt failure")]
     StreamConnection,
-    /// Errors based on Host operations
-    #[error(transparent)]
-    Host(#[from] crate::error::HostError),
     /// Transparent QUIC-related errors
     #[cfg(feature = "quic")]
     #[error(transparent)]
@@ -60,6 +55,14 @@ pub enum Error {
     },
     #[error("Unable to access Tokio runtime handle")]
     HandleAccess,
+    /// Topic does not exist on Host
+    #[error("Topic `{0}` does not exist")]
+    NonExistentTopic(String),
+    /// Topic does not have value at specific n'th position
+    #[error("Topic does not have value at specific n'th position")]
+    NoNthValue,
+    #[error("Undefined error")]
+    Undefined,
 }
 
 /// This is the Result type used by meadow.

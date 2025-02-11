@@ -1,4 +1,3 @@
-use crate::error::HostError;
 use crate::node::network_config::Nonblocking;
 use crate::node::tcp::*;
 use crate::node::{Active, Node};
@@ -25,10 +24,7 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Active, T> {
     #[inline]
     pub async fn publish(&self, val: T) -> Result<(), Error> {
         let msg: Msg<T> = Msg::new(MsgType::Set, self.topic.clone(), val);
-
-        let generic: GenericMsg = msg.try_into()?;
-
-        let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
+        let packet = msg.to_generic()?.as_bytes()?;
 
         let stream = match self.stream.as_ref() {
             Some(stream) => stream,
@@ -36,37 +32,14 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Active, T> {
         };
 
         // Send the publish message
-        send_msg(stream, packet_as_bytes).await?;
-
-        // Wait for the publish acknowledgement
-        let mut buf = self.buffer.lock().await;
-        loop {
-            if let Ok(()) = stream.readable().await {
-                match stream.try_read(&mut buf) {
-                    Ok(0) => continue,
-                    Ok(n) => {
-                        let bytes = &buf[..n];
-                        if let Err(e) = from_bytes::<Result<(), HostError>>(bytes) {
-                            error!("Host-side error on publish");
-                        }
-
-                        break;
-                    }
-                    Err(_e) => {
-                        // if e.kind() == std::io::ErrorKind::WouldBlock {}
-                        continue;
-                    }
-                }
-            }
-        }
+        send_msg(stream, packet).await?;
         Ok(())
     }
 
     #[tracing::instrument]
     #[inline]
     pub async fn publish_msg(&self, msg: Msg<T>) -> Result<(), Error> {
-        let generic: GenericMsg = msg.try_into()?;
-        let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
+        let packet = msg.to_generic()?.as_bytes()?;
 
         let stream = match self.stream.as_ref() {
             Some(stream) => stream,
@@ -74,29 +47,7 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Active, T> {
         };
 
         // Send the publish message
-        send_msg(stream, packet_as_bytes).await?;
-
-        // Wait for the publish acknowledgement
-        let mut buf = self.buffer.lock().await;
-        loop {
-            if let Ok(()) = stream.readable().await {
-                match stream.try_read(&mut buf) {
-                    Ok(0) => continue,
-                    Ok(n) => {
-                        let bytes = &buf[..n];
-                        if let Err(e) = from_bytes::<Result<(), HostError>>(bytes) {
-                            error!("Host-side error on publish");
-                        }
-
-                        break;
-                    }
-                    Err(_e) => {
-                        // if e.kind() == std::io::ErrorKind::WouldBlock {}
-                        continue;
-                    }
-                }
-            }
-        }
+        send_msg(stream, packet).await?;
         Ok(())
     }
 
@@ -162,27 +113,6 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
         handle.block_on(async {
             // Send the publish message
             send_msg(stream, packet_as_bytes).await?;
-
-            // Wait for the publish acknowledgement
-            let mut buf = self.buffer.lock().await;
-            loop {
-                if let Ok(()) = stream.readable().await {
-                    match stream.try_read(&mut buf) {
-                        Ok(0) => continue,
-                        Ok(n) => {
-                            let bytes = &buf[..n];
-                            if let Err(e) = from_bytes::<Result<(), HostError>>(bytes) {
-                                error!("{}", e);
-                            }
-                            break;
-                        }
-                        Err(_e) => {
-                            // if e.kind() == std::io::ErrorKind::WouldBlock {}
-                            continue;
-                        }
-                    }
-                }
-            }
             Ok(())
         })
     }
@@ -206,28 +136,6 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
         handle.block_on(async {
             // Send the publish message
             send_msg(stream, packet_as_bytes).await?;
-
-            // Wait for the publish acknowledgement
-            let mut buf = self.buffer.lock().await;
-            loop {
-                if let Ok(()) = stream.readable().await {
-                    match stream.try_read(&mut buf) {
-                        Ok(0) => continue,
-                        Ok(n) => {
-                            let bytes = &buf[..n];
-                            if let Err(e) = from_bytes::<Result<(), HostError>>(bytes) {
-                                error!("Host-side error on publish");
-                            }
-
-                            break;
-                        }
-                        Err(_e) => {
-                            // if e.kind() == std::io::ErrorKind::WouldBlock {}
-                            continue;
-                        }
-                    }
-                }
-            }
             Ok(())
         })
     }
@@ -266,20 +174,12 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
             None => return Err(Error::AccessStream),
         };
 
-        let packet: GenericMsg = GenericMsg {
-            msg_type: MsgType::Topics,
-            timestamp: Utc::now(),
-            topic: "".to_string(),
-            data_type: std::any::type_name::<()>().to_string(),
-            data: Vec::new(),
-        };
-
-        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
+        let packet = GenericMsg::topics().as_bytes()?;
 
         if let Some(handle) = &self.rt_handle {
             handle.block_on(async {
                 let mut buffer = self.buffer.lock().await;
-                send_msg(stream, packet_as_bytes).await?;
+                send_msg(stream, packet).await?;
                 let msg = await_response::<Vec<String>>(stream, &mut buffer).await?;
                 Ok(msg)
             })

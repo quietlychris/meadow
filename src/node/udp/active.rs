@@ -177,8 +177,6 @@ impl<T: Message + 'static> Node<Blocking, Udp, Active, T> {
                 }
             }
 
-            use crate::error::HostError;
-
             Ok(())
         })
     }
