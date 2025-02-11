@@ -25,6 +25,7 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use crate::msg::{GenericMsg, Message, Msg};
 use crate::node::network_config::Interface;
+use crate::prelude::MsgType;
 use crate::Error;
 use chrono::{DateTime, Utc};
 
@@ -122,7 +123,6 @@ pub async fn await_response<T: Message>(
         if let Err(e) = stream.readable().await {
             error!("{}", e);
         }
-        use crate::prelude::MsgType;
         match stream.try_read(buf) {
             Ok(0) => continue,
             Ok(n) => {
@@ -133,8 +133,8 @@ pub async fn await_response<T: Message>(
                         return Err(Error::Host(e));
                     }
                     _ => {
-                        let specialized: Msg<T> = generic.try_into()?;
-                        return Ok(specialized);
+                        let msg: Msg<T> = generic.try_into()?;
+                        return Ok(msg);
                     }
                 }
             }

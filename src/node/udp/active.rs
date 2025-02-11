@@ -159,6 +159,26 @@ impl<T: Message + 'static> Node<Blocking, Udp, Active, T> {
             socket
                 .send_to(&packet_as_bytes, self.cfg.network_cfg.host_addr)
                 .await?;
+            let b = self.buffer.clone();
+            let buf = &mut *b.lock().await;
+            loop {
+                match socket.recv(buf).await {
+                    Ok(0) => continue,
+                    Ok(n) => {
+                        let bytes = &buf[..n];
+                        if let Err(e) = from_bytes::<GenericMsg>(bytes) {
+                            error!("{}", e);
+                        }
+                        break;
+                    }
+                    Err(_e) => {
+                        continue;
+                    }
+                }
+            }
+
+            use crate::error::HostError;
+
             Ok(())
         })
     }
@@ -190,8 +210,8 @@ impl<T: Message + 'static> Node<Blocking, Udp, Active, T> {
     #[tracing::instrument]
     #[inline]
     pub fn request(&self) -> Result<Msg<T>, Error> {
-        let packet = GenericMsg::get::<T>(self.topic.clone());
-        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
+        let packet = GenericMsg::get::<T>(self.topic.clone()).as_bytes()?;
+
         let buffer = self.buffer.clone();
 
         let handle = match &self.rt_handle {
@@ -201,7 +221,7 @@ impl<T: Message + 'static> Node<Blocking, Udp, Active, T> {
 
         handle.block_on(async {
             if let Some(socket) = &self.socket {
-                send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await?;
+                send_msg(socket, packet, self.cfg.network_cfg.host_addr).await?;
                 let msg = await_response(socket, buffer).await?;
                 Ok(msg)
             } else {

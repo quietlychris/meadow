@@ -114,7 +114,7 @@ impl GenericStore for sled::Db {
                 let msg: GenericMsg = postcard::from_bytes(&bytes)?;
                 Ok(msg)
             }
-            None => Err(Error::Host(HostError::NonExistentTopic)),
+            None => Err(Error::Host(HostError::NonExistentTopic(topic.to_string()))),
         }
     }
 

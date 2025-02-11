@@ -11,6 +11,7 @@ use tokio::sync::Mutex as TokioMutex;
 use tracing::*;
 
 use crate::error::Error;
+use crate::prelude::MsgType;
 use std::io::{Error as IoError, ErrorKind};
 use std::net::SocketAddr;
 
@@ -34,8 +35,17 @@ pub async fn await_response<T: Message>(
                 let bytes = &buf[..n];
 
                 let generic = postcard::from_bytes::<GenericMsg>(bytes)?;
-                let msg: Msg<T> = generic.try_into()?;
-                return Ok(msg);
+                match generic.msg_type {
+                    MsgType::HostOperation(Err(e)) => {
+                        error!("{}", e);
+                        return Err(Error::Host(e));
+                    }
+                    MsgType::HostOperation(Ok(())) => continue,
+                    _ => {
+                        let msg: Msg<T> = generic.try_into()?;
+                        return Ok(msg);
+                    }
+                }
             }
             Err(e) => {
                 if e.kind() == std::io::ErrorKind::WouldBlock {

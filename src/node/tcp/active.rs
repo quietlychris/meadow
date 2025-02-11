@@ -172,9 +172,8 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
                         Ok(n) => {
                             let bytes = &buf[..n];
                             if let Err(e) = from_bytes::<Result<(), HostError>>(bytes) {
-                                error!("Host-side error on publish");
+                                error!("{}", e);
                             }
-
                             break;
                         }
                         Err(_e) => {

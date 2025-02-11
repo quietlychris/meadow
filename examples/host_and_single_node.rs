@@ -22,7 +22,7 @@ fn main() -> Result<(), meadow::Error> {
         generate_certs(QuicCertGenConfig::default());
     }
 
-    type N = Tcp;
+    type N = Udp;
     // Configure the Host with logging
     let mut host = {
         let date = chrono::Utc::now();
@@ -51,7 +51,7 @@ fn main() -> Result<(), meadow::Error> {
 
     println!("Starting node");
     // Get the host up and running
-    let node: Node<Blocking, N, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
+    let node: Node<Blocking, N, Idle, Pose> = NodeConfig::new("scubae").build().unwrap();
     println!("Idle node built");
     let node = node.activate().unwrap();
     debug!("Node should now be connected");

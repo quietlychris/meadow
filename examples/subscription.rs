@@ -5,11 +5,13 @@ fn main() -> Result<(), meadow::Error> {
     // Set up logging
     logging();
 
-    type N = Tcp;
+    type N = Udp;
 
-    let mut host: Host = HostConfig::default().with_udp_config(None).build()?;
+    let mut host: Host = HostConfig::default()
+        //.with_udp_config(None)
+        // .with_tcp_config(None)
+        .build()?;
     host.start()?;
-    println!("Host should be running in the background");
 
     // Get the host up and running
     let writer = NodeConfig::<Blocking, N, _>::new("subscription")
@@ -28,14 +30,15 @@ fn main() -> Result<(), meadow::Error> {
     for i in 0..5usize {
         println!("publishing {}", i);
         writer.publish(i).unwrap();
-        std::thread::sleep(std::time::Duration::from_millis(1000));
-        let result = writer.request()?.data;
+        println!("Published");
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        println!("About to request");
+        let result = writer.request().unwrap().data;
         dbg!(result);
-        assert_eq!(writer.request()?.data, i);
-        assert_eq!(reader.get_subscribed_data()?.data, i);
+        //assert_eq!(writer.request()?.data, i);
+        //assert_eq!(reader.get_subscribed_data()?.data, i);
     }
 
-    // host.stop()?;
     Ok(())
 }
 

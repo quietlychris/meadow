@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use postcard::to_allocvec;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::convert::{Into, TryFrom, TryInto};
+use std::time::Duration;
 
 use std::fmt::Debug;
 /// Trait for Meadow-compatible data, requiring serde De\Serialize, Debug, and Clone
@@ -118,6 +119,12 @@ impl GenericMsg {
             data_type: std::any::type_name::<T>().to_string(),
             data: Vec::new(),
         }
+    }
+
+    /// Create a `MsgType::Subscribe` message to kick off subscriptions
+    pub fn subscribe(topic: impl Into<String>, rate: Duration) -> Result<Self, Error> {
+        let msg = Msg::new(MsgType::Subscribe, topic, rate);
+        msg.to_generic()
     }
 
     /// Create a `MsgType::GetNth` message for requests

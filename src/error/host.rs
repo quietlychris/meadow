@@ -19,8 +19,8 @@ pub enum HostError {
     #[error("Unable to create list of topics")]
     Topics,
     /// Topic does not exist on Host
-    #[error("Topic does not exist")]
-    NonExistentTopic,
+    #[error("Topic `{0}` does not exist")]
+    NonExistentTopic(String),
     /// Topic does not have value at specific n'th position
     #[error("Topic does not have value at specific n'th position")]
     NoNthValue,
