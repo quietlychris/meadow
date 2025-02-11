@@ -84,13 +84,13 @@ impl<T: Message + 'static> Node<Nonblocking, Quic, Active, T> {
         let mut buf = self.buffer.lock().await;
 
         if let Some(connection) = self.connection.clone() {
-            let (mut send, mut recv) = connection.open_bi().await.map_err(ConnectionError)?;
+            let (mut send, mut recv) = connection.open_bi().await?;
             debug!("Node succesfully opened stream from connection");
-            send.write_all(&packet_as_bytes).await.map_err(WriteError)?;
+            send.write_all(&packet_as_bytes).await?;
             // send.finish().await.map_err(WriteError)?;
 
             loop {
-                match recv.read(&mut buf).await.map_err(ReadError)? {
+                match recv.read(&mut buf).await? {
                     Some(0) => continue,
                     Some(n) => {
                         let bytes = &buf[..n];
@@ -114,16 +114,12 @@ impl<T: Message + 'static> Node<Nonblocking, Quic, Active, T> {
 
         let connection = self.connection.clone().ok_or(Connection)?;
 
-        let (mut send, mut recv) = connection.open_bi().await.map_err(ConnectionError)?;
+        let (mut send, mut recv) = connection.open_bi().await?;
         debug!("Node succesfully opened stream from connection");
-        send.write_all(&packet).await.map_err(WriteError)?;
-        send.finish().await.map_err(WriteError)?;
+        send.write_all(&packet).await?;
+        send.finish().await?;
 
-        let n = recv
-            .read(&mut buf)
-            .await
-            .map_err(ReadError)?
-            .ok_or(Connection)?;
+        let n = recv.read(&mut buf).await?.ok_or(Connection)?;
         let bytes = &buf[..n];
         let reply = from_bytes::<GenericMsg>(bytes)?;
         let topics: Msg<Vec<String>> = reply.try_into()?;
@@ -222,13 +218,13 @@ impl<T: Message + 'static> Node<Blocking, Quic, Active, T> {
             let mut buf = self.buffer.lock().await;
 
             if let Some(connection) = self.connection.clone() {
-                let (mut send, mut recv) = connection.open_bi().await.map_err(ConnectionError)?;
+                let (mut send, mut recv) = connection.open_bi().await?;
                 debug!("Node succesfully opened stream from connection");
-                send.write_all(&packet_as_bytes).await.map_err(WriteError)?;
+                send.write_all(&packet_as_bytes).await?;
                 // send.finish().await.map_err(WriteError)?;
 
                 loop {
-                    match recv.read(&mut buf).await.map_err(ReadError)? {
+                    match recv.read(&mut buf).await? {
                         Some(0) => continue,
                         Some(n) => {
                             let bytes = &buf[..n];
@@ -260,16 +256,12 @@ impl<T: Message + 'static> Node<Blocking, Quic, Active, T> {
 
             let connection = self.connection.clone().ok_or(Connection)?;
 
-            let (mut send, mut recv) = connection.open_bi().await.map_err(ConnectionError)?;
+            let (mut send, mut recv) = connection.open_bi().await?;
             debug!("Node succesfully opened stream from connection");
-            send.write_all(&packet_as_bytes).await.map_err(WriteError)?;
-            send.finish().await.map_err(WriteError)?;
+            send.write_all(&packet_as_bytes).await?;
+            send.finish().await?;
 
-            let n = recv
-                .read(&mut buf)
-                .await
-                .map_err(ReadError)?
-                .ok_or(Connection)?;
+            let n = recv.read(&mut buf).await?.ok_or(Connection)?;
             let bytes = &buf[..n];
             let reply = from_bytes::<GenericMsg>(bytes)?;
             let topics: Msg<Vec<String>> = reply.try_into()?;

@@ -97,9 +97,11 @@ impl<T: Message + 'static> Node<Nonblocking, Quic, Idle, T> {
             // TO_DO: This shouldn't just be "localhost"
             let connection = endpoint
                 .connect(host_addr, "localhost")
-                .map_err(ConnectError)?
+                .map_err(|e| Into::<error::Quic>::into(e))?
+                // .map_err(ConnectError)?
                 .await
-                .map_err(ConnectionError)?;
+                .map_err(|e| Into::<error::Quic>::into(e))?;
+            // .map_err(ConnectionError)?;
 
             debug!("{:?}", &endpoint.local_addr());
 
@@ -166,10 +168,10 @@ async fn run_subscription<T: Message>(
     data: Arc<TokioMutex<Option<Msg<T>>>>,
 ) -> Result<(), Error> {
     let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
-    let (mut send, mut recv) = connection.open_bi().await.map_err(ConnectionError)?;
+    let (mut send, mut recv) = connection.open_bi().await?;
 
-    send.write_all(&packet_as_bytes).await.map_err(WriteError)?;
-    send.finish().await.map_err(WriteError)?;
+    send.write_all(&packet_as_bytes).await?;
+    send.finish().await?;
 
     loop {
         let mut buf = buffer.lock().await;
@@ -273,11 +275,7 @@ impl<T: Message + 'static> Node<Blocking, Quic, Idle, T> {
             endpoint.set_default_client_config(client_cfg);
 
             // TO_DO: This shouldn't just be "localhost"
-            let connection = endpoint
-                .connect(host_addr, "localhost")
-                .map_err(ConnectError)?
-                .await
-                .map_err(ConnectionError)?;
+            let connection = endpoint.connect(host_addr, "localhost")?.await?;
 
             debug!("{:?}", &endpoint.local_addr());
 

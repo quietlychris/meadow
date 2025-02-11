@@ -73,13 +73,7 @@ impl<T: Message + 'static> Node<Nonblocking, Udp, Idle, T> {
         let addr = self.cfg.network_cfg.host_addr;
         let buffer = self.buffer.clone();
 
-        let packet = GenericMsg {
-            msg_type: MsgType::Subscribe,
-            timestamp: Utc::now(),
-            topic: topic.clone(),
-            data_type: std::any::type_name::<T>().to_string(),
-            data: to_allocvec(&rate)?,
-        };
+        let packet = GenericMsg::subscribe(&topic, rate)?;
 
         let task_subscribe = tokio::spawn(async move {
             if let Ok(socket) = UdpSocket::bind("[::]:0").await {

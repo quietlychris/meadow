@@ -13,7 +13,7 @@ use std::str::{FromStr, Utf8Error};
 use thiserror::Error;
 
 /// Meadow's Error type
-#[derive(Debug, Error)]
+#[derive(Debug, Error, Serialize, Deserialize)]
 pub enum Error {
     /// No subscription value exists
     #[error("No subscription value exists")]
@@ -25,8 +25,8 @@ pub enum Error {
     #[error("Unable to produce IP address from specified interface")]
     InvalidInterface,
     /// Transparent `sled` error
-    #[error(transparent)]
-    Sled(#[from] sled::Error),
+    #[error("`sled::Error`-derived error")]
+    Sled(SledError),
     /// Unable to create a Tokio runtime
     #[error("Unable to create a Tokio runtime")]
     RuntimeCreation,
@@ -34,8 +34,8 @@ pub enum Error {
     #[error(transparent)]
     Postcard(#[from] postcard::Error),
     /// Transparent std `Utf-8` error
-    #[error(transparent)]
-    Utf8(#[from] Utf8Error),
+    #[error("`std::str::Utf8Error`-derived error")]
+    Utf8,
     /// Error accessing an owned `TcpStream`
     #[error("Error accessing an owned TcpStream")]
     AccessStream,
@@ -53,8 +53,11 @@ pub enum Error {
     #[error(transparent)]
     Quic(#[from] crate::error::quic::Quic),
     /// Transparent `std::io` error
-    #[error(transparent)]
-    Io(#[from] std::io::Error),
+    #[error("std::io::Error-derived error")]
+    Io {
+        error_kind: String,
+        raw_os_error: Option<i32>,
+    },
     #[error("Unable to access Tokio runtime handle")]
     HandleAccess,
 }
@@ -96,5 +99,46 @@ impl From<postcard::Error> for Postcard {
             postcard::Error::SerdeSerCustom => Postcard::SerdeSerCustom,
             _ => Postcard::Other,
         }
+    }
+}
+
+impl From<std::io::Error> for Error {
+    fn from(error: std::io::Error) -> Self {
+        let error_kind = error.kind().to_string();
+
+        Error::Io {
+            error_kind,
+            raw_os_error: error.raw_os_error(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct IoError {
+    kind: String,
+    raw_os_error: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SledError {
+    CollectionNotFound(Vec<u8>),
+    Other,
+}
+
+impl From<sled::Error> for Error {
+    fn from(error: sled::Error) -> Self {
+        match error {
+            sled::Error::CollectionNotFound(ivec) => {
+                let bytes: Vec<u8> = ivec.to_vec();
+                Error::Sled(SledError::CollectionNotFound(bytes))
+            }
+            _ => Error::Sled(SledError::Other),
+        }
+    }
+}
+
+impl From<Utf8Error> for Error {
+    fn from(error: Utf8Error) -> Self {
+        Error::Utf8
     }
 }
