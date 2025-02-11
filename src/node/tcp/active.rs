@@ -60,11 +60,10 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Active, T> {
             None => return Err(Error::AccessStream),
         };
 
-        let packet = GenericMsg::get::<T>(self.topic.clone());
-        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
+        let packet = GenericMsg::get::<T>(self.topic.clone()).as_bytes()?;
 
         let mut buffer = self.buffer.lock().await;
-        send_msg(stream, packet_as_bytes).await?;
+        send_msg(stream, packet).await?;
         let msg = await_response::<T>(stream, &mut buffer).await?;
         Ok(msg)
     }
@@ -77,11 +76,10 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Active, T> {
             None => return Err(Error::AccessStream),
         };
 
-        let packet = GenericMsg::topics();
-        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
+        let packet = GenericMsg::topics().as_bytes()?;
 
         let mut buffer = self.buffer.lock().await;
-        send_msg(stream, packet_as_bytes).await?;
+        send_msg(stream, packet).await?;
         let msg = await_response::<Vec<String>>(stream, &mut buffer).await?;
         Ok(msg)
     }
@@ -96,9 +94,7 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
     #[inline]
     pub fn publish(&self, val: T) -> Result<(), Error> {
         let msg = Msg::new(MsgType::Set, self.topic.clone(), val);
-        let generic: GenericMsg = msg.try_into()?;
-
-        let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
+        let packet = msg.to_generic()?.as_bytes()?;
 
         let stream = match self.stream.as_ref() {
             Some(stream) => stream,
@@ -112,7 +108,7 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
 
         handle.block_on(async {
             // Send the publish message
-            send_msg(stream, packet_as_bytes).await?;
+            send_msg(stream, packet).await?;
             Ok(())
         })
     }
@@ -120,8 +116,7 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
     #[tracing::instrument]
     #[inline]
     pub fn publish_msg(&self, msg: Msg<T>) -> Result<(), Error> {
-        let generic: GenericMsg = msg.try_into()?;
-        let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
+        let packet = msg.to_generic()?.as_bytes()?;
 
         let stream = match self.stream.as_ref() {
             Some(stream) => stream,
@@ -135,7 +130,7 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
 
         handle.block_on(async {
             // Send the publish message
-            send_msg(stream, packet_as_bytes).await?;
+            send_msg(stream, packet).await?;
             Ok(())
         })
     }
@@ -149,9 +144,7 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
             None => return Err(Error::AccessStream),
         };
 
-        let packet = GenericMsg::get::<T>(&self.topic);
-
-        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
+        let packet = GenericMsg::get::<T>(&self.topic).as_bytes()?;
 
         let handle = match &self.rt_handle {
             Some(handle) => handle,
@@ -160,7 +153,7 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
 
         handle.block_on(async {
             let mut buffer = self.buffer.lock().await;
-            send_msg(stream, packet_as_bytes).await?;
+            send_msg(stream, packet).await?;
             let msg = await_response::<T>(stream, &mut buffer).await?;
             Ok(msg)
         })

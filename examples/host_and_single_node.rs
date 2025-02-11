@@ -54,6 +54,7 @@ fn main() -> Result<(), meadow::Error> {
     let node: Node<Blocking, N, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
     println!("Idle node built");
     let node = node.activate().unwrap();
+    println!("{}", &node);
     debug!("Node should now be connected");
     println!(
         "The size of an active meadow Node is: {}",

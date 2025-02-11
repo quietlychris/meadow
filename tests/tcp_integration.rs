@@ -177,7 +177,6 @@ fn topics_list_tcp() {
         .iter()
         .map(|x| x.to_string())
         .collect();
-    dbg!(&topics);
     let mut nodes = Vec::with_capacity(topics.len());
     for topic in topics.clone() {
         let node: Node<Blocking, N, Idle, usize> = NodeConfig::new(topic).build().unwrap();

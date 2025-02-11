@@ -119,3 +119,25 @@ impl<B: Block, I: Interface + Default, State, T: Message> Node<B, I, State, T> {
         self.topic = topic.into();
     }
 }
+
+// Similarly, implement `Display` for `Point2D`.
+use std::fmt;
+impl<B: Block, I: Interface + Default, State, T: Message> fmt::Display for Node<B, I, State, T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Customize so only `x` and `y` are denoted.
+        write!(
+            f,
+            "Node<{:?}, {}, {}, {}> {{",
+            std::any::type_name::<B>(),
+            std::any::type_name::<I>(),
+            std::any::type_name::<State>(),
+            std::any::type_name::<T>()
+        )?;
+        write!(f, "\ttopic: {}", self.topic)?;
+
+        if let Some(socket) = &self.socket {
+            write!(f, "\ttopic: {:?}", socket)?;
+        }
+        write!(f, "}}")
+    }
+}

@@ -59,11 +59,11 @@ pub async fn await_response<T: Message>(
 #[inline]
 async fn send_msg(
     socket: &UdpSocket,
-    packet_as_bytes: Vec<u8>,
+    packet: Vec<u8>,
     host_addr: SocketAddr,
 ) -> Result<usize, Error> {
     socket.writable().await?;
     // NOTE: This used to be done 10 times in a row to make sure it got through
-    let n = socket.send_to(&packet_as_bytes, host_addr).await?;
+    let n = socket.send_to(&packet, host_addr).await?;
     Ok(n)
 }

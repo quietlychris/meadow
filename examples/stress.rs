@@ -15,7 +15,7 @@ fn main() -> Result<(), meadow::Error> {
     host.start()?;
 
     let duration = Duration::from_secs(1);
-    let n = 1;
+    let n = 2;
 
     let tcp = thread::spawn(move || {
         run_tcp(n, duration).unwrap();
@@ -59,7 +59,9 @@ fn run_tcp(n: usize, duration: Duration) -> Result<(), meadow::Error> {
     while start.elapsed() < duration {
         for node in &mut nodes {
             node.publish(rng.gen())?;
-            node.request()?;
+            println!("Published");
+            let r = node.request()?;
+            println!("Got: {:?}", r);
         }
     }
     Ok(())

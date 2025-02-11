@@ -4,8 +4,8 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 
 use crate::node::private;
-pub trait Interface: private::Sealed + Default {}
-pub trait Block: private::Sealed + Default + Sized {}
+pub trait Interface: private::Sealed + Default + Debug {}
+pub trait Block: private::Sealed + Default + Sized + Debug {}
 
 #[derive(Debug, Clone, Default)]
 pub struct Tcp {}

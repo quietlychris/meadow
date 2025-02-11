@@ -14,81 +14,44 @@ struct Pose {
 fn main() -> Result<(), meadow::Error> {
     logging();
 
-    #[cfg(feature = "quic")]
-    {
-        use meadow::host::generate_certs;
-        use meadow::host::quic::QuicCertGenConfig;
-
-        generate_certs(QuicCertGenConfig::default());
-    }
-
-    // Configure the Host with logging
-    type N = Tcp;
-    let mut host = {
-        let date = chrono::Utc::now();
-        let stamp = format!(
-            "{}_{}_UTC",
-            date.date_naive(),
-            date.time().format("%H:%M:%S")
-        );
-        let sled_cfg = SledConfig::default()
-            .path(format!("./logs/{}", stamp))
-            // If we wanted to keep the logs, we'd make this `false`
-            .temporary(true);
-        let mut config = HostConfig::default().with_sled_config(sled_cfg);
-        #[cfg(feature = "quic")]
-        {
-            config = config
-                .with_udp_config(None)
-                .with_quic_config(Some(QuicConfig::default()))
-        }
-        config.build()?
-    };
-    host.start()?;
+    let sc = SledConfig::new().temporary(true);
+    let mut host = HostConfig::default().with_sled_config(sc).build().unwrap();
+    host.start().unwrap();
     println!("Host should be running in the background");
 
-    // thread::sleep(Duration::from_secs(60));
-
-    println!("Starting node");
     // Get the host up and running
-    let topics = vec!["a", "b", "c", "d", "e", "f"];
-    let node: Node<Blocking, N, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
-    println!("Idle node built");
-    let mut node = node.activate().unwrap();
-    debug!("Node should now be connected");
-    println!(
-        "The size of an active meadow Node is: {}",
-        std::mem::size_of_val(&node)
-    );
-
-    // This following two functions should fail to compile
-    // node.publish(NotPose::default())?;
-    // let not_pose: NotPose = node.request()?;
-
-    for i in 0..topics.len() {
-        // Could get this by reading a GPS, for example
-        let pose = Pose {
-            x: i as f32,
-            y: i as f32,
-        };
-        node.set_topic(topics[i]);
-
-        node.publish(pose.clone())?;
-        println!("published {}", i);
-        thread::sleep(Duration::from_millis(250));
-        let result: Msg<Pose> = node.request().unwrap();
-        dbg!(node.topics()?); // .unwrap();
-        println!("Got position: {:?}", result.data);
-
-        assert_eq!(pose, result.data);
+    let topics: Vec<String> = ["a", "b", "c", "d", "e", "f"]
+        .iter()
+        .map(|x| x.to_string())
+        .collect();
+    dbg!(&topics);
+    let mut nodes = Vec::with_capacity(topics.len());
+    for topic in topics.clone() {
+        let node: Node<Blocking, Tcp, Idle, usize> = NodeConfig::new(topic).build().unwrap();
+        let node = node.activate().unwrap();
+        nodes.push(node);
     }
 
-    println!(
-        "The size of an a meadow Host before shutdown is: {}",
-        std::mem::size_of_val(&host)
-    );
-    assert_eq!(host.topics()?, node.topics()?.data);
-
+    for i in 0..topics.len() {
+        nodes[i].publish(i).unwrap();
+        println!("Published {} on topic {}", i, nodes[i].topic());
+        let t = nodes[i].topics().unwrap();
+        dbg!(&t);
+        assert_eq!(host.topics().unwrap(), nodes[i].topics().unwrap().data);
+        let t = if i == 0 {
+            vec![topics[i].to_string()]
+        } else {
+            let mut t = topics[0..i + 1]
+                .iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<String>>();
+            t.sort();
+            t
+        };
+        let mut nt = nodes[i].topics().unwrap().data;
+        nt.sort();
+        assert_eq!(t, nt);
+    }
     Ok(())
 }
 
