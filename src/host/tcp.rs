@@ -43,41 +43,25 @@ pub async fn handshake(
 
 #[inline]
 #[tracing::instrument]
-async fn process_msg(msg: GenericMsg, stream: &TcpStream, mut db: sled::Db) -> GenericMsg {
+async fn process_msg(
+    msg: GenericMsg,
+    stream: &TcpStream,
+    mut db: sled::Db,
+) -> Result<Option<GenericMsg>, Error> {
     match msg.msg_type {
-        MsgType::Set => match db.insert_generic(msg) {
-            Ok(()) => GenericMsg::host_operation(Ok(())),
-            Err(e) => {
-                let e = match e {
-                    Error::Host(e) => e,
-                    _ => HostError::Set,
-                };
-                GenericMsg::host_operation(Err(e))
-            }
-        },
+        MsgType::Set => {
+            db.insert_generic(msg)?;
+            Ok(None)
+        }
         MsgType::Get => {
             // let msg: GenericMsg = db.get_generic(msg.topic)?;
-            match db.get_generic(msg.topic) {
-                Ok(msg) => msg,
-                Err(e) => {
-                    let e = match e {
-                        Error::Host(e) => e,
-                        _ => HostError::Get,
-                    };
-                    GenericMsg::host_operation(Err(e))
-                }
-            }
+            let msg = db.get_generic(msg.topic)?;
+            Ok(Some(msg))
         }
-        MsgType::GetNth(n) => match db.get_generic_nth(msg.topic, n) {
-            Ok(msg) => msg,
-            Err(e) => {
-                let e = match e {
-                    Error::Host(e) => e,
-                    _ => HostError::Get,
-                };
-                GenericMsg::host_operation(Err(e))
-            }
-        },
+        MsgType::GetNth(n) => {
+            let msg = db.get_generic_nth(msg.topic, n)?;
+            Ok(Some(msg))
+        }
         MsgType::Subscribe => {
             let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
             let rate = specialized.data;
@@ -92,18 +76,14 @@ async fn process_msg(msg: GenericMsg, stream: &TcpStream, mut db: sled::Db) -> G
                 sleep(rate).await;
             }
         }
-        MsgType::Topics => match db.topics() {
-            Ok(topics) => {
-                let msg = Msg::new(MsgType::Topics, "", topics).to_generic().unwrap();
-
-                msg
-            }
-            Err(e) => GenericMsg::host_operation(Err(HostError::Topics)),
-        },
-        MsgType::HostOperation(_host_op) => {
-            error!("Shouldn't have gotten HostOperation");
-            let msg = GenericMsg::host_operation(Err(HostError::RecvHostOp));
-            msg
+        MsgType::Topics => {
+            let topics = db.topics()?;
+            let msg = Msg::new(MsgType::Topics, "", topics).to_generic()?;
+            Ok(Some(msg))
+        }
+        MsgType::Error(e) => {
+            error!("Received error: {}", e);
+            Ok(None)
         }
     }
 }
@@ -129,10 +109,15 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                 match from_bytes(bytes) {
                     Ok(msg) => {
                         info!("{:?}", msg);
-                        let msg = process_msg(msg, &stream, db.clone()).await;
-                        if let Ok(bytes) = msg.as_bytes() {
-                            if let Err(e) = stream.try_write(&bytes) {
-                                error!("{}", e);
+                        let response = match process_msg(msg, &stream, db.clone()).await {
+                            Ok(msg) => msg,
+                            Err(e) => Some(GenericMsg::error(e)),
+                        };
+                        if let Some(msg) = response {
+                            if let Ok(bytes) = msg.as_bytes() {
+                                if let Err(e) = stream.try_write(&bytes) {
+                                    error!("{}", e);
+                                }
                             }
                         }
                     }

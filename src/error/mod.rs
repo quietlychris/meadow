@@ -13,7 +13,7 @@ use std::str::{FromStr, Utf8Error};
 use thiserror::Error;
 
 /// Meadow's Error type
-#[derive(Debug, Error, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Error, PartialEq)]
 pub enum Error {
     /// No subscription value exists
     #[error("No subscription value exists")]
@@ -119,7 +119,7 @@ struct IoError {
     raw_os_error: i32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum SledError {
     CollectionNotFound(Vec<u8>),
     Other,

@@ -28,7 +28,7 @@ pub enum MsgType {
     /// Request start of subscribe operation from Host
     Subscribe,
     /// Communicate success or failure of certain Host-side operations
-    HostOperation(Result<(), HostError>),
+    Error(crate::Error),
 }
 
 /// Message format containing a strongly-typed data payload and associated metadata
@@ -152,9 +152,9 @@ impl GenericMsg {
     }
 
     /// Create a generic
-    pub fn host_operation(op: Result<(), HostError>) -> Self {
+    pub fn error(e: Error) -> Self {
         GenericMsg {
-            msg_type: MsgType::HostOperation(op),
+            msg_type: MsgType::Error(e),
             timestamp: Utc::now(),
             topic: String::new(),
             data_type: std::any::type_name::<()>().to_string(),

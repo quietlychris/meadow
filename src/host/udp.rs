@@ -22,7 +22,7 @@ async fn process_msg(
     socket: &UdpSocket,
     return_addr: SocketAddr,
     mut db: sled::Db,
-) -> GenericMsg {
+) -> Result<GenericMsg, Error> {
     match msg.msg_type {
         MsgType::Set => match db.insert_generic(msg) {
             Ok(()) => GenericMsg::host_operation(Ok(())),

@@ -18,22 +18,23 @@ For all message types, the `Node` operates by:
 5. Sending the `Vec<u8>` over the connection to the host
 6. The `Host` receives a vector of bytes `Vec<u8>`
 7. The `Host` attempts to deserialize that `Vec<u8>` into a `GenericMsg`.
-    - If successful: 
-    - If not successful: 
-8. Using the `MsgType` of the `GenericMsg`, the `Host` performs an operation
+8. Using the `MsgType` of the `GenericMsg`, the `Host` performs an action, then may or may not send a reply to the `Node`. 
     1. `MsgType::Set`
-       - Insert this message into the database using the `topic` as the tree and the `timestamp` as the key.
-       -     
+       - Action: Insert this message into the database using the `topic` as the tree and the `timestamp` as the key.
+       - Reply: No reply needed    
     2. `MsgType::Get`
-       - Retrieve the last message in the database on the `topic` and send it to the requester
-  
+       - Should be equivalent to a `MsgType::GetNth(0)` operation   
+       - Action: Retrieve the last message in the database on the `topic` and send it to the requester
+       - Reply: Sends the retrieved message
     3. `MsgType::Subscribe`
-       - Begin a `Host`-side blocking loop that will retrieve the last message on the `topic` and send it to the subscribed `Node` at a given `rate`.
-       - Typically derived from a strongly-typed `Msg<Duration>`. 
+       - Typically derived from a strongly-typed `Msg<Duration>`.
+       - Action: Begin a `Host`-side blocking loop that will retrieve the last message on the `topic` and send it to the subscribed `Node` at a given `rate`. 
+       - Reply: Stream of messages at the specified rate 
     4. `MsgType::GetNth`
-       - Retrieve the n'th message back in the database log on the `topic` and send it to the requester
-       - 
+       - Action: Retrieve the n'th message back in the database log on the `topic` and send it to the requester
+       - Reply: Sends the retrieved message
     5. `MsgType::Topics`
-       - Create a list of all available topics, format them into `Vec<String>`, then into a `Msg<Vec<String>>` and then into `GenericMsg`.  
-
-At any point during these operations, a failure can be had, which will be in the form of `meadow::Error` enum. 
+       - Action: Create a list of all available topics, format them into `Vec<String>`, then into a `Msg<Vec<String>>` and then into `GenericMsg`.  
+       - Reply: Send the created message
+  
+At any point during these operations, a failure can be had, which will be in the form of `meadow::Error` enum. This error type is serializable, and so can be included in `Msg` types. As a result, a failure of any of the `Host`-side actions will result in a `MsgType::Error(e)`-based `GenericMsg` being sent back to the `Node`, which is responsible for propagating this message.  

@@ -86,7 +86,7 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
         };
         info!("{:?}", &msg);
         match msg.msg_type {
-            MsgType::HostOperation(op) => {
+            MsgType::Error(op) => {
                 // This should really never be received by Host
                 error!("Received HostOperation: {:?}", op);
             }
