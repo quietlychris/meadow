@@ -36,11 +36,10 @@ pub async fn await_response<T: Message>(
 
                 let generic = postcard::from_bytes::<GenericMsg>(bytes)?;
                 match generic.msg_type {
-                    MsgType::HostOperation(Err(e)) => {
+                    MsgType::Error(e) => {
                         error!("{}", e);
-                        return Err(Error::Host(e));
+                        return Err(e);
                     }
-                    MsgType::HostOperation(Ok(())) => continue,
                     _ => {
                         let msg: Msg<T> = generic.try_into()?;
                         return Ok(msg);

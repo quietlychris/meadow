@@ -129,8 +129,8 @@ pub async fn await_response<T: Message>(
                 let bytes = &buf[..n];
                 let generic = from_bytes::<GenericMsg>(bytes)?;
                 match generic.msg_type {
-                    MsgType::HostOperation(Err(e)) => {
-                        return Err(Error::Host(e));
+                    MsgType::Error(e) => {
+                        return Err(e);
                     }
                     _ => {
                         let msg: Msg<T> = generic.try_into()?;
