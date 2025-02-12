@@ -14,7 +14,7 @@ fn main() -> Result<(), meadow::Error> {
         .build()?;
     host.start()?;
 
-    let duration = Duration::from_secs(10);
+    let duration = Duration::from_secs(3);
     let n = 10;
 
     let tcp = thread::spawn(move || {

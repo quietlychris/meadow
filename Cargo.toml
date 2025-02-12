@@ -24,7 +24,8 @@ quic = ["quinn", "rustls", "rustls-pemfile", "rcgen", "futures-util"]
 thiserror = "1.0"
 # de/serialization and message sending
 serde = {version = "1", default-features = false, features = ["derive"]}
-postcard = {version = "1", features = ["alloc"]}
+# postcard = {version = "1", features = ["alloc"]}
+postcard = {git = "https://github.com/jamesmunns/postcard.git", rev = "1bd6d79247ce7847b7e0dbc5e839b18c84cb8fa4", features = ["alloc"]}
 chrono = {version = "0.4", features = ["serde"]}
 # key value store, networking, and async
 sled = "0.34"

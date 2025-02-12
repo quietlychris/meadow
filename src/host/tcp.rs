@@ -12,7 +12,7 @@ use std::sync::Arc;
 // Misc other imports
 use chrono::Utc;
 
-use crate::error::{Error, HostOperation::*};
+use crate::error::Error;
 use crate::prelude::*;
 use std::convert::TryInto;
 use std::result::Result;
@@ -70,7 +70,14 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
 
                 info!("{:?}", msg.msg_type);
 
-                match msg.msg_type {
+                match &msg.msg_type {
+                    MsgType::SUBSCRIBE => {
+                        start_subscription(msg.clone(), db.clone(), &stream).await;
+                    }
+                    _ => {}
+                }
+
+                match &msg.msg_type {
                     MsgType::SET => {
                         // println!("received {} bytes, to be assigned to: {}", n, &msg.name);
                         let tree = db
@@ -81,9 +88,9 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                             match tree.insert(msg.timestamp.to_string().as_bytes(), bytes) {
                                 Ok(_prev_msg) => {
                                     info!("{:?}", msg.data);
-                                    crate::error::HostOperation::SUCCESS
+                                    Ok(())
                                 }
-                                Err(_e) => crate::error::HostOperation::FAILURE,
+                                Err(e) => Err(crate::error::HostOperation::FAILURE),
                             }
                         };
 
@@ -211,6 +218,33 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
             }
             Err(e) => {
                 error!("Error: {:?}", e);
+            }
+        }
+    }
+}
+
+async fn start_subscription(msg: GenericMsg, db: sled::Db, stream: &TcpStream) {
+    let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
+    let rate = specialized.data;
+
+    if let Ok(tree) = db.open_tree(msg.topic.as_bytes()) {
+        loop {
+            if let Ok(topic) = tree.last() {
+                let return_bytes = match topic {
+                    Some(msg) => msg.1,
+                    None => {
+                        let e: String = format!("Error: no topic \"{}\" exists", &msg.topic);
+                        error!("{}", &e);
+                        e.clone().as_bytes().into()
+                    }
+                };
+
+                if let Ok(()) = stream.writable().await {
+                    if let Err(e) = stream.try_write(&return_bytes) {
+                        error!("Error sending data back on TCP/TOPICS: {:?}", e);
+                    }
+                }
+                sleep(rate).await;
             }
         }
     }
