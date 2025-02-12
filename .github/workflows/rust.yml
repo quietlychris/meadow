@@ -36,7 +36,10 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           profile: minimal
           components: clippy
-      
+            
+      - name: Check semver
+        uses: obi1kenobi/cargo-semver-checks-action@v2
+
       - name: Fmt
         run: rustup component add rustfmt
       
