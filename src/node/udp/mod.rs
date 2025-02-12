@@ -2,7 +2,7 @@ mod active;
 mod idle;
 mod subscription;
 
-use crate::msg::{GenericMsg, Message, Msg};
+use crate::msg::{GenericMsg, Message, Msg, MsgType};
 use std::convert::TryInto;
 use std::sync::Arc;
 use tokio::net::UdpSocket;
@@ -34,8 +34,13 @@ pub async fn await_response<T: Message>(
                 let bytes = &buf[..n];
 
                 let generic = postcard::from_bytes::<GenericMsg>(bytes)?;
-                let msg: Msg<T> = generic.try_into()?;
-                return Ok(msg);
+                match generic.msg_type {
+                    MsgType::Error(e) => return Err(e),
+                    _ => {
+                        let msg: Msg<T> = generic.try_into()?;
+                        return Ok(msg);
+                    }
+                }
             }
             Err(e) => {
                 if e.kind() == std::io::ErrorKind::WouldBlock {
