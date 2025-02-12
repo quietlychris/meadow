@@ -23,7 +23,7 @@ use alloc::vec::Vec;
 use postcard::from_bytes;
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::msg::{GenericMsg, Message, Msg};
+use crate::msg::{GenericMsg, Message, Msg, MsgType};
 use crate::node::network_config::Interface;
 use crate::Error;
 use chrono::{DateTime, Utc};
@@ -127,8 +127,13 @@ pub async fn await_response<T: Message>(
             Ok(n) => {
                 let bytes = &buf[..n];
                 let generic = from_bytes::<GenericMsg>(bytes)?;
-                let specialized: Msg<T> = generic.try_into()?;
-                return Ok(specialized);
+                match generic.msg_type {
+                    MsgType::Error(e) => return Err(e),
+                    _ => {
+                        let specialized: Msg<T> = generic.try_into()?;
+                        return Ok(specialized);
+                    }
+                }
             }
             Err(_e) => {
                 // if e.kind() == std::io::ErrorKind::WouldBlock {}

@@ -121,12 +121,18 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
 
                         if let Ok(topic) = tree.last() {
                             let return_bytes = match topic {
-                                Some(msg) => msg.1,
+                                Some(msg) => {
+                                    let b = msg.1.to_vec();
+                                    b
+                                }
                                 None => {
                                     let e: String =
                                         format!("Error: no topic \"{}\" exists", &msg.topic);
                                     error!("{}", &e);
-                                    e.as_bytes().into()
+                                    // e.as_bytes().into();
+                                    GenericMsg::error(Error::NonExistentTopic(msg.topic))
+                                        .as_bytes()
+                                        .unwrap()
                                 }
                             };
 
