@@ -88,7 +88,40 @@ pub async fn process_udp(
                         }
                     }
                     MsgType::GetNth(n) => {
-                        todo!()
+                        let tree = db
+                            .open_tree(msg.topic.as_bytes())
+                            .expect("Error opening tree");
+
+                        match tree.iter().nth_back(n) {
+                            Some(topic) => {
+                                let return_bytes = match topic {
+                                    Ok((_timestamp, bytes)) => bytes,
+                                    Err(e) => {
+                                        let e: String =
+                                            format!("Error: no topic \"{}\" exists", &msg.topic);
+                                        error!("{}", &e);
+                                        e.as_bytes().into()
+                                    }
+                                };
+
+                                if let Ok(()) = s.writable().await {
+                                    if let Err(e) = s.try_send_to(&return_bytes, return_addr) {
+                                        error!("Error sending data back on UDP/GET: {}", e)
+                                    };
+                                };
+                            }
+                            None => {
+                                let e: String =
+                                    format!("Error: no topic \"{}\" exists", &msg.topic);
+                                error!("{}", &e);
+
+                                if let Ok(()) = s.writable().await {
+                                    if let Err(e) = s.try_send_to(e.as_bytes(), return_addr) {
+                                        error!("Error sending data back on UDP/GET: {}", e)
+                                    };
+                                };
+                            }
+                        }
                     }
                     MsgType::Subscribe => {
                         let specialized: Msg<Duration> = msg.clone().try_into().unwrap();

@@ -212,6 +212,29 @@ impl<T: Message + 'static> Node<Blocking, Udp, Active, T> {
 
     #[tracing::instrument]
     #[inline]
+    pub fn request_nth_back(&self, n: usize) -> Result<Msg<T>, Error> {
+        let packet = GenericMsg::get_nth::<T>(self.topic.clone(), n);
+        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
+        let buffer = self.buffer.clone();
+
+        let handle = match &self.rt_handle {
+            Some(handle) => handle,
+            None => return Err(Error::HandleAccess),
+        };
+
+        handle.block_on(async {
+            if let Some(socket) = &self.socket {
+                send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await?;
+                let msg = await_response(socket, buffer).await?;
+                Ok(msg)
+            } else {
+                Err(Error::AccessSocket)
+            }
+        })
+    }
+
+    #[tracing::instrument]
+    #[inline]
     pub fn topics(&self) -> Result<Msg<Vec<String>>, Error> {
         let packet = GenericMsg::topics();
         let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
