@@ -42,6 +42,13 @@ fn main() {
     )
     .run()
     .expect("Please fix failing tests in output above.");
+    // Run certain examples
+    let examples = vec!["host_and_single_node", "stress"];
+    for example in examples {
+        cmd!(sh, "cargo run --example {example}")
+            .run()
+            .expect("Please fix failing tests in output above.");
+    }
 
     // Run doc tests: these are ignored by `cargo test`
     cmd!(sh, "cargo test --doc --workspace")
