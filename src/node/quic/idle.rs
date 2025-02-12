@@ -120,13 +120,7 @@ impl<T: Message + 'static> Node<Nonblocking, Quic, Idle, T> {
 
         let buffer = self.buffer.clone();
 
-        let packet = GenericMsg {
-            msg_type: MsgType::Subscribe,
-            timestamp: Utc::now(),
-            topic: topic.to_string(),
-            data_type: std::any::type_name::<T>().to_string(),
-            data: postcard::to_allocvec(&rate)?,
-        };
+        let packet = GenericMsg::subscribe(topic, rate)?;
 
         let task_subscribe = tokio::spawn(async move {
             if let Some(connection) = connection {
@@ -294,13 +288,7 @@ impl<T: Message + 'static> Node<Blocking, Quic, Idle, T> {
 
         let buffer = self.buffer.clone();
 
-        let packet = GenericMsg {
-            msg_type: MsgType::Subscribe,
-            timestamp: Utc::now(),
-            topic: topic.to_string(),
-            data_type: std::any::type_name::<T>().to_string(),
-            data: postcard::to_allocvec(&rate)?,
-        };
+        let packet = GenericMsg::subscribe(topic, rate)?;
 
         let handle = match &self.rt_handle {
             Some(handle) => handle,

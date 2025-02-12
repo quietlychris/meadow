@@ -108,13 +108,7 @@ impl<T: Message + 'static> Node<Nonblocking, Quic, Active, T> {
     }
 
     pub async fn topics(&self) -> Result<Msg<Vec<String>>, Error> {
-        let packet = GenericMsg {
-            msg_type: MsgType::Topics,
-            timestamp: Utc::now(),
-            topic: self.topic.to_string(),
-            data_type: std::any::type_name::<()>().to_string(),
-            data: Vec::new(),
-        };
+        let packet = GenericMsg::topics();
 
         let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
 
@@ -142,15 +136,7 @@ use crate::node::network_config::Blocking;
 impl<T: Message + 'static> Node<Blocking, Quic, Active, T> {
     #[tracing::instrument(skip(self))]
     pub fn publish(&self, val: T) -> Result<(), Error> {
-        let data: Vec<u8> = to_allocvec(&val)?;
-
-        let generic = GenericMsg {
-            msg_type: MsgType::Set,
-            timestamp: Utc::now(),
-            topic: self.topic.to_string(),
-            data_type: std::any::type_name::<T>().to_string(),
-            data,
-        };
+        let generic = Msg::new(MsgType::Set, &self.topic, val).to_generic()?;
 
         let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
 

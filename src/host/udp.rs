@@ -184,13 +184,8 @@ pub async fn process_udp(
 
                         match to_allocvec(&strings) {
                             Ok(data) => {
-                                let packet: GenericMsg = GenericMsg {
-                                    msg_type: MsgType::Topics,
-                                    timestamp: Utc::now(),
-                                    topic: "".to_string(),
-                                    data_type: std::any::type_name::<Vec<String>>().to_string(),
-                                    data,
-                                };
+                                let mut packet = GenericMsg::topics();
+                                packet.set_data(data);
 
                                 if let Ok(bytes) = to_allocvec(&packet) {
                                     if let Ok(()) = s.writable().await {

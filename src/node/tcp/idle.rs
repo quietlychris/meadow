@@ -107,13 +107,7 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Idle, T> {
         let data = Arc::clone(&subscription_data);
 
         let buffer = self.buffer.clone();
-        let packet = GenericMsg {
-            msg_type: MsgType::Subscribe,
-            timestamp: Utc::now(),
-            topic: topic.clone(),
-            data_type: std::any::type_name::<T>().to_string(),
-            data: to_allocvec(&rate)?,
-        };
+        let packet = GenericMsg::subscribe(&topic, rate)?;
 
         let task_subscribe = tokio::spawn(async move {
             if let Ok(stream) = try_connection(addr).await {
@@ -269,13 +263,7 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Idle, T> {
         let data = Arc::clone(&subscription_data);
 
         let buffer = self.buffer.clone();
-        let packet = GenericMsg {
-            msg_type: MsgType::Subscribe,
-            timestamp: Utc::now(),
-            topic: topic.clone(),
-            data_type: std::any::type_name::<T>().to_string(),
-            data: to_allocvec(&rate)?,
-        };
+        let packet = GenericMsg::subscribe(&topic, rate)?;
 
         let handle = match &self.rt_handle {
             Some(handle) => handle,
