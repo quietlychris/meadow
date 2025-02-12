@@ -84,6 +84,9 @@ pub async fn process_udp(
                             };
                         }
                     }
+                    MsgType::GetNth(n) => {
+                        todo!()
+                    }
                     MsgType::Subscribe => {
                         let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
                         let rate = specialized.data;

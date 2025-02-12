@@ -204,3 +204,70 @@ fn topics_list_tcp() {
         assert_eq!(t, nt);
     }
 }
+
+#[test]
+fn tcp_back_nth_operation() {
+    let sc = SledConfig::new().temporary(true);
+    let mut host = HostConfig::default().with_sled_config(sc).build().unwrap();
+    host.start().unwrap();
+    println!("Host should be running in the background");
+
+    // Get the host up and running
+    let node: Node<Blocking, N, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
+    let node = node.activate().unwrap();
+
+    let n = 5;
+    for i in 0..n {
+        let pose = Pose {
+            x: i as f32,
+            y: i as f32,
+        };
+        node.publish(pose.clone()).unwrap();
+        println!("Published {:?}", &pose);
+        assert_eq!(node.request().unwrap().data, pose);
+        assert_eq!(node.request_nth_back(0).unwrap().data, pose);
+    }
+    let back = 3;
+    let pose = Pose {
+        x: (n - back) as f32,
+        y: (n - back) as f32,
+    };
+    // We use "back + 1" because we're zero-indexed
+    let b = node.request_nth_back(back - 1).unwrap().data;
+    assert_eq!(node.request_nth_back(back - 1).unwrap().data, pose);
+}
+
+#[should_panic]
+#[test]
+fn tcp_back_nth_operation_fallible() {
+    let sc = SledConfig::new().temporary(true);
+    let mut host = HostConfig::default().with_sled_config(sc).build().unwrap();
+    host.start().unwrap();
+    println!("Host should be running in the background");
+
+    // Get the host up and running
+    let node: Node<Blocking, N, Idle, Pose> = NodeConfig::new("pose").build().unwrap();
+    let node = node.activate().unwrap();
+
+    let n = 5;
+    for i in 0..n {
+        let pose = Pose {
+            x: i as f32,
+            y: i as f32,
+        };
+        node.publish(pose.clone()).unwrap();
+        println!("Published {:?}", &pose);
+        assert_eq!(node.request().unwrap().data, pose);
+        assert_eq!(node.request_nth_back(0).unwrap().data, pose);
+    }
+    let back = 3;
+    let pose = Pose {
+        x: (n - back) as f32,
+        y: (n - back) as f32,
+    };
+    // We use "back + 1" because we're zero-indexed
+    let b = node.request_nth_back(back - 1).unwrap().data;
+    assert_eq!(node.request_nth_back(back - 1).unwrap().data, pose);
+    println!("Asking for a value we know doesn't exist");
+    let result = node.request_nth_back(10).unwrap();
+}

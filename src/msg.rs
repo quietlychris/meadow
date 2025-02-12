@@ -18,6 +18,8 @@ pub enum MsgType {
     Set,
     /// Request GET operation on Host
     Get,
+    /// Request `GetNth` operation on Host
+    GetNth(usize),
     /// Request list of topics from Host  
     Topics,
     /// Request start of subscribe operation from Host
@@ -114,13 +116,14 @@ impl GenericMsg {
     }
 
     /// Create a `MsgType::Subscribe` message to kick off subscriptions
+    #[inline]
     pub fn subscribe(topic: impl Into<String>, rate: Duration) -> Result<Self, Error> {
         let msg = Msg::new(MsgType::Subscribe, topic, rate);
         msg.to_generic()
     }
 
     /// Create a `MsgType::GetNth` message for requests
-    /*     #[inline]
+    #[inline]
     pub fn get_nth<T: Message>(topic: impl Into<String>, n: usize) -> Self {
         GenericMsg {
             msg_type: MsgType::GetNth(n),
@@ -129,7 +132,7 @@ impl GenericMsg {
             data_type: std::any::type_name::<T>().to_string(),
             data: Vec::new(),
         }
-    } */
+    }
 
     /// Create a default `MsgType::Topics` message
     #[inline]

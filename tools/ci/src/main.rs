@@ -43,7 +43,7 @@ fn main() {
     .run()
     .expect("Please fix failing tests in output above.");
     // Run certain examples
-    let examples = vec!["host_and_single_node", "stress"];
+    let examples = vec!["host_and_single_node", "stress", "host"];
     for example in examples {
         cmd!(sh, "cargo run --example {example}")
             .run()

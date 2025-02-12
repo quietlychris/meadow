@@ -205,6 +205,48 @@ impl Store for sled::Db {
     }
 }
 
+impl Store for Host {
+    /// Insert a raw `Msg<T>`
+    #[inline]
+    fn insert_msg<T: Message>(&mut self, msg: Msg<T>) -> Result<(), crate::Error> {
+        self.db().insert_msg(msg)
+    }
+
+    /// Insert a value using a default `Msg`
+    #[inline]
+    fn insert<T: Message>(
+        &mut self,
+        topic: impl Into<String> + std::fmt::Debug,
+        data: T,
+    ) -> Result<(), crate::Error> {
+        self.db().insert(topic, data)
+    }
+
+    /// Retrieve last message on a given topic
+    #[inline]
+    fn get<T: Message>(
+        &self,
+        topic: impl Into<String> + std::fmt::Debug,
+    ) -> Result<Msg<T>, crate::Error> {
+        self.db().get(topic)
+    }
+
+    /// Retrieve n'th message on a given topic, if it exists
+    #[inline]
+    fn get_nth_back<T: Message>(
+        &self,
+        topic: impl Into<String> + std::fmt::Debug,
+        n: usize,
+    ) -> Result<Msg<T>, crate::Error> {
+        self.db().get_nth_back(topic, n)
+    }
+
+    #[inline]
+    fn topics(&self) -> Result<Vec<String>, crate::Error> {
+        self.db().topics()
+    }
+}
+
 impl Drop for Host {
     fn drop(&mut self) {
         if let Some(task) = &self.task_listen_tcp {

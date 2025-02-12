@@ -134,6 +134,9 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
                     }
                 }
             }
+            MsgType::GetNth(n) => {
+                todo!()
+            }
             MsgType::Subscribe => {
                 let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
                 let rate = specialized.data;

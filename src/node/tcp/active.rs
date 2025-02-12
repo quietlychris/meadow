@@ -265,6 +265,38 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
         })
     }
 
+    /// Request data from host on Node's assigned topic
+    #[tracing::instrument]
+    #[inline]
+    pub fn request_nth_back(&self, n: usize) -> Result<Msg<T>, Error> {
+        let stream = match self.stream.as_ref() {
+            Some(stream) => stream,
+            None => return Err(Error::AccessStream),
+        };
+
+        let packet: GenericMsg = GenericMsg {
+            msg_type: MsgType::GetNth(n),
+            timestamp: Utc::now(),
+            topic: self.topic.to_string(),
+            data_type: std::any::type_name::<T>().to_string(),
+            data: Vec::new(),
+        };
+
+        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
+
+        let handle = match &self.rt_handle {
+            Some(handle) => handle,
+            None => return Err(Error::HandleAccess),
+        };
+
+        handle.block_on(async {
+            let mut buffer = self.buffer.lock().await;
+            send_msg(stream, packet_as_bytes).await?;
+            let msg = await_response::<T>(stream, &mut buffer).await?;
+            Ok(msg)
+        })
+    }
+
     #[tracing::instrument]
     #[inline]
     pub fn topics(&self) -> Result<Msg<Vec<String>>, Error> {

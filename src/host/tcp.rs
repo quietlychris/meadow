@@ -13,6 +13,7 @@ use std::sync::Arc;
 use chrono::Utc;
 
 use crate::error::Error;
+use crate::host::GenericStore;
 use crate::prelude::*;
 use std::convert::TryInto;
 use std::result::Result;
@@ -129,6 +130,42 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                             if let Ok(()) = stream.writable().await {
                                 if let Err(e) = stream.try_write(&return_bytes) {
                                     error!("Error sending data back on TCP/TOPICS: {:?}", e);
+                                }
+                            }
+                        }
+                    }
+                    MsgType::GetNth(n) => {
+                        let tree = db
+                            .open_tree(msg.topic.as_bytes())
+                            .expect("Error opening tree");
+
+                        match tree.iter().nth_back(*n) {
+                            Some(topic) => {
+                                let return_bytes = match topic {
+                                    Ok((_timestamp, bytes)) => bytes,
+                                    Err(e) => {
+                                        let e: String =
+                                            format!("Error: no topic \"{}\" exists", &msg.topic);
+                                        error!("{}", &e);
+                                        e.as_bytes().into()
+                                    }
+                                };
+
+                                if let Ok(()) = stream.writable().await {
+                                    if let Err(e) = stream.try_write(&return_bytes) {
+                                        error!("Error sending data back on TCP/TOPICS: {:?}", e);
+                                    }
+                                }
+                            }
+                            None => {
+                                let e: String =
+                                    format!("Error: no topic \"{}\" exists", &msg.topic);
+                                error!("{}", &e);
+
+                                if let Ok(()) = stream.writable().await {
+                                    if let Err(e) = stream.try_write(e.as_bytes()) {
+                                        error!("Error sending data back on TCP/TOPICS: {:?}", e);
+                                    }
                                 }
                             }
                         }
