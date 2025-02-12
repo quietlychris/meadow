@@ -45,7 +45,10 @@ pub async fn process_udp(
                 };
 
                 match msg.msg_type {
-                    MsgType::SET => {
+                    MsgType::Error(e) => {
+                        todo!();
+                    }
+                    MsgType::Set => {
                         info!("Received SET message: {:?}", &msg);
                         let tree = db
                             .open_tree(msg.topic.as_bytes())
@@ -61,7 +64,7 @@ pub async fn process_udp(
                             }
                         };
                     }
-                    MsgType::GET => {
+                    MsgType::Get => {
                         let tree = db
                             .open_tree(msg.topic.as_bytes())
                             .expect("Error opening tree");
@@ -84,7 +87,43 @@ pub async fn process_udp(
                             };
                         }
                     }
-                    MsgType::SUBSCRIBE => {
+                    MsgType::GetNth(n) => {
+                        let tree = db
+                            .open_tree(msg.topic.as_bytes())
+                            .expect("Error opening tree");
+
+                        match tree.iter().nth_back(n) {
+                            Some(topic) => {
+                                let return_bytes = match topic {
+                                    Ok((_timestamp, bytes)) => bytes,
+                                    Err(e) => {
+                                        let e: String =
+                                            format!("Error: no topic \"{}\" exists", &msg.topic);
+                                        error!("{}", &e);
+                                        e.as_bytes().into()
+                                    }
+                                };
+
+                                if let Ok(()) = s.writable().await {
+                                    if let Err(e) = s.try_send_to(&return_bytes, return_addr) {
+                                        error!("Error sending data back on UDP/GET: {}", e)
+                                    };
+                                };
+                            }
+                            None => {
+                                let e: String =
+                                    format!("Error: no topic \"{}\" exists", &msg.topic);
+                                error!("{}", &e);
+
+                                if let Ok(()) = s.writable().await {
+                                    if let Err(e) = s.try_send_to(e.as_bytes(), return_addr) {
+                                        error!("Error sending data back on UDP/GET: {}", e)
+                                    };
+                                };
+                            }
+                        }
+                    }
+                    MsgType::Subscribe => {
                         let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
                         let rate = specialized.data;
                         info!("Received SUBSCRIBE message: {:?}", &msg);
@@ -122,7 +161,7 @@ pub async fn process_udp(
                             }
                         });
                     }
-                    MsgType::TOPICS => {
+                    MsgType::Topics => {
                         let names = db.tree_names();
 
                         let mut strings = Vec::new();
@@ -145,13 +184,8 @@ pub async fn process_udp(
 
                         match to_allocvec(&strings) {
                             Ok(data) => {
-                                let packet: GenericMsg = GenericMsg {
-                                    msg_type: MsgType::TOPICS,
-                                    timestamp: Utc::now(),
-                                    topic: "".to_string(),
-                                    data_type: std::any::type_name::<Vec<String>>().to_string(),
-                                    data,
-                                };
+                                let mut packet = GenericMsg::topics();
+                                packet.set_data(data);
 
                                 if let Ok(bytes) = to_allocvec(&packet) {
                                     if let Ok(()) = s.writable().await {

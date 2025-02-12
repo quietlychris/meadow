@@ -54,7 +54,7 @@ pub mod prelude {
     pub use crate::msg::{GenericMsg, Message, Msg, MsgType};
     pub use crate::networks::get_ip;
 
-    pub use crate::host::{Host, HostConfig, SledConfig, UdpConfig};
+    pub use crate::host::{Host, HostConfig, SledConfig, Store, UdpConfig};
     pub use crate::node::config::NodeConfig;
     pub use crate::node::config::RuntimeConfig;
     pub use crate::node::network_config::{Blocking, NetworkConfig, Nonblocking, Tcp, Udp};

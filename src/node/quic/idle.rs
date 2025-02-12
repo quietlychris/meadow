@@ -95,11 +95,7 @@ impl<T: Message + 'static> Node<Nonblocking, Quic, Idle, T> {
             endpoint.set_default_client_config(client_cfg);
 
             // TO_DO: This shouldn't just be "localhost"
-            let connection = endpoint
-                .connect(host_addr, "localhost")
-                .map_err(ConnectError)?
-                .await
-                .map_err(ConnectionError)?;
+            let connection = endpoint.connect(host_addr, "localhost")?.await?;
 
             debug!("{:?}", &endpoint.local_addr());
 
@@ -124,13 +120,7 @@ impl<T: Message + 'static> Node<Nonblocking, Quic, Idle, T> {
 
         let buffer = self.buffer.clone();
 
-        let packet = GenericMsg {
-            msg_type: MsgType::SUBSCRIBE,
-            timestamp: Utc::now(),
-            topic: topic.to_string(),
-            data_type: std::any::type_name::<T>().to_string(),
-            data: postcard::to_allocvec(&rate)?,
-        };
+        let packet = GenericMsg::subscribe(topic, rate)?;
 
         let task_subscribe = tokio::spawn(async move {
             if let Some(connection) = connection {
@@ -165,11 +155,10 @@ async fn run_subscription<T: Message>(
     connection: quinn::Connection,
     data: Arc<TokioMutex<Option<Msg<T>>>>,
 ) -> Result<(), Error> {
-    let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
-    let (mut send, mut recv) = connection.open_bi().await.map_err(ConnectionError)?;
+    let (mut send, mut recv) = connection.open_bi().await?;
 
-    send.write_all(&packet_as_bytes).await.map_err(WriteError)?;
-    send.finish().await.map_err(WriteError)?;
+    send.write_all(&packet.as_bytes()?).await?;
+    send.finish().await?;
 
     loop {
         let mut buf = buffer.lock().await;
@@ -273,11 +262,7 @@ impl<T: Message + 'static> Node<Blocking, Quic, Idle, T> {
             endpoint.set_default_client_config(client_cfg);
 
             // TO_DO: This shouldn't just be "localhost"
-            let connection = endpoint
-                .connect(host_addr, "localhost")
-                .map_err(ConnectError)?
-                .await
-                .map_err(ConnectionError)?;
+            let connection = endpoint.connect(host_addr, "localhost")?.await?;
 
             debug!("{:?}", &endpoint.local_addr());
 
@@ -302,13 +287,7 @@ impl<T: Message + 'static> Node<Blocking, Quic, Idle, T> {
 
         let buffer = self.buffer.clone();
 
-        let packet = GenericMsg {
-            msg_type: MsgType::SUBSCRIBE,
-            timestamp: Utc::now(),
-            topic: topic.to_string(),
-            data_type: std::any::type_name::<T>().to_string(),
-            data: postcard::to_allocvec(&rate)?,
-        };
+        let packet = GenericMsg::subscribe(topic, rate)?;
 
         let handle = match &self.rt_handle {
             Some(handle) => handle,

@@ -73,13 +73,7 @@ impl<T: Message + 'static> Node<Nonblocking, Udp, Idle, T> {
         let addr = self.cfg.network_cfg.host_addr;
         let buffer = self.buffer.clone();
 
-        let packet = GenericMsg {
-            msg_type: MsgType::SUBSCRIBE,
-            timestamp: Utc::now(),
-            topic: topic.clone(),
-            data_type: std::any::type_name::<T>().to_string(),
-            data: to_allocvec(&rate)?,
-        };
+        let packet = GenericMsg::subscribe(topic, rate)?;
 
         let task_subscribe = tokio::spawn(async move {
             if let Ok(socket) = UdpSocket::bind("[::]:0").await {
@@ -118,8 +112,7 @@ async fn run_subscription<T: Message>(
     data: Arc<TokioMutex<Option<Msg<T>>>>,
     addr: SocketAddr,
 ) -> Result<(), Error> {
-    let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
-    udp::send_msg(socket, packet_as_bytes.clone(), addr).await?;
+    udp::send_msg(socket, packet.as_bytes()?, addr).await?;
 
     loop {
         let msg = udp::await_response::<T>(socket, buffer.clone()).await?;
@@ -197,13 +190,7 @@ impl<T: Message + 'static> Node<Blocking, Udp, Idle, T> {
         let addr = self.cfg.network_cfg.host_addr;
         let buffer = self.buffer.clone();
 
-        let packet = GenericMsg {
-            msg_type: MsgType::SUBSCRIBE,
-            timestamp: Utc::now(),
-            topic: topic.clone(),
-            data_type: std::any::type_name::<T>().to_string(),
-            data: to_allocvec(&rate)?,
-        };
+        let packet = GenericMsg::subscribe(topic, rate)?;
 
         let handle = match &self.rt_handle {
             Some(handle) => handle,

@@ -107,13 +107,7 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Idle, T> {
         let data = Arc::clone(&subscription_data);
 
         let buffer = self.buffer.clone();
-        let packet = GenericMsg {
-            msg_type: MsgType::SUBSCRIBE,
-            timestamp: Utc::now(),
-            topic: topic.clone(),
-            data_type: std::any::type_name::<T>().to_string(),
-            data: to_allocvec(&rate)?,
-        };
+        let packet = GenericMsg::subscribe(&topic, rate)?;
 
         let task_subscribe = tokio::spawn(async move {
             if let Ok(stream) = try_connection(addr).await {
@@ -149,8 +143,7 @@ async fn run_subscription<T: Message>(
     stream: &TcpStream,
     data: Arc<TokioMutex<Option<Msg<T>>>>,
 ) -> Result<(), Error> {
-    let packet_as_bytes = to_allocvec(&packet)?;
-    send_msg(stream, packet_as_bytes).await?;
+    send_msg(stream, packet.as_bytes()?).await?;
 
     let mut buffer = buffer.lock().await;
     loop {
@@ -269,13 +262,7 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Idle, T> {
         let data = Arc::clone(&subscription_data);
 
         let buffer = self.buffer.clone();
-        let packet = GenericMsg {
-            msg_type: MsgType::SUBSCRIBE,
-            timestamp: Utc::now(),
-            topic: topic.clone(),
-            data_type: std::any::type_name::<T>().to_string(),
-            data: to_allocvec(&rate)?,
-        };
+        let packet = GenericMsg::subscribe(&topic, rate)?;
 
         let handle = match &self.rt_handle {
             Some(handle) => handle,
@@ -308,43 +295,3 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Idle, T> {
         Ok(subscription_node)
     }
 }
-
-/* async fn run_subscription_sync<T: Message>(
-    packet: GenericMsg,
-    buffer: Arc<TokioMutex<Vec<u8>>>,
-    stream: &TcpStream,
-    data: Arc<TokioMutex<Option<Msg<T>>>>,
-) -> Result<(), Error> {
-    let packet_as_bytes = to_allocvec(&packet)?;
-    send_msg(stream, packet_as_bytes).await?;
-
-    let mut buffer = buffer.lock().await;
-    loop {
-        match await_response::<T>(stream, &mut buffer).await {
-            Ok(msg) => {
-                let mut data = data.lock().await;
-                use std::ops::DerefMut;
-                match data.deref_mut() {
-                    Some(existing) => {
-                        let delta = msg.timestamp - existing.timestamp;
-                        // println!("The time difference between msg tx/rx is: {} us",delta);
-                        if delta <= chrono::Duration::zero() {
-                            // println!("Data is not newer, skipping to next subscription iteration");
-                            continue;
-                        }
-
-                        *data = Some(msg);
-                    }
-                    None => {
-                        *data = Some(msg);
-                    }
-                }
-            }
-            Err(e) => {
-                error!("Subscription Error: {:?}", e);
-                continue;
-            }
-        };
-    }
-}
- */

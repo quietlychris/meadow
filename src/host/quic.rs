@@ -86,7 +86,10 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
         };
         info!("{:?}", &msg);
         match msg.msg_type {
-            MsgType::SET => {
+            MsgType::Error(e) => {
+                error!("Received {}", e);
+            }
+            MsgType::Set => {
                 let tree = db
                     .open_tree(msg.topic.as_bytes())
                     .expect("Error opening tree");
@@ -113,7 +116,7 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
                     }
                 }
             }
-            MsgType::GET => {
+            MsgType::Get => {
                 let tree = db
                     .open_tree(msg.topic.as_bytes())
                     .expect("Error opening tree");
@@ -134,7 +137,44 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
                     }
                 }
             }
-            MsgType::SUBSCRIBE => {
+            MsgType::GetNth(n) => {
+                let tree = db
+                    .open_tree(msg.topic.as_bytes())
+                    .expect("Error opening tree");
+
+                match tree.iter().nth_back(n) {
+                    Some(topic) => {
+                        let return_bytes = match topic {
+                            Ok((_timestamp, bytes)) => bytes,
+                            Err(e) => {
+                                let e: String =
+                                    format!("Error: no topic \"{}\" exists", &msg.topic);
+                                error!("{}", &e);
+                                e.as_bytes().into()
+                            }
+                        };
+
+                        match tx.write(&return_bytes).await {
+                            Ok(_n) => {}
+                            Err(e) => {
+                                error!("{}", e);
+                            }
+                        }
+                    }
+                    None => {
+                        let e: String = format!("Error: no topic \"{}\" exists", &msg.topic);
+                        error!("{}", &e);
+
+                        match tx.write(&e.as_bytes()).await {
+                            Ok(_n) => {}
+                            Err(e) => {
+                                error!("{}", e);
+                            }
+                        }
+                    }
+                }
+            }
+            MsgType::Subscribe => {
                 let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
                 let rate = specialized.data;
 
@@ -161,7 +201,7 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
                     sleep(rate).await;
                 }
             }
-            MsgType::TOPICS => {
+            MsgType::Topics => {
                 let names = db.tree_names();
                 let mut strings = Vec::new();
                 for name in names {
@@ -176,13 +216,8 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
                     .unwrap();
                 strings.remove(index);
                 if let Ok(data) = to_allocvec(&strings) {
-                    let packet: GenericMsg = GenericMsg {
-                        msg_type: MsgType::TOPICS,
-                        timestamp: Utc::now(),
-                        topic: "".to_string(),
-                        data_type: std::any::type_name::<Vec<String>>().to_string(),
-                        data,
-                    };
+                    let mut packet = GenericMsg::topics();
+                    packet.set_data(data);
 
                     if let Ok(bytes) = to_allocvec(&packet) {
                         if let Err(e) = tx.write(&bytes).await {

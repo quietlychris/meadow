@@ -60,6 +60,193 @@ pub struct Host {
     pub(crate) store: sled::Db,
 }
 
+pub trait Store {
+    fn insert_msg<T: Message>(&mut self, msg: Msg<T>) -> Result<(), crate::Error>;
+    fn insert<T: Message>(
+        &mut self,
+        topic: impl Into<String> + std::fmt::Debug,
+        data: T,
+    ) -> Result<(), crate::Error>;
+    fn get<T: Message>(
+        &self,
+        topic: impl Into<String> + std::fmt::Debug,
+    ) -> Result<Msg<T>, crate::Error>;
+    fn get_nth_back<T: Message>(
+        &self,
+        topic: impl Into<String> + std::fmt::Debug,
+        n: usize,
+    ) -> Result<Msg<T>, crate::Error>;
+    fn topics(&self) -> Result<Vec<String>, crate::Error>;
+}
+
+pub(crate) trait GenericStore {
+    fn insert_generic(&mut self, msg: GenericMsg) -> Result<(), crate::Error>;
+    fn get_generic(
+        &self,
+        topic: impl Into<String> + std::fmt::Debug,
+    ) -> Result<GenericMsg, crate::Error>;
+    fn get_generic_nth(
+        &self,
+        topic: impl Into<String> + std::fmt::Debug,
+        n: usize,
+    ) -> Result<GenericMsg, crate::Error>;
+}
+
+impl GenericStore for sled::Db {
+    #[tracing::instrument]
+    fn insert_generic(&mut self, msg: GenericMsg) -> Result<(), crate::Error> {
+        let bytes = msg.as_bytes()?;
+        let tree = self.open_tree(msg.topic.as_bytes())?;
+        tree.insert(msg.timestamp.to_string().as_bytes(), bytes)?;
+        Ok(())
+    }
+
+    #[tracing::instrument]
+    fn get_generic(
+        &self,
+        topic: impl Into<String> + std::fmt::Debug,
+    ) -> Result<GenericMsg, crate::Error> {
+        let topic = topic.into();
+        let tree = self.open_tree(topic.as_bytes())?;
+        match tree.last()? {
+            Some((_timestamp, bytes)) => {
+                let msg: GenericMsg = postcard::from_bytes(&bytes)?;
+                Ok(msg)
+            }
+            None => Err(Error::NonExistentTopic(topic.to_string())),
+        }
+    }
+
+    #[tracing::instrument]
+    fn get_generic_nth(
+        &self,
+        topic: impl Into<String> + std::fmt::Debug,
+        n: usize,
+    ) -> Result<GenericMsg, crate::Error> {
+        let topic: String = topic.into();
+        let tree = self.open_tree(topic.as_bytes())?;
+        match tree.iter().nth_back(n) {
+            Some(n) => match n {
+                Ok((_timestamp, bytes)) => {
+                    let msg: GenericMsg = postcard::from_bytes(&bytes)?;
+                    Ok(msg)
+                }
+                Err(e) => Err(e.into()),
+            },
+            None => Err(Error::NoNthValue),
+        }
+    }
+}
+
+impl Store for sled::Db {
+    /// Insert a raw `Msg<T>`
+    #[inline]
+    fn insert_msg<T: Message>(&mut self, msg: Msg<T>) -> Result<(), crate::Error> {
+        let generic: GenericMsg = msg.try_into()?;
+        self.insert_generic(generic)?;
+
+        Ok(())
+    }
+
+    /// Insert a value using a default `Msg`
+    #[inline]
+    fn insert<T: Message>(
+        &mut self,
+        topic: impl Into<String>,
+        data: T,
+    ) -> Result<(), crate::Error> {
+        let msg = Msg::new(MsgType::Set, topic, data);
+        self.insert_msg(msg)?;
+        Ok(())
+    }
+
+    /// Retrieve last message on a given topic
+    #[inline]
+    fn get<T: Message>(&self, topic: impl Into<String>) -> Result<Msg<T>, crate::Error> {
+        let generic = self.get_generic(topic.into())?;
+        let msg: Msg<T> = generic.try_into()?;
+        Ok(msg)
+    }
+
+    /// Retrieve n'th message on a given topic, if it exists
+    #[inline]
+    fn get_nth_back<T: Message>(
+        &self,
+        topic: impl Into<String>,
+        n: usize,
+    ) -> Result<Msg<T>, crate::Error> {
+        let generic = self.get_generic_nth(topic.into(), n)?;
+        let msg: Msg<T> = generic.try_into()?;
+        Ok(msg)
+    }
+
+    #[inline]
+    fn topics(&self) -> Result<Vec<String>, crate::Error> {
+        let names = self.tree_names();
+        let mut strings = Vec::new();
+        for name in names {
+            match std::str::from_utf8(&name[..]) {
+                Ok(name) => {
+                    strings.push(name.to_string());
+                }
+                Err(_e) => {
+                    error!("Error converting topic name {:?} to UTF-8 bytes", name);
+                }
+            }
+        }
+        // Remove default sled tree name
+        let index = strings
+            .iter()
+            .position(|x| *x == "__sled__default")
+            .unwrap();
+        strings.remove(index);
+        strings.sort();
+        Ok(strings)
+    }
+}
+
+impl Store for Host {
+    /// Insert a raw `Msg<T>`
+    #[inline]
+    fn insert_msg<T: Message>(&mut self, msg: Msg<T>) -> Result<(), crate::Error> {
+        self.db().insert_msg(msg)
+    }
+
+    /// Insert a value using a default `Msg`
+    #[inline]
+    fn insert<T: Message>(
+        &mut self,
+        topic: impl Into<String> + std::fmt::Debug,
+        data: T,
+    ) -> Result<(), crate::Error> {
+        self.db().insert(topic, data)
+    }
+
+    /// Retrieve last message on a given topic
+    #[inline]
+    fn get<T: Message>(
+        &self,
+        topic: impl Into<String> + std::fmt::Debug,
+    ) -> Result<Msg<T>, crate::Error> {
+        self.db().get(topic)
+    }
+
+    /// Retrieve n'th message on a given topic, if it exists
+    #[inline]
+    fn get_nth_back<T: Message>(
+        &self,
+        topic: impl Into<String> + std::fmt::Debug,
+        n: usize,
+    ) -> Result<Msg<T>, crate::Error> {
+        self.db().get_nth_back(topic, n)
+    }
+
+    #[inline]
+    fn topics(&self) -> Result<Vec<String>, crate::Error> {
+        self.db().topics()
+    }
+}
+
 impl Drop for Host {
     fn drop(&mut self) {
         if let Some(task) = &self.task_listen_tcp {
@@ -116,7 +303,7 @@ impl Host {
         topic: impl Into<String>,
         data: T,
     ) -> Result<(), crate::Error> {
-        let msg = Msg::new(MsgType::SET, topic, data);
+        let msg = Msg::new(MsgType::Set, topic, data);
         self.insert_msg(msg)?;
         Ok(())
     }
@@ -251,8 +438,7 @@ impl Host {
                     quic_cfg.network_cfg.max_buffer_size,
                     quic_cfg.network_cfg.max_name_size,
                 );
-                let server_config =
-                    ServerConfig::with_single_cert(certs, key).map_err(RustlsError)?;
+                let server_config = ServerConfig::with_single_cert(certs, key)?;
 
                 let task_listen_quic = self.runtime.spawn(async move {
                     if let Ok(endpoint) = Endpoint::server(server_config, addr) {
