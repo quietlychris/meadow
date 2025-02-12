@@ -16,6 +16,8 @@ use std::{fs::File, io::BufReader};
 
 // Tracing for logging
 use tracing::*;
+// Redb
+use redb::Database;
 // Multi-threading primitives
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
@@ -52,7 +54,7 @@ pub struct Host {
     pub task_listen_udp: Option<JoinHandle<()>>,
     #[cfg(feature = "quic")]
     pub task_listen_quic: Option<JoinHandle<()>>,
-    pub store: sled::Db,
+    pub store: Arc<Database>
 }
 
 impl Host {
@@ -254,9 +256,11 @@ impl Host {
     }
 
     /// Create a vector of topics based on UTF-8 Sled tree names
-    pub fn topics(&self) -> Vec<String> {
+    pub fn topics(&self) -> Result<Vec<String>, Error> {
         let db = self.store.clone();
-        let names = db.tree_names();
+        let read_txn = db.begin_read()?;
+        .list_tables()?.iter().collect();
+
         let mut strings = Vec::new();
         for name in names {
             if let Ok(name) = std::str::from_utf8(&name[..]) {
@@ -268,7 +272,7 @@ impl Host {
         if let Some(n) = index {
             strings.remove(n);
         }
-        strings
+        Ok(strings)
     }
 
     /// Print information about all Host connections

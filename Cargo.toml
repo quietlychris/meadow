@@ -27,7 +27,7 @@ serde = {version = "1", default-features = false, features = ["derive"]}
 postcard = {version = "1", features = ["alloc"]}
 chrono = {version = "0.4", features = ["serde"]}
 # key value store, networking, and async
-sled = "0.34"
+redb = "2"
 pnet_datalink = "0.33"
 tokio = { version = "1", features = ["net", "rt-multi-thread", "io-util", "sync", "time"] }
 # logging

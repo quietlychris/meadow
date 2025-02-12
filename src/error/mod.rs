@@ -24,9 +24,11 @@ pub enum Error {
     /// Unable to produce IP address from specified interface
     #[error("Unable to produce IP address from specified interface")]
     InvalidInterface,
-    /// Transparent `sled` error
+    /// Transparent `redb` error
     #[error(transparent)]
-    Sled(#[from] sled::Error),
+    Redb(#[from] RedbError),
+    #[error(transparent)]
+    Transaction(#[from] redb::TransactionError),
     /// Unable to create a Tokio runtime
     #[error("Unable to create a Tokio runtime")]
     RuntimeCreation,
@@ -59,3 +61,19 @@ pub enum Error {
 
 /// This is the Result type used by meadow.
 pub type Result<T> = ::core::result::Result<T, Error>;
+
+
+/* impl From<redb::Error> for Error {
+    fn from(value: redb::Error) -> Self {
+        crate::Error::Redb(value)
+    }
+} */
+
+#[error(transparent)]
+#[derive(Debug, Error)]
+pub enum RedbError {
+    #[error(transparent)]
+    Redb(#[from] redb::Error),
+    #[error(transparent)]
+    Transaction(#[from] redb::TransactionError)
+}

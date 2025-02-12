@@ -2,8 +2,8 @@ use meadow::*;
 use std::thread;
 use std::time::Duration;
 
-use tracing::*;
 use std::path::Path;
+use tracing::*;
 
 /// Example test struct for docs and tests
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -19,7 +19,6 @@ fn main() -> Result<(), meadow::Error> {
 
     let archive = Path::new("logs").join("read_test").with_extension("sled");
     // dbg!(archive);
-
 
     // Configure the Host with logging
     let mut host = {
