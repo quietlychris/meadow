@@ -138,6 +138,73 @@ impl GenericStore for sled::Db {
     }
 }
 
+impl Store for sled::Db {
+    /// Insert a raw `Msg<T>`
+    #[inline]
+    fn insert_msg<T: Message>(&mut self, msg: Msg<T>) -> Result<(), crate::Error> {
+        let generic: GenericMsg = msg.try_into()?;
+        self.insert_generic(generic)?;
+
+        Ok(())
+    }
+
+    /// Insert a value using a default `Msg`
+    #[inline]
+    fn insert<T: Message>(
+        &mut self,
+        topic: impl Into<String>,
+        data: T,
+    ) -> Result<(), crate::Error> {
+        let msg = Msg::new(MsgType::SET, topic, data);
+        self.insert_msg(msg)?;
+        Ok(())
+    }
+
+    /// Retrieve last message on a given topic
+    #[inline]
+    fn get<T: Message>(&self, topic: impl Into<String>) -> Result<Msg<T>, crate::Error> {
+        let generic = self.get_generic(topic.into())?;
+        let msg: Msg<T> = generic.try_into()?;
+        Ok(msg)
+    }
+
+    /// Retrieve n'th message on a given topic, if it exists
+    #[inline]
+    fn get_nth_back<T: Message>(
+        &self,
+        topic: impl Into<String>,
+        n: usize,
+    ) -> Result<Msg<T>, crate::Error> {
+        let generic = self.get_generic_nth(topic.into(), n)?;
+        let msg: Msg<T> = generic.try_into()?;
+        Ok(msg)
+    }
+
+    #[inline]
+    fn topics(&self) -> Result<Vec<String>, crate::Error> {
+        let names = self.tree_names();
+        let mut strings = Vec::new();
+        for name in names {
+            match std::str::from_utf8(&name[..]) {
+                Ok(name) => {
+                    strings.push(name.to_string());
+                }
+                Err(_e) => {
+                    error!("Error converting topic name {:?} to UTF-8 bytes", name);
+                }
+            }
+        }
+        // Remove default sled tree name
+        let index = strings
+            .iter()
+            .position(|x| *x == "__sled__default")
+            .unwrap();
+        strings.remove(index);
+        strings.sort();
+        Ok(strings)
+    }
+}
+
 impl Drop for Host {
     fn drop(&mut self) {
         if let Some(task) = &self.task_listen_tcp {
