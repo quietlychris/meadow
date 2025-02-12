@@ -86,6 +86,9 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
         };
         info!("{:?}", &msg);
         match msg.msg_type {
+            MsgType::Error(e) => {
+                todo!()
+            }
             MsgType::Set => {
                 let tree = db
                     .open_tree(msg.topic.as_bytes())

@@ -45,6 +45,9 @@ pub async fn process_udp(
                 };
 
                 match msg.msg_type {
+                    MsgType::Error(e) => {
+                        todo!();
+                    }
                     MsgType::Set => {
                         info!("Received SET message: {:?}", &msg);
                         let tree = db

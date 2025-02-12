@@ -13,7 +13,7 @@ use std::str::{FromStr, Utf8Error};
 use thiserror::Error;
 
 /// Meadow's Error type
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, Error, Serialize, Deserialize, PartialEq)]
 pub enum Error {
     /// Errors based on Host operations
     #[error(transparent)]

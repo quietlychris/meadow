@@ -11,7 +11,7 @@ pub trait Message: Serialize + DeserializeOwned + Debug + Sync + Send + Clone {}
 impl<T> Message for T where T: Serialize + DeserializeOwned + Debug + Sync + Send + Clone {}
 
 /// Msg definitions for publish or request of topic data
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[repr(C)]
 pub enum MsgType {
     /// Request SET operation on Host
@@ -24,6 +24,8 @@ pub enum MsgType {
     Topics,
     /// Request start of subscribe operation from Host
     Subscribe,
+    /// Communicate success or failure of certain Host-side operations
+    Error(crate::Error),
 }
 
 /// Message format containing a strongly-typed data payload and associated metadata
@@ -147,7 +149,7 @@ impl GenericMsg {
     }
 
     /// Create a generic
-    /*     pub fn error(e: Error) -> Self {
+    pub fn error(e: Error) -> Self {
         GenericMsg {
             msg_type: MsgType::Error(e),
             timestamp: Utc::now(),
@@ -155,7 +157,7 @@ impl GenericMsg {
             data_type: std::any::type_name::<()>().to_string(),
             data: Vec::new(),
         }
-    } */
+    }
 
     /// Directly insert a data payload of `u8` bytes into a `GenericMsg`
     pub fn set_data(&mut self, data: Vec<u8>) {

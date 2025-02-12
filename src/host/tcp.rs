@@ -81,6 +81,9 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                 }
 
                 match &msg.msg_type {
+                    MsgType::Error(e) => {
+                        todo!()
+                    }
                     MsgType::Set => {
                         // println!("received {} bytes, to be assigned to: {}", n, &msg.name);
                         let tree = db
