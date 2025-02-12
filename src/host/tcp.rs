@@ -74,7 +74,9 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                     MsgType::SUBSCRIBE => {
                         start_subscription(msg.clone(), db.clone(), &stream).await;
                     }
-                    _ => {}
+                    _ => {
+                        let msg = process_msg(msg.clone(), db.clone()).unwrap();
+                    }
                 }
 
                 match &msg.msg_type {
@@ -248,4 +250,8 @@ async fn start_subscription(msg: GenericMsg, db: sled::Db, stream: &TcpStream) {
             }
         }
     }
+}
+
+fn process_msg(msg: GenericMsg, db: sled::Db) -> Result<Option<GenericMsg>, Error> {
+    Ok(None)
 }
