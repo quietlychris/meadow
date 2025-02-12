@@ -87,7 +87,7 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
         info!("{:?}", &msg);
         match msg.msg_type {
             MsgType::Error(e) => {
-                todo!()
+                error!("Received {}", e);
             }
             MsgType::Set => {
                 let tree = db
@@ -138,7 +138,41 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
                 }
             }
             MsgType::GetNth(n) => {
-                todo!()
+                let tree = db
+                    .open_tree(msg.topic.as_bytes())
+                    .expect("Error opening tree");
+
+                match tree.iter().nth_back(n) {
+                    Some(topic) => {
+                        let return_bytes = match topic {
+                            Ok((_timestamp, bytes)) => bytes,
+                            Err(e) => {
+                                let e: String =
+                                    format!("Error: no topic \"{}\" exists", &msg.topic);
+                                error!("{}", &e);
+                                e.as_bytes().into()
+                            }
+                        };
+
+                        match tx.write(&return_bytes).await {
+                            Ok(_n) => {}
+                            Err(e) => {
+                                error!("{}", e);
+                            }
+                        }
+                    }
+                    None => {
+                        let e: String = format!("Error: no topic \"{}\" exists", &msg.topic);
+                        error!("{}", &e);
+
+                        match tx.write(&e.as_bytes()).await {
+                            Ok(_n) => {}
+                            Err(e) => {
+                                error!("{}", e);
+                            }
+                        }
+                    }
+                }
             }
             MsgType::Subscribe => {
                 let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
