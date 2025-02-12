@@ -155,7 +155,7 @@ impl Store for sled::Db {
         topic: impl Into<String>,
         data: T,
     ) -> Result<(), crate::Error> {
-        let msg = Msg::new(MsgType::SET, topic, data);
+        let msg = Msg::new(MsgType::Set, topic, data);
         self.insert_msg(msg)?;
         Ok(())
     }
@@ -261,7 +261,7 @@ impl Host {
         topic: impl Into<String>,
         data: T,
     ) -> Result<(), crate::Error> {
-        let msg = Msg::new(MsgType::SET, topic, data);
+        let msg = Msg::new(MsgType::Set, topic, data);
         self.insert_msg(msg)?;
         Ok(())
     }

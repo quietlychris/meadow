@@ -15,13 +15,13 @@ impl<T> Message for T where T: Serialize + DeserializeOwned + Debug + Sync + Sen
 #[repr(C)]
 pub enum MsgType {
     /// Request SET operation on Host
-    SET,
+    Set,
     /// Request GET operation on Host
-    GET,
+    Get,
     /// Request list of topics from Host  
-    TOPICS,
+    Topics,
     /// Request start of subscribe operation from Host
-    SUBSCRIBE,
+    Subscribe,
 }
 
 /// Message format containing a strongly-typed data payload and associated metadata
@@ -93,7 +93,7 @@ impl GenericMsg {
     #[inline]
     pub fn set<T: Message>(topic: impl Into<String>, data: Vec<u8>) -> Self {
         GenericMsg {
-            msg_type: MsgType::SET,
+            msg_type: MsgType::Set,
             timestamp: Utc::now(),
             topic: topic.into(),
             data_type: std::any::type_name::<T>().to_string(),
@@ -105,7 +105,7 @@ impl GenericMsg {
     #[inline]
     pub fn get<T: Message>(topic: impl Into<String>) -> Self {
         GenericMsg {
-            msg_type: MsgType::GET,
+            msg_type: MsgType::Get,
             timestamp: Utc::now(),
             topic: topic.into(),
             data_type: std::any::type_name::<T>().to_string(),
@@ -115,7 +115,7 @@ impl GenericMsg {
 
     /// Create a `MsgType::Subscribe` message to kick off subscriptions
     pub fn subscribe(topic: impl Into<String>, rate: Duration) -> Result<Self, Error> {
-        let msg = Msg::new(MsgType::SUBSCRIBE, topic, rate);
+        let msg = Msg::new(MsgType::Subscribe, topic, rate);
         msg.to_generic()
     }
 
@@ -135,7 +135,7 @@ impl GenericMsg {
     #[inline]
     pub fn topics() -> Self {
         GenericMsg {
-            msg_type: MsgType::TOPICS,
+            msg_type: MsgType::Topics,
             timestamp: Utc::now(),
             topic: String::new(),
             data_type: std::any::type_name::<()>().to_string(),
@@ -197,7 +197,7 @@ impl<T: Message> TryInto<GenericMsg> for Msg<T> {
 
 #[test]
 fn msg_conversions() {
-    let msg: Msg<i32> = Msg::new(MsgType::SET, "value", 0);
+    let msg: Msg<i32> = Msg::new(MsgType::Set, "value", 0);
     let generic = msg.clone().to_generic().unwrap();
     let bytes = generic.clone().as_bytes().unwrap();
     let generic_rc: GenericMsg = postcard::from_bytes(&bytes).unwrap();

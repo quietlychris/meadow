@@ -108,7 +108,7 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Idle, T> {
 
         let buffer = self.buffer.clone();
         let packet = GenericMsg {
-            msg_type: MsgType::SUBSCRIBE,
+            msg_type: MsgType::Subscribe,
             timestamp: Utc::now(),
             topic: topic.clone(),
             data_type: std::any::type_name::<T>().to_string(),
@@ -270,7 +270,7 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Idle, T> {
 
         let buffer = self.buffer.clone();
         let packet = GenericMsg {
-            msg_type: MsgType::SUBSCRIBE,
+            msg_type: MsgType::Subscribe,
             timestamp: Utc::now(),
             topic: topic.clone(),
             data_type: std::any::type_name::<T>().to_string(),

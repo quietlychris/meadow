@@ -86,7 +86,7 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
         };
         info!("{:?}", &msg);
         match msg.msg_type {
-            MsgType::SET => {
+            MsgType::Set => {
                 let tree = db
                     .open_tree(msg.topic.as_bytes())
                     .expect("Error opening tree");
@@ -113,7 +113,7 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
                     }
                 }
             }
-            MsgType::GET => {
+            MsgType::Get => {
                 let tree = db
                     .open_tree(msg.topic.as_bytes())
                     .expect("Error opening tree");
@@ -134,7 +134,7 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
                     }
                 }
             }
-            MsgType::SUBSCRIBE => {
+            MsgType::Subscribe => {
                 let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
                 let rate = specialized.data;
 
@@ -161,7 +161,7 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
                     sleep(rate).await;
                 }
             }
-            MsgType::TOPICS => {
+            MsgType::Topics => {
                 let names = db.tree_names();
                 let mut strings = Vec::new();
                 for name in names {
@@ -177,7 +177,7 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
                 strings.remove(index);
                 if let Ok(data) = to_allocvec(&strings) {
                     let packet: GenericMsg = GenericMsg {
-                        msg_type: MsgType::TOPICS,
+                        msg_type: MsgType::Topics,
                         timestamp: Utc::now(),
                         topic: "".to_string(),
                         data_type: std::any::type_name::<Vec<String>>().to_string(),

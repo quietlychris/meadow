@@ -71,7 +71,7 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                 info!("{:?}", msg.msg_type);
 
                 match &msg.msg_type {
-                    MsgType::SUBSCRIBE => {
+                    MsgType::Subscribe => {
                         start_subscription(msg.clone(), db.clone(), &stream).await;
                     }
                     _ => {
@@ -80,7 +80,7 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                 }
 
                 match &msg.msg_type {
-                    MsgType::SET => {
+                    MsgType::Set => {
                         // println!("received {} bytes, to be assigned to: {}", n, &msg.name);
                         let tree = db
                             .open_tree(msg.topic.as_bytes())
@@ -110,7 +110,7 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                             }
                         }
                     }
-                    MsgType::GET => {
+                    MsgType::Get => {
                         let tree = db
                             .open_tree(msg.topic.as_bytes())
                             .expect("Error opening tree");
@@ -133,7 +133,7 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                             }
                         }
                     }
-                    MsgType::SUBSCRIBE => {
+                    MsgType::Subscribe => {
                         let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
                         let rate = specialized.data;
 
@@ -165,7 +165,7 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                             }
                         }
                     }
-                    MsgType::TOPICS => {
+                    MsgType::Topics => {
                         let names = db.tree_names();
 
                         let mut strings = Vec::new();
@@ -189,7 +189,7 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                         match to_allocvec(&strings) {
                             Ok(data) => {
                                 let packet: GenericMsg = GenericMsg {
-                                    msg_type: MsgType::TOPICS,
+                                    msg_type: MsgType::Topics,
                                     timestamp: Utc::now(),
                                     topic: "".to_string(),
                                     data_type: std::any::type_name::<Vec<String>>().to_string(),
