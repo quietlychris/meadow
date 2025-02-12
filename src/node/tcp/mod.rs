@@ -90,13 +90,13 @@ pub async fn handshake(stream: TcpStream, topic: String) -> Result<TcpStream, Er
 
 /// Send a `GenericMsg` of `MsgType` from the Node to the Host
 #[inline]
-pub async fn send_msg(stream: &TcpStream, packet_as_bytes: Vec<u8>) -> Result<(), Error> {
+pub async fn send_msg(stream: &TcpStream, packet: Vec<u8>) -> Result<(), Error> {
     stream.writable().await?;
 
     // Write the request
     // TO_DO: This should be a loop with a maximum number of attempts
     loop {
-        match stream.try_write(&packet_as_bytes) {
+        match stream.try_write(&packet) {
             Ok(_n) => {
                 // debug!("Node successfully wrote {}-byte request to host",n);
                 break;

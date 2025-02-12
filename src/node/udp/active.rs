@@ -45,10 +45,9 @@ impl<T: Message + 'static> Node<Nonblocking, Udp, Active, T> {
     #[tracing::instrument]
     #[inline]
     pub async fn publish(&self, val: T) -> Result<(), Error> {
-        let msg: Msg<T> = Msg::new(MsgType::Set, self.topic.clone(), val);
-        let generic: GenericMsg = msg.try_into()?;
-
-        let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
+        let packet = Msg::new(MsgType::Set, self.topic.clone(), val)
+            .to_generic()?
+            .as_bytes()?;
 
         let socket = match self.socket.as_ref() {
             Some(socket) => socket,
@@ -56,23 +55,20 @@ impl<T: Message + 'static> Node<Nonblocking, Udp, Active, T> {
         };
 
         socket
-            .send_to(&packet_as_bytes, self.cfg.network_cfg.host_addr)
+            .send_to(&packet, self.cfg.network_cfg.host_addr)
             .await?;
         Ok(())
     }
 
     pub async fn publish_msg(&self, msg: Msg<T>) -> Result<(), Error> {
-        let generic: GenericMsg = msg.try_into()?;
-
-        let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
-
+        let packet = msg.to_generic()?.as_bytes()?;
         let socket = match self.socket.as_ref() {
             Some(socket) => socket,
             None => return Err(Error::AccessSocket),
         };
 
         socket
-            .send_to(&packet_as_bytes, self.cfg.network_cfg.host_addr)
+            .send_to(&packet, self.cfg.network_cfg.host_addr)
             .await?;
         Ok(())
     }
@@ -80,13 +76,11 @@ impl<T: Message + 'static> Node<Nonblocking, Udp, Active, T> {
     #[tracing::instrument]
     #[inline]
     pub async fn request(&self) -> Result<Msg<T>, Error> {
-        let packet = GenericMsg::get::<T>(self.topic.clone());
-
-        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
+        let packet = GenericMsg::get::<T>(self.topic.clone()).as_bytes()?;
         let buffer = self.buffer.clone();
 
         if let Some(socket) = &self.socket {
-            send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await?;
+            send_msg(socket, packet, self.cfg.network_cfg.host_addr).await?;
             let msg = await_response(socket, buffer).await?;
             Ok(msg)
         } else {
@@ -97,12 +91,11 @@ impl<T: Message + 'static> Node<Nonblocking, Udp, Active, T> {
     #[tracing::instrument]
     #[inline]
     pub async fn topics(&self) -> Result<Msg<Vec<String>>, Error> {
-        let packet = GenericMsg::topics();
-        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
+        let packet = GenericMsg::topics().as_bytes()?;
         let buffer = self.buffer.clone();
 
         if let Some(socket) = &self.socket {
-            send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await?;
+            send_msg(socket, packet, self.cfg.network_cfg.host_addr).await?;
             let msg = await_response(socket, buffer).await?;
             Ok(msg)
         } else {
@@ -141,9 +134,9 @@ impl<T: Message + 'static> Node<Blocking, Udp, Active, T> {
     #[tracing::instrument]
     #[inline]
     pub fn publish(&self, val: T) -> Result<(), Error> {
-        let msg: Msg<T> = Msg::new(MsgType::Set, self.topic.clone(), val);
-        let generic: GenericMsg = msg.try_into()?;
-        let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
+        let packet = Msg::new(MsgType::Set, self.topic.clone(), val)
+            .to_generic()?
+            .as_bytes()?;
 
         let socket = match self.socket.as_ref() {
             Some(socket) => socket,
@@ -157,7 +150,7 @@ impl<T: Message + 'static> Node<Blocking, Udp, Active, T> {
 
         handle.block_on(async {
             socket
-                .send_to(&packet_as_bytes, self.cfg.network_cfg.host_addr)
+                .send_to(&packet, self.cfg.network_cfg.host_addr)
                 .await?;
             Ok(())
         })
@@ -166,8 +159,7 @@ impl<T: Message + 'static> Node<Blocking, Udp, Active, T> {
     #[tracing::instrument]
     #[inline]
     pub fn publish_msg(&self, msg: Msg<T>) -> Result<(), Error> {
-        let generic: GenericMsg = msg.try_into()?;
-        let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
+        let packet = msg.to_generic()?.as_bytes()?;
 
         let socket = match self.socket.as_ref() {
             Some(socket) => socket,
@@ -181,7 +173,7 @@ impl<T: Message + 'static> Node<Blocking, Udp, Active, T> {
 
         handle.block_on(async {
             socket
-                .send_to(&packet_as_bytes, self.cfg.network_cfg.host_addr)
+                .send_to(&packet, self.cfg.network_cfg.host_addr)
                 .await?;
             Ok(())
         })
@@ -190,8 +182,7 @@ impl<T: Message + 'static> Node<Blocking, Udp, Active, T> {
     #[tracing::instrument]
     #[inline]
     pub fn request(&self) -> Result<Msg<T>, Error> {
-        let packet = GenericMsg::get::<T>(self.topic.clone());
-        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
+        let packet = GenericMsg::get::<T>(self.topic.clone()).as_bytes()?;
         let buffer = self.buffer.clone();
 
         let handle = match &self.rt_handle {
@@ -201,7 +192,7 @@ impl<T: Message + 'static> Node<Blocking, Udp, Active, T> {
 
         handle.block_on(async {
             if let Some(socket) = &self.socket {
-                send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await?;
+                send_msg(socket, packet, self.cfg.network_cfg.host_addr).await?;
                 let msg = await_response(socket, buffer).await?;
                 Ok(msg)
             } else {
@@ -213,8 +204,7 @@ impl<T: Message + 'static> Node<Blocking, Udp, Active, T> {
     #[tracing::instrument]
     #[inline]
     pub fn request_nth_back(&self, n: usize) -> Result<Msg<T>, Error> {
-        let packet = GenericMsg::get_nth::<T>(self.topic.clone(), n);
-        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
+        let packet = GenericMsg::get_nth::<T>(self.topic.clone(), n).as_bytes()?;
         let buffer = self.buffer.clone();
 
         let handle = match &self.rt_handle {
@@ -224,7 +214,7 @@ impl<T: Message + 'static> Node<Blocking, Udp, Active, T> {
 
         handle.block_on(async {
             if let Some(socket) = &self.socket {
-                send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await?;
+                send_msg(socket, packet, self.cfg.network_cfg.host_addr).await?;
                 let msg = await_response(socket, buffer).await?;
                 Ok(msg)
             } else {
@@ -236,8 +226,7 @@ impl<T: Message + 'static> Node<Blocking, Udp, Active, T> {
     #[tracing::instrument]
     #[inline]
     pub fn topics(&self) -> Result<Msg<Vec<String>>, Error> {
-        let packet = GenericMsg::topics();
-        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
+        let packet = GenericMsg::topics().as_bytes()?;
         let buffer = self.buffer.clone();
 
         let handle = match &self.rt_handle {
@@ -247,7 +236,7 @@ impl<T: Message + 'static> Node<Blocking, Udp, Active, T> {
 
         handle.block_on(async {
             if let Some(socket) = &self.socket {
-                send_msg(socket, packet_as_bytes, self.cfg.network_cfg.host_addr).await?;
+                send_msg(socket, packet, self.cfg.network_cfg.host_addr).await?;
                 let msg = await_response(socket, buffer).await?;
                 Ok(msg)
             } else {

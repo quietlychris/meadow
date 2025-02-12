@@ -112,8 +112,7 @@ async fn run_subscription<T: Message>(
     data: Arc<TokioMutex<Option<Msg<T>>>>,
     addr: SocketAddr,
 ) -> Result<(), Error> {
-    let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
-    udp::send_msg(socket, packet_as_bytes.clone(), addr).await?;
+    udp::send_msg(socket, packet.as_bytes()?, addr).await?;
 
     loop {
         let msg = udp::await_response::<T>(socket, buffer.clone()).await?;

@@ -155,10 +155,9 @@ async fn run_subscription<T: Message>(
     connection: quinn::Connection,
     data: Arc<TokioMutex<Option<Msg<T>>>>,
 ) -> Result<(), Error> {
-    let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
     let (mut send, mut recv) = connection.open_bi().await?;
 
-    send.write_all(&packet_as_bytes).await?;
+    send.write_all(&packet.as_bytes()?).await?;
     send.finish().await?;
 
     loop {

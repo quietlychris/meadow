@@ -20,16 +20,16 @@ use tracing::*;
 impl<T: Message + 'static> Node<Nonblocking, Quic, Active, T> {
     #[tracing::instrument(skip(self))]
     pub async fn publish(&self, val: T) -> Result<(), Error> {
-        let msg = Msg::new(MsgType::Set, self.topic.clone(), val);
-        let generic: GenericMsg = msg.try_into()?;
-        let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
+        let packet = Msg::new(MsgType::Set, self.topic.clone(), val)
+            .to_generic()?
+            .as_bytes()?;
 
         if let Some(connection) = &self.connection {
             match connection.open_bi().await {
                 Ok((mut send, _recv)) => {
                     debug!("Node succesfully opened stream from connection");
 
-                    if let Ok(()) = send.write_all(&packet_as_bytes).await {
+                    if let Ok(()) = send.write_all(&packet).await {
                         if let Ok(()) = send.finish().await {
                             debug!("Node successfully wrote packet to stream");
                         }
@@ -50,15 +50,14 @@ impl<T: Message + 'static> Node<Nonblocking, Quic, Active, T> {
 
     #[tracing::instrument(skip(self))]
     pub async fn publish_msg(&self, msg: Msg<T>) -> Result<(), Error> {
-        let generic: GenericMsg = msg.try_into()?;
-        let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
+        let packet = msg.to_generic()?.as_bytes()?;
 
         if let Some(connection) = &self.connection {
             match connection.open_bi().await {
                 Ok((mut send, _recv)) => {
                     debug!("Node succesfully opened stream from connection");
 
-                    if let Ok(()) = send.write_all(&packet_as_bytes).await {
+                    if let Ok(()) = send.write_all(&packet).await {
                         if let Ok(()) = send.finish().await {
                             debug!("Node successfully wrote packet to stream");
                         }
@@ -78,15 +77,14 @@ impl<T: Message + 'static> Node<Nonblocking, Quic, Active, T> {
     }
 
     pub async fn request(&self) -> Result<Msg<T>, Error> {
-        let packet = GenericMsg::get::<T>(self.topic.clone());
-        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
+        let packet = GenericMsg::get::<T>(self.topic.clone()).as_bytes()?;
 
         let mut buf = self.buffer.lock().await;
 
         if let Some(connection) = self.connection.clone() {
             let (mut send, mut recv) = connection.open_bi().await?;
             debug!("Node succesfully opened stream from connection");
-            send.write_all(&packet_as_bytes).await?;
+            send.write_all(&packet).await?;
             // send.finish().await.map_err(WriteError)?;
 
             loop {
@@ -108,9 +106,7 @@ impl<T: Message + 'static> Node<Nonblocking, Quic, Active, T> {
     }
 
     pub async fn topics(&self) -> Result<Msg<Vec<String>>, Error> {
-        let packet = GenericMsg::topics();
-
-        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
+        let packet = GenericMsg::topics().as_bytes()?;
 
         let mut buf = self.buffer.lock().await;
 
@@ -118,7 +114,7 @@ impl<T: Message + 'static> Node<Nonblocking, Quic, Active, T> {
 
         let (mut send, mut recv) = connection.open_bi().await?;
         debug!("Node succesfully opened stream from connection");
-        send.write_all(&packet_as_bytes).await?;
+        send.write_all(&packet).await?;
         send.finish().await?;
 
         let n = recv.read(&mut buf).await?.ok_or(Connection)?;
@@ -136,9 +132,9 @@ use crate::node::network_config::Blocking;
 impl<T: Message + 'static> Node<Blocking, Quic, Active, T> {
     #[tracing::instrument(skip(self))]
     pub fn publish(&self, val: T) -> Result<(), Error> {
-        let generic = Msg::new(MsgType::Set, &self.topic, val).to_generic()?;
-
-        let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
+        let packet = Msg::new(MsgType::Set, &self.topic, val)
+            .to_generic()?
+            .as_bytes()?;
 
         let handle = match &self.rt_handle {
             Some(handle) => handle,
@@ -151,7 +147,7 @@ impl<T: Message + 'static> Node<Blocking, Quic, Active, T> {
                     Ok((mut send, _recv)) => {
                         debug!("Node succesfully opened stream from connection");
 
-                        if let Ok(()) = send.write_all(&packet_as_bytes).await {
+                        if let Ok(()) = send.write_all(&packet).await {
                             if let Ok(()) = send.finish().await {
                                 debug!("Node successfully wrote packet to stream");
                             }
@@ -173,8 +169,7 @@ impl<T: Message + 'static> Node<Blocking, Quic, Active, T> {
 
     #[tracing::instrument(skip(self))]
     pub fn publish_msg(&self, msg: Msg<T>) -> Result<(), Error> {
-        let generic: GenericMsg = msg.try_into()?;
-        let packet_as_bytes: Vec<u8> = to_allocvec(&generic)?;
+        let packet = msg.to_generic()?.as_bytes()?;
 
         let handle = match &self.rt_handle {
             Some(handle) => handle,
@@ -187,7 +182,7 @@ impl<T: Message + 'static> Node<Blocking, Quic, Active, T> {
                     Ok((mut send, _recv)) => {
                         debug!("Node succesfully opened stream from connection");
 
-                        if let Ok(()) = send.write_all(&packet_as_bytes).await {
+                        if let Ok(()) = send.write_all(&packet).await {
                             if let Ok(()) = send.finish().await {
                                 debug!("Node successfully wrote packet to stream");
                             }
@@ -208,8 +203,7 @@ impl<T: Message + 'static> Node<Blocking, Quic, Active, T> {
     }
 
     pub fn request(&self) -> Result<Msg<T>, Error> {
-        let packet = GenericMsg::get::<T>(self.topic.clone());
-        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
+        let packet = GenericMsg::get::<T>(self.topic.clone()).as_bytes()?;
 
         let handle = match &self.rt_handle {
             Some(handle) => handle,
@@ -222,7 +216,7 @@ impl<T: Message + 'static> Node<Blocking, Quic, Active, T> {
             if let Some(connection) = self.connection.clone() {
                 let (mut send, mut recv) = connection.open_bi().await?;
                 debug!("Node succesfully opened stream from connection");
-                send.write_all(&packet_as_bytes).await?;
+                send.write_all(&packet).await?;
                 // send.finish().await.map_err(WriteError)?;
 
                 loop {
@@ -245,8 +239,7 @@ impl<T: Message + 'static> Node<Blocking, Quic, Active, T> {
     }
 
     pub fn topics(&self) -> Result<Msg<Vec<String>>, Error> {
-        let packet = GenericMsg::topics();
-        let packet_as_bytes: Vec<u8> = to_allocvec(&packet)?;
+        let packet = GenericMsg::topics().as_bytes()?;
 
         let handle = match &self.rt_handle {
             Some(handle) => handle,
@@ -260,7 +253,7 @@ impl<T: Message + 'static> Node<Blocking, Quic, Active, T> {
 
             let (mut send, mut recv) = connection.open_bi().await?;
             debug!("Node succesfully opened stream from connection");
-            send.write_all(&packet_as_bytes).await?;
+            send.write_all(&packet).await?;
             send.finish().await?;
 
             let n = recv.read(&mut buf).await?.ok_or(Connection)?;
