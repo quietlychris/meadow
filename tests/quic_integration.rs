@@ -235,6 +235,7 @@ fn topics_list_quic() {
     }
 }
 
+#[cfg(feature = "quic")]
 #[test]
 fn quic_back_nth_operation() {
     let sc = SledConfig::new().temporary(true);
@@ -267,6 +268,7 @@ fn quic_back_nth_operation() {
     assert_eq!(node.request_nth_back(back - 1).unwrap().data, pose);
 }
 
+#[cfg(feature = "quic")]
 #[should_panic]
 #[test]
 fn quic_back_nth_operation_fallible() {
