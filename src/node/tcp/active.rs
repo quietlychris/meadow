@@ -134,7 +134,7 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Active, T> {
 
         let mut buffer = self.buffer.lock().await;
         send_msg(stream, packet).await?;
-        let msg = await_response::<T>(stream, &mut buffer).await?;
+        let msg = await_response(stream, &mut buffer).await?.try_into()?;
         Ok(msg)
     }
 
@@ -150,7 +150,7 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Active, T> {
 
         let mut buffer = self.buffer.lock().await;
         send_msg(stream, packet).await?;
-        let msg = await_response::<Vec<String>>(stream, &mut buffer).await?;
+        let msg = await_response(stream, &mut buffer).await?.try_into()?;
         Ok(msg)
     }
 }
@@ -296,7 +296,7 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
         handle.block_on(async {
             let mut buffer = self.buffer.lock().await;
             send_msg(stream, packet).await?;
-            let msg = await_response::<T>(stream, &mut buffer).await?;
+            let msg = await_response(stream, &mut buffer).await?.try_into()?;
             Ok(msg)
         })
     }
@@ -320,7 +320,7 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
         handle.block_on(async {
             let mut buffer = self.buffer.lock().await;
             send_msg(stream, packet).await?;
-            let msg = await_response::<T>(stream, &mut buffer).await?;
+            let msg = await_response(stream, &mut buffer).await?.try_into()?;
             Ok(msg)
         })
     }
@@ -339,7 +339,8 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
             handle.block_on(async {
                 let mut buffer = self.buffer.lock().await;
                 send_msg(stream, packet).await?;
-                let msg = await_response::<Vec<String>>(stream, &mut buffer).await?;
+                let msg: Msg<Vec<String>> =
+                    await_response(stream, &mut buffer).await?.try_into()?;
                 Ok(msg)
             })
         } else {
