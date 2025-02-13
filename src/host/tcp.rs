@@ -12,7 +12,7 @@ use std::sync::Arc;
 // Misc other imports
 use chrono::Utc;
 
-use crate::error::Error;
+use crate::error::{Error, HostOperation};
 use crate::host::GenericStore;
 use crate::prelude::*;
 use std::convert::TryInto;
@@ -43,7 +43,7 @@ pub async fn handshake(
 /// Host process for handling incoming connections from Nodes
 #[tracing::instrument(skip_all)]
 #[inline]
-pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize) {
+pub async fn process_tcp(stream: TcpStream, mut db: sled::Db, max_buffer_size: usize) {
     let mut buf = vec![0u8; max_buffer_size];
     loop {
         if let Err(e) = stream.readable().await {
@@ -75,6 +75,36 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                     MsgType::Subscribe => {
                         start_subscription(msg.clone(), db.clone(), &stream).await;
                     }
+                    MsgType::Get => {
+                        let response = match db.get_generic_nth(&msg.topic, 0) {
+                            Ok(g) => g,
+                            Err(e) => GenericMsg::error(e),
+                        };
+                        if let Ok(return_bytes) = response.as_bytes() {
+                            if let Ok(()) = stream.writable().await {
+                                if let Err(e) = stream.try_write(&return_bytes) {
+                                    error!("Error sending data back on TCP/TOPICS: {:?}", e);
+                                }
+                            }
+                        }
+
+                        continue;
+                    }
+                    MsgType::Set => {
+                        let response = match db.insert_generic(msg) {
+                            Ok(()) => GenericMsg::set::<()>("", vec![]),
+                            Err(e) => GenericMsg::error(e),
+                        };
+                        if let Ok(return_bytes) = response.as_bytes() {
+                            if let Ok(()) = stream.writable().await {
+                                if let Err(e) = stream.try_write(&return_bytes) {
+                                    error!("Error sending data back on TCP/TOPICS: {:?}", e);
+                                }
+                            }
+                        }
+
+                        continue;
+                    }
                     _ => {
                         let msg = process_msg(msg.clone(), db.clone()).unwrap();
                     }
@@ -96,7 +126,7 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                                     info!("{:?}", msg.data);
                                     Ok(())
                                 }
-                                Err(e) => Err(crate::error::HostOperation::FAILURE),
+                                Err(e) => Err(HostOperation::FAILURE),
                             }
                         };
 

@@ -44,8 +44,18 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Active, T> {
                     Ok(0) => continue,
                     Ok(n) => {
                         let bytes = &buf[..n];
-                        if let Ok(HostOperation::FAILURE) = from_bytes::<HostOperation>(bytes) {
-                            error!("Host-side error on publish");
+                        match from_bytes::<GenericMsg>(bytes) {
+                            Ok(g) => match g.msg_type {
+                                MsgType::Error(e) => {
+                                    error!("{}", e);
+                                }
+                                _ => {
+                                    info!("{:?}", &g);
+                                }
+                            },
+                            Err(e) => {
+                                error!("{}", e);
+                            }
                         }
 
                         break;
@@ -135,7 +145,7 @@ use crate::node::network_config::Blocking;
 impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
     // TO_DO: The error handling in the async blocks need to be improved
     /// Send data to host on Node's assigned topic using `Msg<T>` packet
-    #[tracing::instrument]
+    #[tracing::instrument(skip_all)]
     #[inline]
     pub fn publish(&self, val: T) -> Result<(), Error> {
         let packet = Msg::new(MsgType::Set, self.topic.clone(), val)
@@ -164,8 +174,18 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
                         Ok(0) => continue,
                         Ok(n) => {
                             let bytes = &buf[..n];
-                            if let Ok(HostOperation::FAILURE) = from_bytes::<HostOperation>(bytes) {
-                                error!("Host-side error on publish");
+                            match from_bytes::<GenericMsg>(bytes) {
+                                Ok(g) => match g.msg_type {
+                                    MsgType::Error(e) => {
+                                        error!("{}", e);
+                                    }
+                                    _ => {
+                                        info!("{:?}", &g);
+                                    }
+                                },
+                                Err(e) => {
+                                    error!("{}", e);
+                                }
                             }
 
                             break;
