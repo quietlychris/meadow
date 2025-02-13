@@ -81,7 +81,7 @@ impl<T: Message + 'static> Node<Nonblocking, Udp, Active, T> {
 
         if let Some(socket) = &self.socket {
             send_msg(socket, packet, self.cfg.network_cfg.host_addr).await?;
-            let msg = await_response(socket, buffer).await?;
+            let msg = await_response(socket, buffer).await?.try_into()?;
             Ok(msg)
         } else {
             Err(Error::AccessSocket)
@@ -96,7 +96,7 @@ impl<T: Message + 'static> Node<Nonblocking, Udp, Active, T> {
 
         if let Some(socket) = &self.socket {
             send_msg(socket, packet, self.cfg.network_cfg.host_addr).await?;
-            let msg = await_response(socket, buffer).await?;
+            let msg = await_response(socket, buffer).await?.try_into()?;
             Ok(msg)
         } else {
             Err(Error::AccessSocket)
@@ -193,7 +193,7 @@ impl<T: Message + 'static> Node<Blocking, Udp, Active, T> {
         handle.block_on(async {
             if let Some(socket) = &self.socket {
                 send_msg(socket, packet, self.cfg.network_cfg.host_addr).await?;
-                let msg = await_response(socket, buffer).await?;
+                let msg = await_response(socket, buffer).await?.try_into()?;
                 Ok(msg)
             } else {
                 Err(Error::AccessSocket)
@@ -215,7 +215,7 @@ impl<T: Message + 'static> Node<Blocking, Udp, Active, T> {
         handle.block_on(async {
             if let Some(socket) = &self.socket {
                 send_msg(socket, packet, self.cfg.network_cfg.host_addr).await?;
-                let msg = await_response(socket, buffer).await?;
+                let msg = await_response(socket, buffer).await?.try_into()?;
                 Ok(msg)
             } else {
                 Err(Error::AccessSocket)
@@ -237,7 +237,7 @@ impl<T: Message + 'static> Node<Blocking, Udp, Active, T> {
         handle.block_on(async {
             if let Some(socket) = &self.socket {
                 send_msg(socket, packet, self.cfg.network_cfg.host_addr).await?;
-                let msg = await_response(socket, buffer).await?;
+                let msg = await_response(socket, buffer).await?.try_into()?;
                 Ok(msg)
             } else {
                 Err(Error::AccessSocket)

@@ -11,6 +11,7 @@ use tokio::time::{sleep, Duration};
 
 use tracing::*;
 
+use std::convert::TryInto;
 use std::net::SocketAddr;
 use std::result::Result;
 use std::sync::Arc;
@@ -115,7 +116,9 @@ async fn run_subscription<T: Message>(
     udp::send_msg(socket, packet.as_bytes()?, addr).await?;
 
     loop {
-        let msg = udp::await_response::<T>(socket, buffer.clone()).await?;
+        let msg: Msg<T> = udp::await_response(socket, buffer.clone())
+            .await?
+            .try_into()?;
         info!("UDP Msg<T> received: {:?}", &msg);
         let delta = Utc::now() - msg.timestamp;
         if delta <= chrono::Duration::zero() {
