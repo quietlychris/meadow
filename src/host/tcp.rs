@@ -78,7 +78,7 @@ pub async fn process_tcp(stream: TcpStream, mut db: sled::Db, max_buffer_size: u
                     MsgType::Get => {
                         let response = match db.get_generic_nth(&msg.topic, 0) {
                             Ok(g) => g,
-                            Err(e) => GenericMsg::error(e),
+                            Err(e) => GenericMsg::result(Err(e)),
                         };
                         if let Ok(return_bytes) = response.as_bytes() {
                             if let Ok(()) = stream.writable().await {
@@ -91,10 +91,7 @@ pub async fn process_tcp(stream: TcpStream, mut db: sled::Db, max_buffer_size: u
                         continue;
                     }
                     MsgType::Set => {
-                        let response = match db.insert_generic(msg) {
-                            Ok(()) => GenericMsg::set::<()>("", vec![]),
-                            Err(e) => GenericMsg::error(e),
-                        };
+                        let response = GenericMsg::result(db.insert_generic(msg));
                         if let Ok(return_bytes) = response.as_bytes() {
                             if let Ok(()) = stream.writable().await {
                                 if let Err(e) = stream.try_write(&return_bytes) {
@@ -111,8 +108,10 @@ pub async fn process_tcp(stream: TcpStream, mut db: sled::Db, max_buffer_size: u
                 }
 
                 match &msg.msg_type {
-                    MsgType::Error(e) => {
-                        todo!()
+                    MsgType::Result(result) => {
+                        if let Err(e) = result {
+                            error!("{}", e);
+                        }
                     }
                     MsgType::Set => {
                         // println!("received {} bytes, to be assigned to: {}", n, &msg.name);
@@ -160,7 +159,7 @@ pub async fn process_tcp(stream: TcpStream, mut db: sled::Db, max_buffer_size: u
                                         format!("Error: no topic \"{}\" exists", &msg.topic);
                                     error!("{}", &e);
                                     // e.as_bytes().into();
-                                    GenericMsg::error(Error::NonExistentTopic(msg.topic))
+                                    GenericMsg::result(Err(Error::NonExistentTopic(msg.topic)))
                                         .as_bytes()
                                         .unwrap()
                                 }

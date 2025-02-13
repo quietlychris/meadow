@@ -46,8 +46,10 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Active, T> {
                         let bytes = &buf[..n];
                         match from_bytes::<GenericMsg>(bytes) {
                             Ok(g) => match g.msg_type {
-                                MsgType::Error(e) => {
-                                    error!("{}", e);
+                                MsgType::Result(result) => {
+                                    if let Err(e) = result {
+                                        error!("{}", e);
+                                    }
                                 }
                                 _ => {
                                     info!("{:?}", &g);
@@ -90,8 +92,21 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Active, T> {
                     Ok(0) => continue,
                     Ok(n) => {
                         let bytes = &buf[..n];
-                        if let Ok(HostOperation::FAILURE) = from_bytes::<HostOperation>(bytes) {
-                            error!("Host-side error on publish");
+
+                        match from_bytes::<GenericMsg>(bytes) {
+                            Ok(g) => match g.msg_type {
+                                MsgType::Result(result) => {
+                                    if let Err(e) = result {
+                                        error!("{}", e)
+                                    } else {
+                                        info!("{:?}", result);
+                                    }
+                                }
+                                _ => (),
+                            },
+                            Err(e) => {
+                                error!("{}", e);
+                            }
                         }
 
                         break;
@@ -165,9 +180,12 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
         handle.block_on(async {
             // Send the publish message
             send_msg(stream, packet).await?;
-
             // Wait for the publish acknowledgement
+            // let mut buf = *self.buffer.lock().await;
+            //await_response(stream, &mut buf).await?;
+
             let mut buf = self.buffer.lock().await;
+
             loop {
                 if let Ok(()) = stream.readable().await {
                     match stream.try_read(&mut buf) {
@@ -176,8 +194,10 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
                             let bytes = &buf[..n];
                             match from_bytes::<GenericMsg>(bytes) {
                                 Ok(g) => match g.msg_type {
-                                    MsgType::Error(e) => {
-                                        error!("{}", e);
+                                    MsgType::Result(result) => {
+                                        if let Err(e) = result {
+                                            error!("{}", e);
+                                        }
                                     }
                                     _ => {
                                         info!("{:?}", &g);
@@ -228,8 +248,20 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
                         Ok(0) => continue,
                         Ok(n) => {
                             let bytes = &buf[..n];
-                            if let Ok(HostOperation::FAILURE) = from_bytes::<HostOperation>(bytes) {
-                                error!("Host-side error on publish");
+                            match from_bytes::<GenericMsg>(bytes) {
+                                Ok(g) => match g.msg_type {
+                                    MsgType::Result(result) => {
+                                        if let Err(e) = result {
+                                            error!("{}", e);
+                                        }
+                                    }
+                                    _ => {
+                                        info!("{:?}", &g);
+                                    }
+                                },
+                                Err(e) => {
+                                    error!("{}", e);
+                                }
                             }
 
                             break;

@@ -46,8 +46,10 @@ pub async fn process_udp(
                 };
 
                 match msg.msg_type {
-                    MsgType::Error(e) => {
-                        todo!();
+                    MsgType::Result(result) => {
+                        if let Err(e) = result {
+                            error!("{}", e);
+                        }
                     }
                     MsgType::Set => {
                         info!("Received SET message: {:?}", &msg);
@@ -81,7 +83,7 @@ pub async fn process_udp(
                                         format!("Error: no topic \"{}\" exists", &msg.topic);
                                     error!("{}", &e);
                                     // e.as_bytes().into();
-                                    GenericMsg::error(Error::NonExistentTopic(msg.topic))
+                                    GenericMsg::result(Err(Error::NonExistentTopic(msg.topic)))
                                         .as_bytes()
                                         .unwrap()
                                 }
@@ -103,7 +105,7 @@ pub async fn process_udp(
                             Some(topic) => {
                                 let return_bytes = match topic {
                                     Ok((_timestamp, bytes)) => bytes.to_vec(),
-                                    Err(e) => GenericMsg::error(e.into()).as_bytes().unwrap(),
+                                    Err(e) => GenericMsg::result(Err(e.into())).as_bytes().unwrap(),
                                 };
 
                                 if let Ok(()) = s.writable().await {

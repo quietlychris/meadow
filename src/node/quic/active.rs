@@ -262,7 +262,11 @@ impl<T: Message + 'static> Node<Blocking, Quic, Active, T> {
                             let bytes = &buf[..n];
                             let generic = from_bytes::<GenericMsg>(bytes)?;
                             match generic.msg_type {
-                                MsgType::Error(e) => return Err(e),
+                                MsgType::Result(result) => {
+                                    if let Err(e) = result {
+                                        return Err(e);
+                                    }
+                                }
                                 _ => {
                                     let msg = generic.try_into()?;
                                     return Ok(msg);

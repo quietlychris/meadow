@@ -86,8 +86,10 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
         };
         info!("{:?}", &msg);
         match msg.msg_type {
-            MsgType::Error(e) => {
-                error!("Received {}", e);
+            MsgType::Result(result) => {
+                if let Err(e) = result {
+                    error!("Received {}", e);
+                }
             }
             MsgType::Set => {
                 let tree = db
