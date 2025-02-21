@@ -185,6 +185,7 @@ pub async fn process_udp(
                             .position(|x| *x == "__sled__default")
                             .unwrap();
                         strings.remove(index);
+                        strings.sort();
 
                         match to_allocvec(&strings) {
                             Ok(data) => {

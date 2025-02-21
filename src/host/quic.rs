@@ -217,6 +217,7 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
                     .position(|x| *x == "__sled__default")
                     .unwrap();
                 strings.remove(index);
+                strings.sort();
                 if let Ok(data) = to_allocvec(&strings) {
                     let mut packet = GenericMsg::topics();
                     packet.set_data(data);
