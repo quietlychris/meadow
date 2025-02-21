@@ -87,8 +87,6 @@ pub async fn process_tcp(stream: TcpStream, mut db: sled::Db, max_buffer_size: u
                                 }
                             }
                         }
-
-                        continue;
                     }
                     MsgType::GetNth(n) => {
                         let response = match db.get_generic_nth(&msg.topic, *n) {
@@ -102,8 +100,6 @@ pub async fn process_tcp(stream: TcpStream, mut db: sled::Db, max_buffer_size: u
                                 }
                             }
                         }
-
-                        continue;
                     }
                     MsgType::Set => {
                         let response = GenericMsg::result(db.insert_generic(msg));
@@ -114,8 +110,6 @@ pub async fn process_tcp(stream: TcpStream, mut db: sled::Db, max_buffer_size: u
                                 }
                             }
                         }
-
-                        continue;
                     }
                     MsgType::Topics => {
                         let response = match db.topics() {
@@ -137,8 +131,6 @@ pub async fn process_tcp(stream: TcpStream, mut db: sled::Db, max_buffer_size: u
                                 }
                             }
                         }
-
-                        continue;
                     }
                     MsgType::Result(result) => match result {
                         Ok(_) => (),
