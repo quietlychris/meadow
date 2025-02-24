@@ -59,6 +59,7 @@ pub mod prelude {
     pub use crate::node::config::RuntimeConfig;
     pub use crate::node::network_config::{Blocking, NetworkConfig, Nonblocking, Tcp, Udp};
     pub use crate::node::{Active, Idle, Node, Subscription};
+    pub use sled::Db;
 
     #[cfg(feature = "quic")]
     pub use crate::host::{generate_certs, QuicConfig};
