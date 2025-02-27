@@ -146,22 +146,12 @@ pub async fn process_quic(stream: (SendStream, RecvStream), mut db: sled::Db, bu
                 let rate = specialized.data;
 
                 loop {
-                    let tree = db
-                        .open_tree(msg.topic.as_bytes())
-                        .expect("Error opening tree");
-
-                    let return_bytes = match tree.last() {
-                        Ok(Some(msg)) => msg.1,
-                        _ => {
-                            let e: String = format!("Error: no topic \"{}\" exists", &msg.topic);
-                            error!("{}", &e);
-                            e.as_bytes().into()
-                        }
+                    let response = match db.get_generic_nth(&msg.topic, 0) {
+                        Ok(g) => g,
+                        Err(e) => GenericMsg::result(Err(e)),
                     };
-
-                    match tx.write(&return_bytes).await {
-                        Ok(_n) => {}
-                        Err(e) => {
+                    if let Ok(return_bytes) = response.as_bytes() {
+                        if let Err(e) = tx.write(&return_bytes).await {
                             error!("{}", e);
                         }
                     }
