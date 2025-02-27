@@ -12,7 +12,7 @@ use std::sync::Arc;
 // Misc other imports
 use chrono::Utc;
 
-use crate::error::Error;
+use crate::error::{Error, HostOperation};
 use crate::host::GenericStore;
 use crate::prelude::*;
 use std::convert::TryInto;
@@ -43,7 +43,7 @@ pub async fn handshake(
 /// Host process for handling incoming connections from Nodes
 #[tracing::instrument(skip_all)]
 #[inline]
-pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize) {
+pub async fn process_tcp(stream: TcpStream, mut db: sled::Db, max_buffer_size: usize) {
     let mut buf = vec![0u8; max_buffer_size];
     loop {
         if let Err(e) = stream.readable().await {
@@ -75,61 +75,12 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                     MsgType::Subscribe => {
                         start_subscription(msg.clone(), db.clone(), &stream).await;
                     }
-                    _ => {
-                        let msg = process_msg(msg.clone(), db.clone()).unwrap();
-                    }
-                }
-
-                match &msg.msg_type {
-                    MsgType::Error(e) => {
-                        todo!()
-                    }
-                    MsgType::Set => {
-                        // println!("received {} bytes, to be assigned to: {}", n, &msg.name);
-                        let tree = db
-                            .open_tree(msg.topic.as_bytes())
-                            .expect("Error opening tree");
-
-                        let db_result = {
-                            match tree.insert(msg.timestamp.to_string().as_bytes(), bytes) {
-                                Ok(_prev_msg) => {
-                                    info!("{:?}", msg.data);
-                                    Ok(())
-                                }
-                                Err(e) => Err(crate::error::HostOperation::FAILURE),
-                            }
-                        };
-
-                        if let Ok(bytes) = postcard::to_allocvec(&db_result) {
-                            loop {
-                                match stream.try_write(&bytes) {
-                                    Ok(_n) => {
-                                        break;
-                                    }
-                                    Err(_e) => {
-                                        // if e.kind() == std::io::ErrorKind::WouldBlock {}
-                                        continue;
-                                    }
-                                }
-                            }
-                        }
-                    }
                     MsgType::Get => {
-                        let tree = db
-                            .open_tree(msg.topic.as_bytes())
-                            .expect("Error opening tree");
-
-                        if let Ok(topic) = tree.last() {
-                            let return_bytes = match topic {
-                                Some(msg) => msg.1,
-                                None => {
-                                    let e: String =
-                                        format!("Error: no topic \"{}\" exists", &msg.topic);
-                                    error!("{}", &e);
-                                    e.as_bytes().into()
-                                }
-                            };
-
+                        let response = match db.get_generic_nth(&msg.topic, 0) {
+                            Ok(g) => g,
+                            Err(e) => GenericMsg::result(Err(e)),
+                        };
+                        if let Ok(return_bytes) = response.as_bytes() {
                             if let Ok(()) = stream.writable().await {
                                 if let Err(e) = stream.try_write(&return_bytes) {
                                     error!("Error sending data back on TCP/TOPICS: {:?}", e);
@@ -138,115 +89,53 @@ pub async fn process_tcp(stream: TcpStream, db: sled::Db, max_buffer_size: usize
                         }
                     }
                     MsgType::GetNth(n) => {
-                        let tree = db
-                            .open_tree(msg.topic.as_bytes())
-                            .expect("Error opening tree");
-
-                        match tree.iter().nth_back(*n) {
-                            Some(topic) => {
-                                let return_bytes = match topic {
-                                    Ok((_timestamp, bytes)) => bytes,
-                                    Err(e) => {
-                                        let e: String =
-                                            format!("Error: no topic \"{}\" exists", &msg.topic);
-                                        error!("{}", &e);
-                                        e.as_bytes().into()
-                                    }
-                                };
-
-                                if let Ok(()) = stream.writable().await {
-                                    if let Err(e) = stream.try_write(&return_bytes) {
-                                        error!("Error sending data back on TCP/TOPICS: {:?}", e);
-                                    }
-                                }
-                            }
-                            None => {
-                                let e: String =
-                                    format!("Error: no topic \"{}\" exists", &msg.topic);
-                                error!("{}", &e);
-
-                                if let Ok(()) = stream.writable().await {
-                                    if let Err(e) = stream.try_write(e.as_bytes()) {
-                                        error!("Error sending data back on TCP/TOPICS: {:?}", e);
-                                    }
+                        let response = match db.get_generic_nth(&msg.topic, *n) {
+                            Ok(g) => g,
+                            Err(e) => GenericMsg::result(Err(e)),
+                        };
+                        if let Ok(return_bytes) = response.as_bytes() {
+                            if let Ok(()) = stream.writable().await {
+                                if let Err(e) = stream.try_write(&return_bytes) {
+                                    error!("Error sending data back on TCP/TOPICS: {:?}", e);
                                 }
                             }
                         }
                     }
-                    MsgType::Subscribe => {
-                        let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
-                        let rate = specialized.data;
-
-                        if let Ok(tree) = db.open_tree(msg.topic.as_bytes()) {
-                            loop {
-                                if let Ok(topic) = tree.last() {
-                                    let return_bytes = match topic {
-                                        Some(msg) => msg.1,
-                                        None => {
-                                            let e: String = format!(
-                                                "Error: no topic \"{}\" exists",
-                                                &msg.topic
-                                            );
-                                            error!("{}", &e);
-                                            e.clone().as_bytes().into()
-                                        }
-                                    };
-
-                                    if let Ok(()) = stream.writable().await {
-                                        if let Err(e) = stream.try_write(&return_bytes) {
-                                            error!(
-                                                "Error sending data back on TCP/TOPICS: {:?}",
-                                                e
-                                            );
-                                        }
-                                    }
-                                    sleep(rate).await;
+                    MsgType::Set => {
+                        let response = GenericMsg::result(db.insert_generic(msg));
+                        if let Ok(return_bytes) = response.as_bytes() {
+                            if let Ok(()) = stream.writable().await {
+                                if let Err(e) = stream.try_write(&return_bytes) {
+                                    error!("Error sending data back on TCP/TOPICS: {:?}", e);
                                 }
                             }
                         }
                     }
                     MsgType::Topics => {
-                        let names = db.tree_names();
-
-                        let mut strings = Vec::new();
-                        for name in names {
-                            match std::str::from_utf8(&name[..]) {
-                                Ok(name) => {
-                                    strings.push(name.to_string());
-                                }
-                                Err(_e) => {
-                                    error!("Error converting topic name {:?} to UTF-8 bytes", name);
+                        let response = match db.topics() {
+                            Ok(mut topics) => {
+                                topics.sort();
+                                let msg = Msg::new(MsgType::Topics, "", topics);
+                                match msg.to_generic() {
+                                    Ok(msg) => msg,
+                                    Err(e) => GenericMsg::result(Err(e)),
                                 }
                             }
-                        }
-                        // Remove default sled tree name
-                        let index = strings
-                            .iter()
-                            .position(|x| *x == "__sled__default")
-                            .unwrap();
-                        strings.remove(index);
+                            Err(e) => GenericMsg::result(Err(e)),
+                        };
 
-                        match to_allocvec(&strings) {
-                            Ok(data) => {
-                                let mut packet = GenericMsg::topics();
-                                packet.set_data(data);
-
-                                if let Ok(bytes) = to_allocvec(&packet) {
-                                    if let Ok(()) = stream.writable().await {
-                                        if let Err(e) = stream.try_write(&bytes) {
-                                            error!(
-                                                "Error sending data back on TCP/TOPICS: {:?}",
-                                                e
-                                            );
-                                        }
-                                    }
+                        if let Ok(return_bytes) = response.as_bytes() {
+                            if let Ok(()) = stream.writable().await {
+                                if let Err(e) = stream.try_write(&return_bytes) {
+                                    error!("Error sending data back on TCP/TOPICS: {:?}", e);
                                 }
-                            }
-                            Err(e) => {
-                                error!("{:?}", e);
                             }
                         }
                     }
+                    MsgType::Result(result) => match result {
+                        Ok(_) => (),
+                        Err(e) => error!("{}", e),
+                    },
                 }
             }
             Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
@@ -264,29 +153,18 @@ async fn start_subscription(msg: GenericMsg, db: sled::Db, stream: &TcpStream) {
     let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
     let rate = specialized.data;
 
-    if let Ok(tree) = db.open_tree(msg.topic.as_bytes()) {
-        loop {
-            if let Ok(topic) = tree.last() {
-                let return_bytes = match topic {
-                    Some(msg) => msg.1,
-                    None => {
-                        let e: String = format!("Error: no topic \"{}\" exists", &msg.topic);
-                        error!("{}", &e);
-                        e.clone().as_bytes().into()
-                    }
-                };
-
-                if let Ok(()) = stream.writable().await {
-                    if let Err(e) = stream.try_write(&return_bytes) {
-                        error!("Error sending data back on TCP/TOPICS: {:?}", e);
-                    }
+    loop {
+        let response = match db.get_generic_nth(&msg.topic, 0) {
+            Ok(g) => g,
+            Err(e) => GenericMsg::result(Err(e)),
+        };
+        if let Ok(return_bytes) = response.as_bytes() {
+            if let Ok(()) = stream.writable().await {
+                if let Err(e) = stream.try_write(&return_bytes) {
+                    error!("Error sending data back on TCP/TOPICS: {:?}", e);
                 }
-                sleep(rate).await;
             }
         }
+        sleep(rate).await;
     }
-}
-
-fn process_msg(msg: GenericMsg, db: sled::Db) -> Result<Option<GenericMsg>, Error> {
-    Ok(None)
 }

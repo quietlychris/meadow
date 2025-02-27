@@ -106,15 +106,7 @@ impl GenericStore for sled::Db {
         &self,
         topic: impl Into<String> + std::fmt::Debug,
     ) -> Result<GenericMsg, crate::Error> {
-        let topic = topic.into();
-        let tree = self.open_tree(topic.as_bytes())?;
-        match tree.last()? {
-            Some((_timestamp, bytes)) => {
-                let msg: GenericMsg = postcard::from_bytes(&bytes)?;
-                Ok(msg)
-            }
-            None => Err(Error::NonExistentTopic(topic.to_string())),
-        }
+        self.get_generic_nth(topic.into(), 0)
     }
 
     #[tracing::instrument]
@@ -534,6 +526,7 @@ impl Host {
         if let Some(n) = index {
             strings.remove(n);
         }
+        strings.sort();
         strings
     }
 

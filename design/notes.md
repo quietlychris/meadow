@@ -1,8 +1,5 @@
 ## Meadow Design Notes
 
-- Meadow currently relies on transport-layer   
-
-
 Each message is serialized into two types of messages:
 1. `Msg<T>`, which is a strongly-typed variant that is primarily used in the user-facing APIs. 
 2. `GenericMsg`, which has structural overlap with `Msg<T>`, but carries its data payload as an vector of bytes `Vec<u8>`.
@@ -38,3 +35,5 @@ For all message types, the `Node` operates by:
        - Reply: Send the created message
   
 At any point during these operations, a failure can be had, which will be in the form of `meadow::Error` enum. This error type is serializable, and so can be included in `Msg` types. As a result, a failure of any of the `Host`-side actions will result in a `MsgType::Error(e)`-based `GenericMsg` being sent back to the `Node`, which is responsible for propagating this message.  
+
+Meadow cues off of transport-layer level guarantees for if the results of Host-side actions should be communicated back to their originating Node. This means that both `Node<Quic>` and `Node<Tcp>` expect that the Host will generate a `MsgType::Result` that acts as an `ACK` on the requested operation, even if the operation does not inherently require a response (i.e. `MsgType::Set` doesn't inherently expect a return value). Conversely, `Node<Udp>` does *not* expect and `ACK`, in keeping with the 

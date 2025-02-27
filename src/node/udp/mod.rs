@@ -2,7 +2,7 @@ mod active;
 mod idle;
 mod subscription;
 
-use crate::msg::{GenericMsg, Message, Msg};
+use crate::msg::{GenericMsg, Message, Msg, MsgType};
 use std::convert::TryInto;
 use std::sync::Arc;
 use tokio::net::UdpSocket;
@@ -14,7 +14,7 @@ use crate::error::Error;
 use std::io::{Error as IoError, ErrorKind};
 use std::net::SocketAddr;
 
-#[inline]
+/* #[inline]
 #[tracing::instrument(skip(buffer))]
 pub async fn await_response<T: Message>(
     socket: &UdpSocket,
@@ -34,7 +34,47 @@ pub async fn await_response<T: Message>(
                 let bytes = &buf[..n];
 
                 let generic = postcard::from_bytes::<GenericMsg>(bytes)?;
-                let msg: Msg<T> = generic.try_into()?;
+                match generic.msg_type {
+                    MsgType::Result(result) => {
+                        if let Err(e) = result {
+                            return Err(e);
+                        }
+                    }
+                    _ => {
+                        let msg: Msg<T> = generic.try_into()?;
+                        return Ok(msg);
+                    }
+                }
+            }
+            Err(e) => {
+                if e.kind() == std::io::ErrorKind::WouldBlock {
+                    error!("Would block");
+                }
+                continue;
+            }
+        }
+    }
+} */
+
+#[inline]
+#[tracing::instrument(skip(buffer))]
+pub async fn await_response(
+    socket: &UdpSocket,
+    buffer: Arc<TokioMutex<Vec<u8>>>,
+) -> Result<GenericMsg, Error> {
+    socket.readable().await?;
+    loop {
+        let mut buf = buffer.lock().await;
+
+        match socket.recv(&mut buf).await {
+            Ok(0) => {
+                info!("await_response received zero bytes");
+                continue;
+            }
+            Ok(n) => {
+                // info!("await_response received {} bytes", n);
+                let bytes = &buf[..n];
+                let msg = postcard::from_bytes::<GenericMsg>(bytes)?;
                 return Ok(msg);
             }
             Err(e) => {

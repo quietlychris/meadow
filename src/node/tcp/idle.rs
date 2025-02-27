@@ -11,6 +11,7 @@ use tokio::time::{sleep, Duration};
 
 use tracing::*;
 
+use std::convert::TryInto;
 use std::net::SocketAddr;
 use std::result::Result;
 use std::sync::Arc;
@@ -147,23 +148,30 @@ async fn run_subscription<T: Message>(
 
     let mut buffer = buffer.lock().await;
     loop {
-        match await_response::<T>(stream, &mut buffer).await {
+        match await_response(stream, &mut buffer).await {
             Ok(msg) => {
-                let mut data = data.lock().await;
-                use std::ops::DerefMut;
-                match data.deref_mut() {
-                    Some(existing) => {
-                        let delta = msg.timestamp - existing.timestamp;
-                        // println!("The time difference between msg tx/rx is: {} us",delta);
-                        if delta <= chrono::Duration::zero() {
-                            // println!("Data is not newer, skipping to next subscription iteration");
-                            continue;
-                        }
+                match TryInto::<Msg<T>>::try_into(msg) {
+                    Ok(msg) => {
+                        let mut data = data.lock().await;
+                        use std::ops::DerefMut;
+                        match data.deref_mut() {
+                            Some(existing) => {
+                                let delta = msg.timestamp - existing.timestamp;
+                                // println!("The time difference between msg tx/rx is: {} us",delta);
+                                if delta <= chrono::Duration::zero() {
+                                    // println!("Data is not newer, skipping to next subscription iteration");
+                                    continue;
+                                }
 
-                        *data = Some(msg);
+                                *data = Some(msg);
+                            }
+                            None => {
+                                *data = Some(msg);
+                            }
+                        }
                     }
-                    None => {
-                        *data = Some(msg);
+                    Err(e) => {
+                        error!("{}", e);
                     }
                 }
             }

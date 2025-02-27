@@ -23,7 +23,7 @@ use alloc::vec::Vec;
 use postcard::from_bytes;
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::msg::{GenericMsg, Message, Msg};
+use crate::msg::{GenericMsg, Message, Msg, MsgType};
 use crate::node::network_config::Interface;
 use crate::Error;
 use chrono::{DateTime, Utc};
@@ -112,7 +112,7 @@ pub async fn send_msg(stream: &TcpStream, packet: Vec<u8>) -> Result<(), Error> 
 
 /// Set Node to wait for response from Host, with data to be deserialized into `Msg<T>`-type
 // #[tracing::instrument]
-#[inline]
+/* #[inline]
 pub async fn await_response<T: Message>(
     stream: &TcpStream,
     buf: &mut [u8], //max_buffer_size: usize,
@@ -127,8 +127,43 @@ pub async fn await_response<T: Message>(
             Ok(n) => {
                 let bytes = &buf[..n];
                 let generic = from_bytes::<GenericMsg>(bytes)?;
-                let specialized: Msg<T> = generic.try_into()?;
-                return Ok(specialized);
+                match generic.msg_type {
+                    MsgType::Result(result) => {
+                        if let Err(e) = result {
+                            return Err(e);
+                        }
+                    }
+                    _ => {
+                        let specialized: Msg<T> = generic.try_into()?;
+                        return Ok(specialized);
+                    }
+                }
+            }
+            Err(_e) => {
+                // if e.kind() == std::io::ErrorKind::WouldBlock {}
+                debug!("Would block");
+                continue;
+            }
+        }
+    }
+} */
+
+#[inline]
+pub async fn await_response(
+    stream: &TcpStream,
+    buf: &mut [u8], //max_buffer_size: usize,
+) -> Result<GenericMsg, Error> {
+    // TO_DO: This can be made cleaner
+    loop {
+        if let Err(e) = stream.readable().await {
+            error!("{}", e);
+        }
+        match stream.try_read(buf) {
+            Ok(0) => continue,
+            Ok(n) => {
+                let bytes = &buf[..n];
+                let msg = from_bytes::<GenericMsg>(bytes)?;
+                return Ok(msg);
             }
             Err(_e) => {
                 // if e.kind() == std::io::ErrorKind::WouldBlock {}

@@ -44,8 +44,20 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Active, T> {
                     Ok(0) => continue,
                     Ok(n) => {
                         let bytes = &buf[..n];
-                        if let Ok(HostOperation::FAILURE) = from_bytes::<HostOperation>(bytes) {
-                            error!("Host-side error on publish");
+                        match from_bytes::<GenericMsg>(bytes) {
+                            Ok(g) => match g.msg_type {
+                                MsgType::Result(result) => {
+                                    if let Err(e) = result {
+                                        error!("{}", e);
+                                    }
+                                }
+                                _ => {
+                                    info!("{:?}", &g);
+                                }
+                            },
+                            Err(e) => {
+                                error!("{}", e);
+                            }
                         }
 
                         break;
@@ -80,8 +92,21 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Active, T> {
                     Ok(0) => continue,
                     Ok(n) => {
                         let bytes = &buf[..n];
-                        if let Ok(HostOperation::FAILURE) = from_bytes::<HostOperation>(bytes) {
-                            error!("Host-side error on publish");
+
+                        match from_bytes::<GenericMsg>(bytes) {
+                            Ok(g) => match g.msg_type {
+                                MsgType::Result(result) => {
+                                    if let Err(e) = result {
+                                        error!("{}", e)
+                                    } else {
+                                        info!("{:?}", result);
+                                    }
+                                }
+                                _ => (),
+                            },
+                            Err(e) => {
+                                error!("{}", e);
+                            }
                         }
 
                         break;
@@ -109,7 +134,7 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Active, T> {
 
         let mut buffer = self.buffer.lock().await;
         send_msg(stream, packet).await?;
-        let msg = await_response::<T>(stream, &mut buffer).await?;
+        let msg = await_response(stream, &mut buffer).await?.try_into()?;
         Ok(msg)
     }
 
@@ -125,7 +150,7 @@ impl<T: Message + 'static> Node<Nonblocking, Tcp, Active, T> {
 
         let mut buffer = self.buffer.lock().await;
         send_msg(stream, packet).await?;
-        let msg = await_response::<Vec<String>>(stream, &mut buffer).await?;
+        let msg = await_response(stream, &mut buffer).await?.try_into()?;
         Ok(msg)
     }
 }
@@ -135,7 +160,7 @@ use crate::node::network_config::Blocking;
 impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
     // TO_DO: The error handling in the async blocks need to be improved
     /// Send data to host on Node's assigned topic using `Msg<T>` packet
-    #[tracing::instrument]
+    #[tracing::instrument(skip_all)]
     #[inline]
     pub fn publish(&self, val: T) -> Result<(), Error> {
         let packet = Msg::new(MsgType::Set, self.topic.clone(), val)
@@ -155,17 +180,32 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
         handle.block_on(async {
             // Send the publish message
             send_msg(stream, packet).await?;
-
             // Wait for the publish acknowledgement
+            // let mut buf = *self.buffer.lock().await;
+            //await_response(stream, &mut buf).await?;
+
             let mut buf = self.buffer.lock().await;
+
             loop {
                 if let Ok(()) = stream.readable().await {
                     match stream.try_read(&mut buf) {
                         Ok(0) => continue,
                         Ok(n) => {
                             let bytes = &buf[..n];
-                            if let Ok(HostOperation::FAILURE) = from_bytes::<HostOperation>(bytes) {
-                                error!("Host-side error on publish");
+                            match from_bytes::<GenericMsg>(bytes) {
+                                Ok(g) => match g.msg_type {
+                                    MsgType::Result(result) => {
+                                        if let Err(e) = result {
+                                            error!("{}", e);
+                                        }
+                                    }
+                                    _ => {
+                                        info!("{:?}", &g);
+                                    }
+                                },
+                                Err(e) => {
+                                    error!("{}", e);
+                                }
                             }
 
                             break;
@@ -208,8 +248,20 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
                         Ok(0) => continue,
                         Ok(n) => {
                             let bytes = &buf[..n];
-                            if let Ok(HostOperation::FAILURE) = from_bytes::<HostOperation>(bytes) {
-                                error!("Host-side error on publish");
+                            match from_bytes::<GenericMsg>(bytes) {
+                                Ok(g) => match g.msg_type {
+                                    MsgType::Result(result) => {
+                                        if let Err(e) = result {
+                                            error!("{}", e);
+                                        }
+                                    }
+                                    _ => {
+                                        info!("{:?}", &g);
+                                    }
+                                },
+                                Err(e) => {
+                                    error!("{}", e);
+                                }
                             }
 
                             break;
@@ -244,7 +296,7 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
         handle.block_on(async {
             let mut buffer = self.buffer.lock().await;
             send_msg(stream, packet).await?;
-            let msg = await_response::<T>(stream, &mut buffer).await?;
+            let msg = await_response(stream, &mut buffer).await?.try_into()?;
             Ok(msg)
         })
     }
@@ -268,7 +320,7 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
         handle.block_on(async {
             let mut buffer = self.buffer.lock().await;
             send_msg(stream, packet).await?;
-            let msg = await_response::<T>(stream, &mut buffer).await?;
+            let msg = await_response(stream, &mut buffer).await?.try_into()?;
             Ok(msg)
         })
     }
@@ -287,7 +339,8 @@ impl<T: Message + 'static> Node<Blocking, Tcp, Active, T> {
             handle.block_on(async {
                 let mut buffer = self.buffer.lock().await;
                 send_msg(stream, packet).await?;
-                let msg = await_response::<Vec<String>>(stream, &mut buffer).await?;
+                let msg: Msg<Vec<String>> =
+                    await_response(stream, &mut buffer).await?.try_into()?;
                 Ok(msg)
             })
         } else {

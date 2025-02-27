@@ -11,6 +11,7 @@ struct Pose {
     pub y: f32,
 }
 
+#[tracing::instrument(skip_all)]
 fn main() -> Result<(), meadow::Error> {
     logging();
 
@@ -103,7 +104,7 @@ fn logging() {
 
     let log = tracing_subscriber::fmt::layer()
         .compact()
-        .with_ansi(false)
+        .with_ansi(true)
         .with_line_number(true)
         .with_writer(Arc::new(file));
 
