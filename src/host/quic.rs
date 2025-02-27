@@ -2,6 +2,7 @@ use crate::error::{
     Error, HostOperation,
     Quic::{self, *},
 };
+use crate::host::GenericStore;
 use crate::prelude::*;
 use futures_util::lock::Mutex;
 use futures_util::StreamExt;
@@ -72,7 +73,7 @@ pub fn read_certs_from_file(
     }
 }
 
-pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &mut [u8]) {
+pub async fn process_quic(stream: (SendStream, RecvStream), mut db: sled::Db, buf: &mut [u8]) {
     let (mut tx, mut rx) = stream;
 
     if let Ok(Some(n)) = rx.read(buf).await {
@@ -85,6 +86,7 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
             }
         };
         info!("{:?}", &msg);
+
         match msg.msg_type {
             MsgType::Result(result) => {
                 if let Err(e) = result {
@@ -92,87 +94,50 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
                 }
             }
             MsgType::Set => {
-                let tree = db
-                    .open_tree(msg.topic.as_bytes())
-                    .expect("Error opening tree");
-
-                let db_result = match tree.insert(msg.timestamp.to_string(), bytes) {
-                    Ok(_prev_msg) => crate::error::HostOperation::SUCCESS, //"SUCCESS".to_string(),
-                    Err(_e) => {
-                        error!("{:?}", _e);
-                        crate::error::HostOperation::FAILURE
-                    }
-                };
-
-                if let Ok(bytes) = postcard::to_allocvec(&db_result) {
-                    for _ in 0..10 {
-                        match tx.write(&bytes).await {
-                            Ok(_n) => {
-                                break;
-                            }
-                            Err(e) => {
-                                error!("{}", e);
-                                continue;
-                            }
-                        }
+                let response = GenericMsg::result(db.insert_generic(msg));
+                if let Ok(return_bytes) = response.as_bytes() {
+                    if let Err(e) = tx.write(&return_bytes).await {
+                        error!("{}", e);
                     }
                 }
             }
             MsgType::Get => {
-                let tree = db
-                    .open_tree(msg.topic.as_bytes())
-                    .expect("Error opening tree");
-
-                let return_bytes = match tree.last() {
-                    Ok(Some(msg)) => msg.1,
-                    _ => {
-                        let e: String = format!("Error: no topic \"{}\" exists", &msg.topic);
-                        error!("{}", &e);
-                        e.as_bytes().into()
-                    }
+                let response = match db.get_generic_nth(&msg.topic, 0) {
+                    Ok(g) => g,
+                    Err(e) => GenericMsg::result(Err(e)),
                 };
-
-                match tx.write(&return_bytes).await {
-                    Ok(_n) => {}
-                    Err(e) => {
+                if let Ok(return_bytes) = response.as_bytes() {
+                    if let Err(e) = tx.write(&return_bytes).await {
                         error!("{}", e);
                     }
                 }
             }
             MsgType::GetNth(n) => {
-                let tree = db
-                    .open_tree(msg.topic.as_bytes())
-                    .expect("Error opening tree");
-
-                match tree.iter().nth_back(n) {
-                    Some(topic) => {
-                        let return_bytes = match topic {
-                            Ok((_timestamp, bytes)) => bytes,
-                            Err(e) => {
-                                let e: String =
-                                    format!("Error: no topic \"{}\" exists", &msg.topic);
-                                error!("{}", &e);
-                                e.as_bytes().into()
-                            }
-                        };
-
-                        match tx.write(&return_bytes).await {
-                            Ok(_n) => {}
-                            Err(e) => {
-                                error!("{}", e);
-                            }
+                let response = match db.get_generic_nth(&msg.topic, n) {
+                    Ok(g) => g,
+                    Err(e) => GenericMsg::result(Err(e)),
+                };
+                if let Ok(return_bytes) = response.as_bytes() {
+                    if let Err(e) = tx.write(&return_bytes).await {
+                        error!("{}", e);
+                    }
+                }
+            }
+            MsgType::Topics => {
+                let response = match db.topics() {
+                    Ok(mut topics) => {
+                        topics.sort();
+                        let msg = Msg::new(MsgType::Topics, "", topics);
+                        match msg.to_generic() {
+                            Ok(msg) => msg,
+                            Err(e) => GenericMsg::result(Err(e)),
                         }
                     }
-                    None => {
-                        let e: String = format!("Error: no topic \"{}\" exists", &msg.topic);
-                        error!("{}", &e);
-
-                        match tx.write(&e.as_bytes()).await {
-                            Ok(_n) => {}
-                            Err(e) => {
-                                error!("{}", e);
-                            }
-                        }
+                    Err(e) => GenericMsg::result(Err(e)),
+                };
+                if let Ok(return_bytes) = response.as_bytes() {
+                    if let Err(e) = tx.write(&return_bytes).await {
+                        error!("{}", e);
                     }
                 }
             }
@@ -201,32 +166,6 @@ pub async fn process_quic(stream: (SendStream, RecvStream), db: sled::Db, buf: &
                         }
                     }
                     sleep(rate).await;
-                }
-            }
-            MsgType::Topics => {
-                let names = db.tree_names();
-                let mut strings = Vec::new();
-                for name in names {
-                    if let Ok(name) = std::str::from_utf8(&name[..]) {
-                        strings.push(name.to_string());
-                    }
-                }
-                // Remove default sled tree name
-                let index = strings
-                    .iter()
-                    .position(|x| *x == "__sled__default")
-                    .unwrap();
-                strings.remove(index);
-                strings.sort();
-                if let Ok(data) = to_allocvec(&strings) {
-                    let mut packet = GenericMsg::topics();
-                    packet.set_data(data);
-
-                    if let Ok(bytes) = to_allocvec(&packet) {
-                        if let Err(e) = tx.write(&bytes).await {
-                            error!("Error sending data back on QUIC/TOPICS: {:?}", e);
-                        }
-                    }
                 }
             }
         }
