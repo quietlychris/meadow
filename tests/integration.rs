@@ -3,7 +3,6 @@
 use meadow::prelude::*;
 mod common;
 use common::Pose;
-use rand::thread_rng;
 
 use std::thread;
 use std::time::Duration;
@@ -168,10 +167,6 @@ macro_rules! node_send_options {
             // Test code goes below here
 
             let _host = start_host().unwrap();
-
-            let node: Node<Blocking, N, Idle, Pose> =
-                NodeConfig::new("doesnt_exist").build().unwrap();
-            let node = node.activate().unwrap();
 
             // Get the host up and running
             let node_a = NodeConfig::<Blocking, N, Option<f32>>::new("pose")
@@ -377,7 +372,7 @@ macro_rules! back_nth_operation {
                 y: (n - back) as f32,
             };
             // We use "back + 1" because we're zero-indexed
-            let b = node.request_nth_back(back - 1).unwrap().data;
+            let _b = node.request_nth_back(back - 1).unwrap().data;
             assert_eq!(node.request_nth_back(back - 1).unwrap().data, pose);
         }
     };
