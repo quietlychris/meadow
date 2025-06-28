@@ -2,7 +2,7 @@
 [![Documentation](https://docs.rs/meadow/badge.svg)](https://docs.rs/meadow) 
 ![CI](https://github.com/quietlychris/meadow/actions/workflows/rust.yml/badge.svg)
 [![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)](https://opensource.org/licenses/MPL-2.0)
-[![MSRV](https://img.shields.io/badge/MSRV-v1.75.0-blue)](https://github.com/foresterre/cargo-msrv)
+[![MSRV](https://img.shields.io/badge/MSRV-v1.81.0-blue)](https://github.com/foresterre/cargo-msrv)
 
 # Meadow
 
