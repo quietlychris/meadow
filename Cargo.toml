@@ -38,6 +38,8 @@ rustls = { version = "0.20", features = ["dangerous_configuration", "quic"], opt
 rustls-pemfile = {version = "1", optional = true}
 rcgen = {version = "0.9", optional = true}
 futures-util = {version = "0.3", optional = true}
+# Alternative backend
+redb = {version = ">=2.6", optional = true}
 
 [dev-dependencies]
 # logging to file

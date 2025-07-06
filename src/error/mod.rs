@@ -6,6 +6,10 @@ pub use crate::error::host_operation::*;
 mod quic;
 #[cfg(feature = "quic")]
 pub use crate::error::quic::*;
+use crate::error::redb::RedbError;
+
+#[cfg(feature = "redb")]
+mod redb;
 
 use core::fmt::{Display, Formatter};
 use serde::*;
@@ -68,6 +72,8 @@ pub enum Error {
     NoNthValue,
     #[error("Undefined error")]
     Undefined,
+    #[error("`redb`-based Error")]
+    Redb(#[from] RedbError),
 }
 
 /// This is the Result type used by meadow.

@@ -14,3 +14,6 @@ pub use crate::host::network_config::{QuicConfig, TcpConfig, UdpConfig};
 
 #[cfg(feature = "quic")]
 pub use crate::host::quic::generate_certs;
+
+#[cfg(feature = "redb")]
+mod redb;
