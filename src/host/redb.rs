@@ -2,7 +2,9 @@ use redb::{Database, ReadableTable, TableDefinition};
 
 use crate::host::GenericStore;
 use crate::msg::GenericMsg;
+use crate::msg::{Message, Msg};
 use crate::Error;
+use std::convert::TryInto;
 use std::sync::Arc;
 
 impl GenericStore for Arc<Database> {
@@ -32,7 +34,7 @@ impl GenericStore for Arc<Database> {
         topic: impl Into<String> + std::fmt::Debug,
         n: usize,
     ) -> Result<GenericMsg, crate::Error> {
-        let topic: String = topic.into();
+        let topic = topic.into();
         let definition = TableDefinition::<&[u8], &[u8]>::new(&topic);
         let read_txn = self.begin_read().unwrap();
 
@@ -46,13 +48,22 @@ impl GenericStore for Arc<Database> {
                 return Err(Error::NoNthValue);
             }
         } else {
-            Err(Error::NonExistentTopic(topic))
+            Err(Error::NonExistentTopic(topic.into()))
         }
     }
 }
 
 use crate::host::Store;
 
-// impl Store for Database {
-
-// }
+impl Store for Arc<Database> {
+    #[inline]
+    fn get_nth_back<T: Message>(
+        &self,
+        topic: impl Into<String> + std::fmt::Debug,
+        n: usize,
+    ) -> Result<crate::prelude::Msg<T>, crate::Error> {
+        let generic = self.get_generic_nth(topic.into(), n)?;
+        let msg: Msg<T> = generic.try_into()?;
+        Ok(msg)
+    }
+}

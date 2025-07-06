@@ -61,21 +61,26 @@ pub struct Host {
 }
 
 pub trait Store {
+    /// Insert a raw `Msg<T>`
     fn insert_msg<T: Message>(&mut self, msg: Msg<T>) -> Result<(), crate::Error>;
+    /// Insert a value using a default `Msg`
     fn insert<T: Message>(
         &mut self,
         topic: impl Into<String> + std::fmt::Debug,
         data: T,
     ) -> Result<(), crate::Error>;
+    /// Retrieve last message on a given topic
     fn get<T: Message>(
         &self,
         topic: impl Into<String> + std::fmt::Debug,
     ) -> Result<Msg<T>, crate::Error>;
+    /// Retrieve n'th message on a given topic, if it exists
     fn get_nth_back<T: Message>(
         &self,
         topic: impl Into<String> + std::fmt::Debug,
         n: usize,
     ) -> Result<Msg<T>, crate::Error>;
+    /// Retrieve a list of all current topics
     fn topics(&self) -> Result<Vec<String>, crate::Error>;
 }
 
