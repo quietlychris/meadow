@@ -312,7 +312,7 @@ macro_rules! topics_list {
             for i in 0..topics.len() {
                 nodes[i].publish(i).unwrap();
                 thread::sleep(Duration::from_micros(1_000));
-                assert_eq!(host.topics(), nodes[i].topics().unwrap().data);
+                assert_eq!(host.topics().unwrap(), nodes[i].topics().unwrap().data);
                 let t = if i == 0 {
                     vec![topics[i].to_string()]
                 } else {

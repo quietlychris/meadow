@@ -38,8 +38,8 @@ fn main() -> Result<(), meadow::Error> {
     let topics = host.topics();
     for topic in &topics {
         let db = host.db();
-        let tree = db.open_tree(topic.as_bytes()).unwrap();
-        println!("Topic {} has {} stored values", topic, tree.len());
+        // let tree = db.open_tree(topic.as_bytes()).unwrap();
+        // println!("Topic {} has {} stored values", topic, tree.len());
     }
 
     Ok(())

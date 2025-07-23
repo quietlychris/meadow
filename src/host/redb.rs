@@ -1,5 +1,5 @@
+use redb::TableHandle;
 use redb::{Database, ReadableTable, TableDefinition};
- use redb::TableHandle;
 
 use crate::host::GenericStore;
 use crate::msg::GenericMsg;
@@ -56,7 +56,6 @@ impl GenericStore for Arc<Database> {
 use crate::host::Store;
 
 impl Store for Arc<Database> {
-
     fn get<T: Message>(
         &self,
         topic: impl Into<String> + std::fmt::Debug,
@@ -96,11 +95,11 @@ impl Store for Arc<Database> {
     }
 
     fn topics(&self) -> Result<Vec<String>, crate::Error> {
-            // Check that the `Database` has the table (and only the table) that we created
+        // Check that the `Database` has the table (and only the table) that we created
         let read_txn = self.begin_read().unwrap();
         let tables = read_txn.list_tables().unwrap();
         let mut topics = Vec::new();
-        
+
         for table in tables {
             topics.push(table.name().to_string());
             // println!("Table: {}", table.name());

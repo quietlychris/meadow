@@ -83,9 +83,10 @@ fn main() -> Result<(), meadow::Error> {
     );
     let topics = host.topics();
     for topic in &topics {
-        let db = host.db();
-        let tree = db.open_tree(topic.as_bytes()).unwrap();
-        println!("Topic {} has {} stored values", topic, tree.len());
+        //let db = host.db();
+        // TO_DO: This should be implemented as a method in `Store` for getting statistics on topics
+        //let tree = db.open_tree(topic.as_bytes()).unwrap();
+        //println!("Topic {} has {} stored values", topic, tree.len());
     }
 
     Ok(())

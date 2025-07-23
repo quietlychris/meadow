@@ -47,6 +47,13 @@ pub struct Connection {
     name: String,
 }
 
+#[cfg(feature = "redb")]
+use redb::Database;
+#[cfg(feature = "redb")]
+pub type Storage = Arc<Database>;
+#[cfg(not(feature = "redb"))]
+pub type Storage = sled::Db;
+
 /// Central coordination process, which stores published data and responds to requests
 #[derive(Debug)]
 pub struct Host {
@@ -57,7 +64,7 @@ pub struct Host {
     pub(crate) task_listen_udp: Option<JoinHandle<()>>,
     #[cfg(feature = "quic")]
     pub(crate) task_listen_quic: Option<JoinHandle<()>>,
-    pub(crate) store: sled::Db,
+    pub(crate) store: Storage,
 }
 
 pub trait Store {
@@ -274,50 +281,13 @@ impl Host {
     }
 
     /// Get access to the underlying `sled::Db` storage engine
-    pub fn db(&self) -> Db {
+    pub fn db(&self) -> Storage {
         self.store.clone()
     }
 
     /// Access Host's Tokio `Runtime`
     pub fn runtime(&self) -> &Runtime {
         &self.runtime
-    }
-
-    /// Insert a raw `Msg<T>`
-    pub fn insert_msg<T: Message>(&mut self, msg: Msg<T>) -> Result<(), crate::Error> {
-        let generic: GenericMsg = msg.try_into()?;
-        let bytes = to_allocvec(&generic)?;
-
-        let tree = self.db().open_tree(generic.topic.as_bytes())?;
-        tree.insert(generic.timestamp.to_string().as_bytes(), bytes)?;
-
-        Ok(())
-    }
-
-    /// Insert a value using a default `Msg`
-    pub fn insert<T: Message>(
-        &mut self,
-        topic: impl Into<String>,
-        data: T,
-    ) -> Result<(), crate::Error> {
-        let msg = Msg::new(MsgType::Set, topic, data);
-        self.insert_msg(msg)?;
-        Ok(())
-    }
-
-    /// Retrieve last message on a given topic
-    pub fn get<T: Message>(&self, topic: impl Into<String>) -> Result<Msg<T>, crate::Error> {
-        let topic: String = topic.into();
-        let tree = self.db().open_tree(topic.as_bytes())?;
-
-        match tree.last()? {
-            Some((_timestamp, bytes)) => {
-                let generic: GenericMsg = postcard::from_bytes(&bytes)?;
-                let msg: Msg<T> = generic.try_into()?;
-                Ok(msg)
-            }
-            None => Err(Error::HostOperation(error::HostError::NonExistentTopic)),
-        }
     }
 
     /// Allow Host to begin accepting incoming connections
@@ -514,25 +484,6 @@ impl Host {
             }
             Err(_) => Err(crate::Error::LockFailure),
         }
-    }
-
-    /// Create a vector of topics based on UTF-8 Sled tree names
-    pub fn topics(&self) -> Vec<String> {
-        let db = self.store.clone();
-        let names = db.tree_names();
-        let mut strings = Vec::new();
-        for name in names {
-            if let Ok(name) = std::str::from_utf8(&name[..]) {
-                strings.push(name.to_string());
-            }
-        }
-        // Remove default sled tree name
-        let index = strings.iter().position(|x| *x == "__sled__default");
-        if let Some(n) = index {
-            strings.remove(n);
-        }
-        strings.sort();
-        strings
     }
 
     /// Print information about all Host connections
