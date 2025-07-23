@@ -6,10 +6,11 @@ pub use crate::error::host_operation::*;
 mod quic;
 #[cfg(feature = "quic")]
 pub use crate::error::quic::*;
-use crate::error::redb::RedbError;
 
 #[cfg(feature = "redb")]
 mod redb;
+#[cfg(feature = "redb")]
+use crate::error::redb::RedbError;
 
 use core::fmt::{Display, Formatter};
 use serde::*;
@@ -72,6 +73,7 @@ pub enum Error {
     NoNthValue,
     #[error("Undefined error")]
     Undefined,
+    #[cfg(feature = "redb")]
     #[error("`redb`-based Error")]
     Redb(#[from] RedbError),
 }
