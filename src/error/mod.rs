@@ -8,7 +8,7 @@ mod quic;
 pub use crate::error::quic::*;
 
 #[cfg(feature = "redb")]
-mod redb;
+pub(crate) mod redb;
 #[cfg(feature = "redb")]
 use crate::error::redb::RedbError;
 

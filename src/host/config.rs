@@ -1,9 +1,13 @@
 use crate::*;
 use chrono::Utc;
 
+#[cfg(feature = "redb")]
+use redb::Database;
 // Tokio for async
-use tokio::sync::Mutex; // as TokioMutex;
-                        // Multi-threading primitives
+use std::path::PathBuf;
+use tokio::sync::Mutex;
+// as TokioMutex;
+// Multi-threading primitives
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 // Misc other imports
@@ -13,10 +17,18 @@ use std::result::Result;
 #[doc(hidden)]
 pub use sled::Config as SledConfig;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StorageConfig {
+    path: String,
+}
+
 /// Host configuration structure
 #[derive(Debug)]
 pub struct HostConfig {
+    #[cfg(not(feature = "redb"))]
     pub sled_cfg: sled::Config,
+    #[cfg(feature = "redb")]
+    storage_cfg: StorageConfig,
     pub tcp_cfg: Option<host::TcpConfig>,
     pub udp_cfg: Option<host::UdpConfig>,
     #[cfg(feature = "quic")]
@@ -33,6 +45,14 @@ impl Default for HostConfig {
             date.date_naive(),
             date.time().format("%H:%M:%S")
         );
+
+        let storage_cfg = StorageConfig {
+            #[cfg(feature = "redb")]
+            path: format!("{}.redb", stamp),
+            #[cfg(not(feature = "redb"))]
+            path: format!("./logs/{}.sled", stamp),
+        };
+
         let sled_cfg = sled::Config::default()
             .path(format!("./logs/{}.sled", stamp))
             .temporary(true);
@@ -40,7 +60,9 @@ impl Default for HostConfig {
         #[cfg(feature = "quic")]
         {
             return HostConfig {
+                #[cfg(not(feature = "redb"))]
                 sled_cfg,
+                storage_cfg,
                 tcp_cfg: Some(host::TcpConfig::default("lo")),
                 udp_cfg: None,
                 quic_cfg: Some(host::QuicConfig::default()),
@@ -49,7 +71,7 @@ impl Default for HostConfig {
         #[cfg(not(feature = "quic"))]
         {
             return HostConfig {
-                sled_cfg,
+                storage_cfg,
                 tcp_cfg: Some(host::TcpConfig::default("lo")),
                 udp_cfg: Some(host::UdpConfig::default("lo")),
             };
@@ -58,6 +80,7 @@ impl Default for HostConfig {
 }
 
 impl HostConfig {
+    #[cfg(not(feature = "redb"))]
     /// Add the Sled database configuration to the Host configuration
     pub fn with_sled_config(mut self, sled_cfg: sled::Config) -> HostConfig {
         self.sled_cfg = sled_cfg;
@@ -91,7 +114,14 @@ impl HostConfig {
         };
 
         let connections = Arc::new(StdMutex::new(Vec::new()));
+        #[cfg(not(feature = "redb"))]
         let store: sled::Db = self.sled_cfg.open()?;
+        #[cfg(feature = "redb")]
+        let store = {
+            let db = Database::create(&self.storage_cfg.path)
+                .map_err(|e| crate::error::redb::RedbError::DatabaseError)?;
+            Arc::new(db)
+        };
 
         Ok(Host {
             cfg: self,

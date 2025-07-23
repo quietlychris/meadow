@@ -8,4 +8,6 @@ pub enum RedbError {
     // TO_DO: This should be transparent, but upstream is missing required traits
     #[error("Based on redb `TransactionError`")]
     TransactionError,
+    #[error("Baed on redb `DatabaseError`")]
+    DatabaseError,
 }
