@@ -13,7 +13,7 @@ use std::sync::Arc;
 // Misc other imports
 use chrono::Utc;
 
-use crate::host::GenericStore;
+use crate::host::{GenericStore, Storage};
 use crate::prelude::*;
 use std::convert::TryInto;
 
@@ -23,7 +23,7 @@ use std::convert::TryInto;
 pub async fn process_udp(
     rt_handle: Handle,
     socket: UdpSocket,
-    mut db: sled::Db,
+    mut db: Storage,
     max_buffer_size: usize,
 ) {
     let mut buf = vec![0u8; max_buffer_size];

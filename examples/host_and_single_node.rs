@@ -36,7 +36,7 @@ fn main() -> Result<(), meadow::Error> {
             .path(format!("./logs/{}", stamp))
             // If we wanted to keep the logs, we'd make this `false`
             .temporary(true);
-        let mut config = HostConfig::default().with_sled_config(sled_cfg);
+        let mut config = HostConfig::default();
         #[cfg(feature = "quic")]
         {
             config = config

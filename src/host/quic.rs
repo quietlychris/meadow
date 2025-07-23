@@ -2,7 +2,7 @@ use crate::error::{
     Error, HostOperation,
     Quic::{self, *},
 };
-use crate::host::GenericStore;
+use crate::host::{GenericStore, Storage};
 use crate::prelude::*;
 use futures_util::lock::Mutex;
 use futures_util::StreamExt;
@@ -73,7 +73,7 @@ pub fn read_certs_from_file(
     }
 }
 
-pub async fn process_quic(stream: (SendStream, RecvStream), mut db: sled::Db, buf: &mut [u8]) {
+pub async fn process_quic(stream: (SendStream, RecvStream), mut db: Storage, buf: &mut [u8]) {
     let (mut tx, mut rx) = stream;
 
     if let Ok(Some(n)) = rx.read(buf).await {

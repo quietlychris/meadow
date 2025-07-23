@@ -27,7 +27,6 @@ pub struct StorageConfig {
 pub struct HostConfig {
     #[cfg(not(feature = "redb"))]
     pub sled_cfg: sled::Config,
-    #[cfg(feature = "redb")]
     storage_cfg: StorageConfig,
     pub tcp_cfg: Option<host::TcpConfig>,
     pub udp_cfg: Option<host::UdpConfig>,
@@ -48,7 +47,7 @@ impl Default for HostConfig {
 
         let storage_cfg = StorageConfig {
             #[cfg(feature = "redb")]
-            path: format!("{}.redb", stamp),
+            path: format!("./logs/{}.redb", stamp),
             #[cfg(not(feature = "redb"))]
             path: format!("./logs/{}.sled", stamp),
         };
@@ -71,6 +70,8 @@ impl Default for HostConfig {
         #[cfg(not(feature = "quic"))]
         {
             return HostConfig {
+                #[cfg(not(feature = "redb"))]
+                sled_cfg,
                 storage_cfg,
                 tcp_cfg: Some(host::TcpConfig::default("lo")),
                 udp_cfg: Some(host::UdpConfig::default("lo")),

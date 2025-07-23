@@ -13,7 +13,7 @@ use std::sync::Arc;
 use chrono::Utc;
 
 use crate::error::{Error, HostOperation};
-use crate::host::GenericStore;
+use crate::host::{GenericStore, Storage};
 use crate::prelude::*;
 use std::convert::TryInto;
 use std::result::Result;
@@ -43,7 +43,7 @@ pub async fn handshake(
 /// Host process for handling incoming connections from Nodes
 #[tracing::instrument(skip_all)]
 #[inline]
-pub async fn process_tcp(stream: TcpStream, mut db: sled::Db, max_buffer_size: usize) {
+pub async fn process_tcp(stream: TcpStream, mut db: Storage, max_buffer_size: usize) {
     let mut buf = vec![0u8; max_buffer_size];
     loop {
         if let Err(e) = stream.readable().await {
@@ -149,7 +149,7 @@ pub async fn process_tcp(stream: TcpStream, mut db: sled::Db, max_buffer_size: u
     }
 }
 
-async fn start_subscription(msg: GenericMsg, db: sled::Db, stream: &TcpStream) {
+async fn start_subscription(msg: GenericMsg, db: Storage, stream: &TcpStream) {
     let specialized: Msg<Duration> = msg.clone().try_into().unwrap();
     let rate = specialized.data;
 
